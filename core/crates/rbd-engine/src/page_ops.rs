@@ -227,10 +227,10 @@ pub fn reorder_pages(
 
     let mut new_kids: Vec<Object> = Vec::with_capacity(new_order.len());
     for &p in new_order {
-        let page_id = pages
-            .get(&p)
-            .copied()
-            .ok_or(EngineError::PageOutOfRange(p))?;
+        let page_id = pages.get(&p).copied().ok_or(EngineError::PageOutOfRange {
+            index: p,
+            total_pages,
+        })?;
         new_kids.push(Object::Reference(page_id));
         if let Ok(page_dict) = doc.get_dictionary_mut(page_id) {
             page_dict.set("Parent", Object::Reference(pages_id));
