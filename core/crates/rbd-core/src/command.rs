@@ -1,5 +1,6 @@
 use crate::error::CoreError;
 use crate::session::DocumentSession;
+use rbd_engine::Annotation;
 
 /// An undoable/redoable document manipulation command.
 pub trait Command: Send + Sync {
@@ -11,6 +12,91 @@ pub trait Command: Send + Sync {
 
     /// Undo the effects of the command.
     fn undo(&mut self, session: &mut DocumentSession) -> Result<(), CoreError>;
+}
+
+/// Command to add an annotation to a document session.
+pub struct AddAnnotationCommand {
+    annotation: Annotation,
+}
+
+impl AddAnnotationCommand {
+    pub fn new(annotation: Annotation) -> Self {
+        Self { annotation }
+    }
+}
+
+impl Command for AddAnnotationCommand {
+    fn name(&self) -> &str {
+        "Add Annotation"
+    }
+
+    fn execute(&mut self, session: &mut DocumentSession) -> Result<(), CoreError> {
+        session.apply_add_annotation(self.annotation.clone());
+        Ok(())
+    }
+
+    fn undo(&mut self, session: &mut DocumentSession) -> Result<(), CoreError> {
+        session.apply_remove_annotation(self.annotation.id);
+        Ok(())
+    }
+}
+
+/// Command to remove an annotation from a document session.
+pub struct RemoveAnnotationCommand {
+    annotation: Annotation,
+}
+
+impl RemoveAnnotationCommand {
+    pub fn new(annotation: Annotation) -> Self {
+        Self { annotation }
+    }
+}
+
+impl Command for RemoveAnnotationCommand {
+    fn name(&self) -> &str {
+        "Remove Annotation"
+    }
+
+    fn execute(&mut self, session: &mut DocumentSession) -> Result<(), CoreError> {
+        session.apply_remove_annotation(self.annotation.id);
+        Ok(())
+    }
+
+    fn undo(&mut self, session: &mut DocumentSession) -> Result<(), CoreError> {
+        session.apply_add_annotation(self.annotation.clone());
+        Ok(())
+    }
+}
+
+/// Command to update an annotation in a document session.
+pub struct UpdateAnnotationCommand {
+    old_annotation: Annotation,
+    new_annotation: Annotation,
+}
+
+impl UpdateAnnotationCommand {
+    pub fn new(old_annotation: Annotation, new_annotation: Annotation) -> Self {
+        Self {
+            old_annotation,
+            new_annotation,
+        }
+    }
+}
+
+impl Command for UpdateAnnotationCommand {
+    fn name(&self) -> &str {
+        "Update Annotation"
+    }
+
+    fn execute(&mut self, session: &mut DocumentSession) -> Result<(), CoreError> {
+        session.apply_update_annotation(self.new_annotation.clone());
+        Ok(())
+    }
+
+    fn undo(&mut self, session: &mut DocumentSession) -> Result<(), CoreError> {
+        session.apply_update_annotation(self.old_annotation.clone());
+        Ok(())
+    }
 }
 
 /// A standard undo/redo history stack for document editing operations.

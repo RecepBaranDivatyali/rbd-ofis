@@ -187,3 +187,211 @@ pub fn merge(input_paths: &[&Path], output_path: &Path) -> Result<(), EngineErro
     merged.save(output_path)?;
     Ok(())
 }
+
+/// Reorder pages in the PDF document according to `new_order` (1-based page indices).
+/// For example, `&[3, 1, 2]` puts page 3 first, then page 1, then page 2.
+pub fn reorder_pages(
+    input_path: &Path,
+    output_path: &Path,
+    new_order: &[u32],
+) -> Result<(), EngineError> {
+    if new_order.is_empty() {
+        return Err(EngineError::InvalidParameter(
+            "Page order sequence cannot be empty".into(),
+        ));
+    }
+
+    let mut doc = Document::load(input_path)?;
+    let pages = doc.get_pages();
+    let total_pages = pages.len() as u32;
+
+    for &page_num in new_order {
+        if page_num < 1 || page_num > total_pages {
+            return Err(EngineError::InvalidParameter(format!(
+                "Page number {page_num} out of bounds (1..={total_pages})"
+            )));
+        }
+    }
+
+    let catalog_id = doc
+        .trailer
+        .get(b"Root")
+        .and_then(|o| o.as_reference())
+        .map_err(|_| EngineError::Corrupt("Missing catalog root".into()))?;
+
+    let pages_id = doc
+        .get_dictionary(catalog_id)
+        .and_then(|dict| dict.get(b"Pages"))
+        .and_then(|o| o.as_reference())
+        .map_err(|_| EngineError::Corrupt("Missing Pages root in catalog".into()))?;
+
+    let mut new_kids: Vec<Object> = Vec::with_capacity(new_order.len());
+    for &p in new_order {
+        let page_id = pages
+            .get(&p)
+            .copied()
+            .ok_or(EngineError::PageOutOfRange(p))?;
+        new_kids.push(Object::Reference(page_id));
+        if let Ok(page_dict) = doc.get_dictionary_mut(page_id) {
+            page_dict.set("Parent", Object::Reference(pages_id));
+        }
+    }
+
+    let pages_dict = doc.get_dictionary_mut(pages_id)?;
+    pages_dict.set("Count", Object::Integer(new_order.len() as i64));
+    pages_dict.set("Kids", Object::Array(new_kids));
+
+    doc.save(output_path)?;
+    Ok(())
+}
+
+/// Crop the specified 1-based `page_num` to `media_box: [x0, y0, x1, y1]`.
+pub fn crop_page(
+    input_path: &Path,
+    output_path: &Path,
+    page_num: u32,
+    media_box: [f32; 4],
+) -> Result<(), EngineError> {
+    if page_num < 1 {
+        return Err(EngineError::InvalidParameter(format!(
+            "Invalid page number: {page_num} (pages are 1-based)"
+        )));
+    }
+
+    let mut doc = Document::load(input_path)?;
+    let pages = doc.get_pages();
+    let total_pages = pages.len() as u32;
+
+    if page_num > total_pages {
+        return Err(EngineError::InvalidParameter(format!(
+            "Page number {page_num} exceeds total pages {total_pages}"
+        )));
+    }
+
+    let page_id = pages[&page_num];
+    let page_dict = doc.get_dictionary_mut(page_id)?;
+
+    let box_arr = Object::Array(vec![
+        Object::Real(media_box[0]),
+        Object::Real(media_box[1]),
+        Object::Real(media_box[2]),
+        Object::Real(media_box[3]),
+    ]);
+    page_dict.set("MediaBox", box_arr.clone());
+    page_dict.set("CropBox", box_arr);
+
+    doc.save(output_path)?;
+    Ok(())
+}
+
+/// Insert a blank page with dimensions `width_pt` x `height_pt` after 1-based `after_page`.
+/// Use `after_page = 0` to prepend a blank page before page 1.
+pub fn insert_blank_page(
+    input_path: &Path,
+    output_path: &Path,
+    after_page: u32,
+    width_pt: f32,
+    height_pt: f32,
+) -> Result<(), EngineError> {
+    if width_pt <= 0.0 || height_pt <= 0.0 {
+        return Err(EngineError::InvalidParameter(format!(
+            "Invalid page dimensions: {width_pt} x {height_pt} (must be positive)"
+        )));
+    }
+
+    let mut doc = Document::load(input_path)?;
+    let pages = doc.get_pages();
+    let total_pages = pages.len() as u32;
+
+    if after_page > total_pages {
+        return Err(EngineError::InvalidParameter(format!(
+            "after_page {after_page} exceeds total pages {total_pages}"
+        )));
+    }
+
+    let catalog_id = doc
+        .trailer
+        .get(b"Root")
+        .and_then(|o| o.as_reference())
+        .map_err(|_| EngineError::Corrupt("Missing catalog root".into()))?;
+
+    let pages_id = doc
+        .get_dictionary(catalog_id)
+        .and_then(|dict| dict.get(b"Pages"))
+        .and_then(|o| o.as_reference())
+        .map_err(|_| EngineError::Corrupt("Missing Pages root in catalog".into()))?;
+
+    // Create a new blank Page object
+    let mut blank_page = Dictionary::new();
+    blank_page.set("Type", Object::Name(b"Page".to_vec()));
+    blank_page.set("Parent", Object::Reference(pages_id));
+    blank_page.set(
+        "MediaBox",
+        Object::Array(vec![
+            Object::Integer(0),
+            Object::Integer(0),
+            Object::Real(width_pt),
+            Object::Real(height_pt),
+        ]),
+    );
+
+    let mut resources = Dictionary::new();
+    resources.set(
+        "ProcSet",
+        Object::Array(vec![Object::Name(b"PDF".to_vec())]),
+    );
+    blank_page.set("Resources", Object::Dictionary(resources));
+
+    let new_page_id = doc.add_object(Object::Dictionary(blank_page));
+
+    // Collect existing kids and insert at appropriate index
+    let mut current_kids = Vec::new();
+    for p in 1..=total_pages {
+        current_kids.push(Object::Reference(pages[&p]));
+    }
+
+    let insert_pos = after_page as usize;
+    current_kids.insert(insert_pos, Object::Reference(new_page_id));
+
+    let pages_dict = doc.get_dictionary_mut(pages_id)?;
+    pages_dict.set("Count", Object::Integer(current_kids.len() as i64));
+    pages_dict.set("Kids", Object::Array(current_kids));
+
+    doc.save(output_path)?;
+    Ok(())
+}
+
+/// Decrypt a password-protected PDF document and write the unencrypted PDF to `output_path`.
+pub fn decrypt_pdf(
+    input_path: &Path,
+    output_path: &Path,
+    password: &str,
+) -> Result<(), EngineError> {
+    if !input_path.exists() {
+        return Err(EngineError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Input file not found: {}", input_path.display()),
+        )));
+    }
+
+    // Try PDFium first (handles full standard Adobe AES/RC4 encryption)
+    if let Ok(pdfium) = crate::backend::pdfium::get_or_init_pdfium() {
+        let doc = pdfium
+            .load_pdf_from_file(input_path, Some(password))
+            .map_err(|e| EngineError::Encrypted(format!("Decryption failed: {e:?}")))?;
+        doc.save_to_file(output_path)
+            .map_err(|e| EngineError::Internal(format!("Failed to save decrypted PDF: {e:?}")))?;
+        return Ok(());
+    }
+
+    // Fallback: lopdf
+    let mut doc = Document::load(input_path)?;
+    if !doc.is_encrypted() {
+        doc.save(output_path)?;
+        return Ok(());
+    }
+
+    Err(EngineError::Encrypted(
+        "PDF is encrypted; PDFium backend is required for decryption".into(),
+    ))
+}

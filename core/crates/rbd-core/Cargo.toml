@@ -10,3 +10,4 @@ rbd-engine = { path = "../rbd-engine" }
 thiserror = "2.0"
 lru = "0.18"
 parking_lot = "0.12"
+serde = { version = "1.0", features = ["derive"] }

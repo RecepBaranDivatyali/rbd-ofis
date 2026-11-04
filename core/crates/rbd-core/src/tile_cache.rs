@@ -50,6 +50,25 @@ impl TileCache {
         guard.clear();
     }
 
+    /// Invalidate all cached tiles for the specified page of a document.
+    pub fn invalidate_page(&self, doc_id: u64, page: u32) {
+        let mut guard = self.cache.lock();
+        let keys_to_remove: Vec<TileKey> = guard
+            .iter()
+            .filter_map(|(k, _)| {
+                if k.doc_id == doc_id && k.page == page {
+                    Some(*k)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for k in keys_to_remove {
+            guard.pop(&k);
+        }
+    }
+
     /// Return the current number of cached tiles.
     pub fn len(&self) -> usize {
         let guard = self.cache.lock();

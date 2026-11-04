@@ -370,6 +370,90 @@ pub extern "C" fn rbd_version_string() -> *const c_char {
     VERSION_C_STR.as_ptr() as *const c_char
 }
 
+/// Extract text from a page in the document as a UTF-8 null-terminated string.
+/// The returned string must be freed using `rbd_free_string`.
+///
+/// # Safety
+/// `doc` must be a valid document handle and `out_utf8_ptr` must be a valid, writable pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_extract_page_text(
+    doc: *mut c_void,
+    page_index: u32,
+    out_utf8_ptr: *mut *mut c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_utf8_ptr.is_null() {
+            set_last_error("Null pointer passed to rbd_document_extract_page_text");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        let text = doc_handle
+            .session
+            .extract_text(page_index)
+            .map_err(|e| map_core_error(&e))?;
+
+        let clean = text.replace('\0', " ");
+        let cs = CString::new(clean).map_err(|_| {
+            set_last_error("Failed to convert page text to CString");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        unsafe {
+            *out_utf8_ptr = cs.into_raw();
+        }
+        Ok(())
+    }))
+}
+
+/// Search for query text across the document and return hits serialized as a JSON string.
+/// The returned JSON string must be freed using `rbd_free_string`.
+///
+/// # Safety
+/// Pointers must be valid, and `out_json_utf8_ptr` must be a valid, writable pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_search_json(
+    doc: *mut c_void,
+    query_utf8: *const c_char,
+    case_sensitive: i32,
+    out_json_utf8_ptr: *mut *mut c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || query_utf8.is_null() || out_json_utf8_ptr.is_null() {
+            set_last_error("Null pointer passed to rbd_document_search_json");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let query = unsafe { CStr::from_ptr(query_utf8) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in query string");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        let hits = doc_handle
+            .session
+            .search_document(query, case_sensitive != 0)
+            .map_err(|e| map_core_error(&e))?;
+
+        let json = serde_json::to_string(&hits).map_err(|e| {
+            set_last_error(&format!("JSON serialization failed: {e}"));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        let cs = CString::new(json).map_err(|_| {
+            set_last_error("Failed to convert search JSON to CString");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        unsafe {
+            *out_json_utf8_ptr = cs.into_raw();
+        }
+        Ok(())
+    }))
+}
+
 // ---------------------------------------------------------------------------
 // Existing Legacy RbdSession Entrypoints (retained for backward compatibility)
 // ---------------------------------------------------------------------------
@@ -762,6 +846,49 @@ mod tests {
 
             let err_ptr = rbd_get_last_error();
             assert!(!err_ptr.is_null());
+
+            rbd_document_free(doc);
+            rbd_engine_free(engine);
+        }
+    }
+
+    #[test]
+    fn test_ffi_extract_text_and_search_json() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sample_pdf =
+            manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        assert!(sample_pdf.exists());
+
+        unsafe {
+            let mut engine = std::ptr::null_mut();
+            assert_eq!(rbd_engine_init(&mut engine), RBD_OK);
+
+            let path_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+            let mut doc = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_open_file(engine, path_c.as_ptr(), &mut doc),
+                RBD_OK
+            );
+
+            // 1. Extract text
+            let mut text_ptr: *mut c_char = std::ptr::null_mut();
+            let res = rbd_document_extract_page_text(doc, 0, &mut text_ptr);
+            assert_eq!(res, RBD_OK);
+            assert!(!text_ptr.is_null());
+            let text = CStr::from_ptr(text_ptr).to_str().unwrap();
+            assert!(text.contains("Hello, world!"));
+            rbd_free_string(text_ptr);
+
+            // 2. Search JSON
+            let query_c = CString::new("Hello").unwrap();
+            let mut json_ptr: *mut c_char = std::ptr::null_mut();
+            let res = rbd_document_search_json(doc, query_c.as_ptr(), 0, &mut json_ptr);
+            assert_eq!(res, RBD_OK);
+            assert!(!json_ptr.is_null());
+            let json = CStr::from_ptr(json_ptr).to_str().unwrap();
+            assert!(json.contains("Hello"));
+            assert!(json.contains("rects"));
+            rbd_free_string(json_ptr);
 
             rbd_document_free(doc);
             rbd_engine_free(engine);

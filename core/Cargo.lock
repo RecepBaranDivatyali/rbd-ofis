@@ -1223,6 +1223,7 @@ dependencies = [
  "lru",
  "parking_lot",
  "rbd-engine",
+ "serde",
  "thiserror",
 ]
 
@@ -1235,6 +1236,7 @@ dependencies = [
  "image",
  "lopdf",
  "pdfium-render",
+ "serde",
  "thiserror",
 ]
 
@@ -1244,6 +1246,7 @@ version = "0.1.0"
 dependencies = [
  "rbd-core",
  "rbd-engine",
+ "serde_json",
 ]
 
 [[package]]

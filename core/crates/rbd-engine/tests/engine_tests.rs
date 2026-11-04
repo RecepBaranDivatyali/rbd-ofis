@@ -201,3 +201,170 @@ fn test_encrypted_pdf_handling() {
         "Opening encrypted PDF without password must fail"
     );
 }
+
+#[test]
+fn test_turkish_aware_search_with_bounding_boxes() {
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-vikipedi-kutuphane.pdf");
+    assert!(pdf_path.exists(), "pdf file must exist at {:?}", pdf_path);
+
+    let doc = engine
+        .open_from_file(&pdf_path, None)
+        .expect("Open turkish pdf");
+
+    // Search query in lowercase: "kütüphane"
+    let hits_lower = doc
+        .search_document("kütüphane", false)
+        .expect("Search lowercase");
+    assert!(
+        !hits_lower.is_empty(),
+        "Should find matches for 'kütüphane'"
+    );
+
+    // Search query in uppercase: "KÜTÜPHANE"
+    let hits_upper = doc
+        .search_document("KÜTÜPHANE", false)
+        .expect("Search uppercase");
+    assert_eq!(
+        hits_lower.len(),
+        hits_upper.len(),
+        "Case-insensitive search should return same match count"
+    );
+
+    // Verify first hit has valid bounding box and snippet
+    let first = &hits_lower[0];
+    assert!(!first.snippet.is_empty(), "Snippet should not be empty");
+    assert!(!first.rects.is_empty(), "Match should have bounding rects");
+    assert!(first.rects[0].width() > 0.0, "Bounding box width > 0");
+    assert!(first.rects[0].height() > 0.0, "Bounding box height > 0");
+
+    // Pure-Rust Hayro search fallback
+    let hayro_engine = create_engine(EngineType::PureRust).expect("Hayro engine");
+    let hayro_doc = hayro_engine
+        .open_from_file(&pdf_path, None)
+        .expect("Open with Hayro");
+    let hayro_hits = hayro_doc
+        .search_document("kütüphane", false)
+        .expect("Hayro search");
+    assert!(!hayro_hits.is_empty(), "Hayro should also find hits");
+    assert!(
+        !hayro_hits[0].rects.is_empty(),
+        "Hayro should provide fallback rect"
+    );
+}
+
+#[test]
+fn test_annotation_pdf_persistence_roundtrip() {
+    use rbd_engine::annotation::{
+        Annotation, AnnotationKind, list_annotations_from_pdf, save_annotations_to_pdf,
+    };
+    use rbd_engine::search::PdfRect;
+
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists(), "pdf file must exist");
+
+    let temp_dir = std::env::temp_dir();
+    let out_path = temp_dir.join(format!("test_annot_{}.pdf", std::process::id()));
+
+    let annotations = vec![
+        Annotation::new(
+            1,
+            0,
+            AnnotationKind::Highlight,
+            PdfRect::new(50.0, 100.0, 200.0, 120.0),
+            [255, 235, 59, 200],
+            "Important note".into(),
+        ),
+        Annotation::new(
+            2,
+            0,
+            AnnotationKind::StickyNote,
+            PdfRect::new(220.0, 100.0, 240.0, 120.0),
+            [33, 150, 243, 255],
+            "Check this paragraph".into(),
+        ),
+        Annotation::new(
+            3,
+            0,
+            AnnotationKind::Rectangle,
+            PdfRect::new(10.0, 10.0, 80.0, 50.0),
+            [76, 175, 80, 255],
+            "Green boundary box".into(),
+        ),
+    ];
+
+    save_annotations_to_pdf(&in_path, &out_path, &annotations).expect("Save annotations to PDF");
+    assert!(out_path.exists(), "Saved PDF must exist");
+
+    let loaded = list_annotations_from_pdf(&out_path, 0).expect("Load annotations from saved PDF");
+    assert_eq!(loaded.len(), 3, "All 3 annotations should be recovered");
+
+    assert!(
+        loaded
+            .iter()
+            .any(|a| matches!(a.kind, AnnotationKind::Highlight) && a.contents == "Important note")
+    );
+    assert!(
+        loaded
+            .iter()
+            .any(|a| matches!(a.kind, AnnotationKind::StickyNote)
+                && a.contents == "Check this paragraph")
+    );
+    assert!(
+        loaded
+            .iter()
+            .any(|a| matches!(a.kind, AnnotationKind::Rectangle))
+    );
+
+    let _ = std::fs::remove_file(&out_path);
+}
+
+#[test]
+fn test_page_ops_reorder_crop_insert_blank() {
+    use rbd_engine::page_ops::{crop_page, insert_blank_page, reorder_pages};
+
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists(), "pdf file must exist");
+
+    let temp_dir = std::env::temp_dir();
+    let out_p1 = temp_dir.join(format!("test_blank_{}.pdf", std::process::id()));
+    let out_p2 = temp_dir.join(format!("test_crop_{}.pdf", std::process::id()));
+    let out_p3 = temp_dir.join(format!("test_reorder_{}.pdf", std::process::id()));
+
+    // 1. Insert blank page (1 page -> 2 pages)
+    insert_blank_page(&in_path, &out_p1, 1, 595.0, 842.0).expect("Insert blank page");
+    let doc1 = lopdf::Document::load(&out_p1).expect("Load doc1");
+    assert_eq!(
+        doc1.get_pages().len(),
+        2,
+        "Should have 2 pages after insert"
+    );
+
+    // 2. Crop page 1
+    crop_page(&out_p1, &out_p2, 1, [10.0, 20.0, 150.0, 180.0]).expect("Crop page");
+    let doc2 = lopdf::Document::load(&out_p2).expect("Load doc2");
+    assert_eq!(doc2.get_pages().len(), 2);
+
+    // 3. Reorder pages: page 2, then page 1
+    reorder_pages(&out_p2, &out_p3, &[2, 1]).expect("Reorder pages");
+    let doc3 = lopdf::Document::load(&out_p3).expect("Load doc3");
+    assert_eq!(doc3.get_pages().len(), 2);
+
+    let _ = std::fs::remove_file(&out_p1);
+    let _ = std::fs::remove_file(&out_p2);
+    let _ = std::fs::remove_file(&out_p3);
+}
+
+#[test]
+fn test_decrypt_pdf_error_handling() {
+    use rbd_engine::page_ops::decrypt_pdf;
+
+    let enc_path = get_corpus_dir().join("pdf-encrypted/pdfium-encrypted.pdf");
+    assert!(enc_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let out_path = temp_dir.join(format!("test_dec_{}.pdf", std::process::id()));
+
+    let res = decrypt_pdf(&enc_path, &out_path, "wrong_password_123");
+    assert!(res.is_err(), "Decryption with invalid password must fail");
+}

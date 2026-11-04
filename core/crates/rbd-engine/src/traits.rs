@@ -1,4 +1,6 @@
+pub use crate::annotation::Annotation;
 pub use crate::error::EngineError;
+pub use crate::search::{PdfRect, SearchHit};
 use std::path::Path;
 
 /// Pixel format for rendered tile buffers.
@@ -69,6 +71,22 @@ pub trait PdfDocument: Send + Sync {
 
     /// Extract document-level metadata (title, author, etc.).
     fn metadata(&self) -> Result<DocumentMetadata, EngineError>;
+
+    /// Search for query text across all pages in the document.
+    fn search_document(
+        &self,
+        query: &str,
+        case_sensitive: bool,
+    ) -> Result<Vec<SearchHit>, EngineError> {
+        let count = self.page_count()?;
+        let mut all_hits = Vec::new();
+        for i in 0..count {
+            let page = self.page(i)?;
+            let hits = page.search_text(i, query, case_sensitive)?;
+            all_hits.extend(hits);
+        }
+        Ok(all_hits)
+    }
 }
 
 /// Abstract single PDF page interface.
@@ -132,4 +150,15 @@ pub trait PdfPage: Send + Sync {
 
     /// Extract page text as a UTF-8 string, preserving Turkish characters (`İıŞşĞğÇçÖöÜü`).
     fn extract_text(&self) -> Result<String, EngineError>;
+
+    /// Search for `query` within this page, returning matches with tight bounding boxes.
+    fn search_text(
+        &self,
+        page_index: u32,
+        query: &str,
+        case_sensitive: bool,
+    ) -> Result<Vec<SearchHit>, EngineError>;
+
+    /// List existing annotations present on this page.
+    fn list_annotations(&self) -> Result<Vec<Annotation>, EngineError>;
 }

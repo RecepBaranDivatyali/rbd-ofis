@@ -1,6 +1,9 @@
+use crate::command::{
+    AddAnnotationCommand, Command, CommandStack, RemoveAnnotationCommand, UpdateAnnotationCommand,
+};
 use crate::error::CoreError;
 use crate::tile_cache::{TileCache, TileKey};
-use rbd_engine::{DocumentMetadata, PdfDocument, PdfEngine, PixelFormat};
+use rbd_engine::{Annotation, DocumentMetadata, PdfDocument, PdfEngine, PixelFormat, SearchHit};
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -12,6 +15,8 @@ pub struct DocumentSession {
     doc_id: u64,
     doc: Box<dyn PdfDocument>,
     tile_cache: Arc<TileCache>,
+    annotations: Vec<Annotation>,
+    command_stack: CommandStack,
 }
 
 impl DocumentSession {
@@ -26,10 +31,23 @@ impl DocumentSession {
         let doc_id = SESSION_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
         let cache = tile_cache.unwrap_or_else(|| Arc::new(TileCache::default()));
 
+        let mut annotations = Vec::new();
+        if let Ok(count) = doc.page_count() {
+            for p in 0..count {
+                if let Ok(page_obj) = doc.page(p)
+                    && let Ok(page_annots) = page_obj.list_annotations()
+                {
+                    annotations.extend(page_annots);
+                }
+            }
+        }
+
         Ok(Self {
             doc_id,
             doc,
             tile_cache: cache,
+            annotations,
+            command_stack: CommandStack::default(),
         })
     }
 
@@ -44,10 +62,23 @@ impl DocumentSession {
         let doc_id = SESSION_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
         let cache = tile_cache.unwrap_or_else(|| Arc::new(TileCache::default()));
 
+        let mut annotations = Vec::new();
+        if let Ok(count) = doc.page_count() {
+            for p in 0..count {
+                if let Ok(page_obj) = doc.page(p)
+                    && let Ok(page_annots) = page_obj.list_annotations()
+                {
+                    annotations.extend(page_annots);
+                }
+            }
+        }
+
         Ok(Self {
             doc_id,
             doc,
             tile_cache: cache,
+            annotations,
+            command_stack: CommandStack::default(),
         })
     }
 
@@ -200,5 +231,138 @@ impl DocumentSession {
             (tile_w as usize) * 4,
             out_buf,
         )
+    }
+
+    /// Search for text across all pages of the document, returning hits with bounding boxes.
+    pub fn search_document(
+        &self,
+        query: &str,
+        case_sensitive: bool,
+    ) -> Result<Vec<SearchHit>, CoreError> {
+        let hits = self.doc.search_document(query, case_sensitive)?;
+        Ok(hits)
+    }
+
+    /// Access all annotations currently active in this session.
+    pub fn annotations(&self) -> &[Annotation] {
+        &self.annotations
+    }
+
+    /// Access all annotations on a specific 0-based page.
+    pub fn annotations_for_page(&self, page: u32) -> Vec<Annotation> {
+        self.annotations
+            .iter()
+            .filter(|a| a.page_index == page)
+            .cloned()
+            .collect()
+    }
+
+    /// Internal forward-action: add or replace an annotation and invalidate page tiles in TileCache.
+    pub fn apply_add_annotation(&mut self, annot: Annotation) {
+        let page = annot.page_index;
+        self.annotations.retain(|a| a.id != annot.id);
+        self.annotations.push(annot);
+        self.tile_cache.invalidate_page(self.doc_id, page);
+    }
+
+    /// Internal forward/undo-action: remove an annotation by ID and invalidate page tiles in TileCache.
+    pub fn apply_remove_annotation(&mut self, id: u64) -> Option<Annotation> {
+        if let Some(pos) = self.annotations.iter().position(|a| a.id == id) {
+            let removed = self.annotations.remove(pos);
+            self.tile_cache
+                .invalidate_page(self.doc_id, removed.page_index);
+            Some(removed)
+        } else {
+            None
+        }
+    }
+
+    /// Internal forward/undo-action: update an existing annotation and invalidate page tiles in TileCache.
+    pub fn apply_update_annotation(&mut self, annot: Annotation) -> Option<Annotation> {
+        let page = annot.page_index;
+        if let Some(pos) = self.annotations.iter().position(|a| a.id == annot.id) {
+            let old = std::mem::replace(&mut self.annotations[pos], annot);
+            self.tile_cache.invalidate_page(self.doc_id, page);
+            Some(old)
+        } else {
+            self.apply_add_annotation(annot);
+            None
+        }
+    }
+
+    /// Execute a command through the undo/redo stack.
+    pub fn execute_command(&mut self, command: Box<dyn Command>) -> Result<(), CoreError> {
+        let mut stack = std::mem::take(&mut self.command_stack);
+        let res = stack.execute(command, self);
+        self.command_stack = stack;
+        res
+    }
+
+    /// Undo the top command on the history stack.
+    pub fn undo(&mut self) -> Result<bool, CoreError> {
+        let mut stack = std::mem::take(&mut self.command_stack);
+        let res = stack.undo(self);
+        self.command_stack = stack;
+        res
+    }
+
+    /// Redo the top command on the redo stack.
+    pub fn redo(&mut self) -> Result<bool, CoreError> {
+        let mut stack = std::mem::take(&mut self.command_stack);
+        let res = stack.redo(self);
+        self.command_stack = stack;
+        res
+    }
+
+    /// Return whether an undo action is available.
+    pub fn can_undo(&self) -> bool {
+        self.command_stack.can_undo()
+    }
+
+    /// Return whether a redo action is available.
+    pub fn can_redo(&self) -> bool {
+        self.command_stack.can_redo()
+    }
+
+    /// Add an annotation with undo/redo support.
+    pub fn add_annotation_undoable(&mut self, annot: Annotation) -> Result<(), CoreError> {
+        let cmd = Box::new(AddAnnotationCommand::new(annot));
+        self.execute_command(cmd)
+    }
+
+    /// Remove an annotation by ID with undo/redo support.
+    pub fn remove_annotation_undoable(&mut self, id: u64) -> Result<(), CoreError> {
+        let annot = self
+            .annotations
+            .iter()
+            .find(|a| a.id == id)
+            .cloned()
+            .ok_or_else(|| CoreError::Internal(format!("Annotation with ID {id} not found")))?;
+        let cmd = Box::new(RemoveAnnotationCommand::new(annot));
+        self.execute_command(cmd)
+    }
+
+    /// Update an annotation with undo/redo support.
+    pub fn update_annotation_undoable(&mut self, annot: Annotation) -> Result<(), CoreError> {
+        let old = self
+            .annotations
+            .iter()
+            .find(|a| a.id == annot.id)
+            .cloned()
+            .ok_or_else(|| {
+                CoreError::Internal(format!("Annotation with ID {} not found", annot.id))
+            })?;
+        let cmd = Box::new(UpdateAnnotationCommand::new(old, annot));
+        self.execute_command(cmd)
+    }
+
+    /// Save all current session annotations to a PDF file at `output_path`.
+    pub fn save_annotations_to_pdf(
+        &self,
+        input_path: &Path,
+        output_path: &Path,
+    ) -> Result<(), CoreError> {
+        rbd_engine::save_annotations_to_pdf(input_path, output_path, &self.annotations)?;
+        Ok(())
     }
 }

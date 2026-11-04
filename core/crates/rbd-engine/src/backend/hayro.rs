@@ -1,4 +1,6 @@
+use crate::annotation::Annotation;
 use crate::error::EngineError;
+use crate::search::{PdfRect, SearchHit};
 use crate::traits::{DocumentMetadata, PdfDocument, PdfEngine, PdfPage};
 use hayro::hayro_interpret::InterpreterSettings;
 use hayro::hayro_interpret::util::TransformExt;
@@ -280,6 +282,43 @@ impl PdfPage for HayroPageWrapper {
         }
 
         Ok(String::new())
+    }
+
+    fn search_text(
+        &self,
+        page_index: u32,
+        query: &str,
+        case_sensitive: bool,
+    ) -> Result<Vec<SearchHit>, EngineError> {
+        let text = self.extract_text()?;
+        let orig_chars: Vec<char> = text.chars().collect();
+        let match_spans = crate::search::find_matches(&text, query, case_sensitive);
+
+        let (page_w, page_h) = self.dimensions_points().unwrap_or((595.0, 842.0));
+        let fallback_rect = PdfRect::new(0.0, 0.0, page_w, page_h);
+
+        let mut hits = Vec::with_capacity(match_spans.len());
+        for span in match_spans {
+            let match_text: String = orig_chars[span.start..span.end].iter().collect();
+            let snippet = crate::search::build_snippet(&orig_chars, span.start, span.end, 30);
+
+            hits.push(SearchHit {
+                page_index,
+                match_text,
+                snippet,
+                rects: vec![fallback_rect],
+            });
+        }
+
+        Ok(hits)
+    }
+
+    fn list_annotations(&self) -> Result<Vec<Annotation>, EngineError> {
+        if let Some(ref doc) = self.lopdf_doc {
+            crate::annotation::list_annotations_from_doc(doc, self.page_index)
+        } else {
+            Ok(Vec::new())
+        }
     }
 }
 

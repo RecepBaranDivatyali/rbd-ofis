@@ -11,3 +11,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 rbd-core = { path = "../rbd-core" }
 rbd-engine = { path = "../rbd-engine" }
+serde_json = "1.0"

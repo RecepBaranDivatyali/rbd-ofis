@@ -1,7 +1,10 @@
 use clap::{Args, Parser, Subcommand};
 use image::ExtendedColorType;
-use rbd_core::{DocumentSession, merge, rotate, split};
-use rbd_engine::{PdfEngine, create_default_engine};
+use rbd_core::{
+    DocumentSession, crop_page, decrypt_pdf, delete_pages, insert_blank_page, merge, reorder_pages,
+    rotate, split,
+};
+use rbd_engine::{Annotation, AnnotationKind, PdfEngine, PdfRect, create_default_engine};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -22,6 +25,20 @@ enum Commands {
     Render(RenderArgs),
     /// Extract text from one or all pages
     Text(TextArgs),
+    /// Search document text with bounding boxes
+    Search(SearchArgs),
+    /// Add an annotation to a PDF page and save
+    Annotate(AnnotateArgs),
+    /// Reorder pages in a PDF document
+    Reorder(ReorderArgs),
+    /// Crop a page to specific bounding box coordinates
+    Crop(CropArgs),
+    /// Insert a blank page into a PDF document
+    InsertBlank(InsertBlankArgs),
+    /// Delete specified pages from PDF document
+    DeletePages(DeletePagesArgs),
+    /// Decrypt a password-protected PDF document
+    Decrypt(DecryptArgs),
     /// Merge multiple PDF documents into one
     Merge(MergeArgs),
     /// Split a PDF by page range
@@ -30,6 +47,107 @@ enum Commands {
     Rotate(RotateArgs),
     /// Benchmark cold open, first-page render, and 256x256 tile rendering latency
     Bench(BenchArgs),
+}
+
+#[derive(Args)]
+struct SearchArgs {
+    /// Path to the PDF file
+    file: PathBuf,
+    /// Search query text
+    query: String,
+    /// Case-sensitive search
+    #[arg(long)]
+    case_sensitive: bool,
+}
+
+#[derive(Args)]
+struct AnnotateArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// 1-based page number
+    #[arg(short, long)]
+    page: u32,
+    /// Annotation kind: highlight, note, rect, ink, freetext
+    #[arg(short, long)]
+    kind: String,
+    /// Bounding rectangle "x0,y0,x1,y1" in points
+    #[arg(short, long)]
+    rect: String,
+    /// Text contents or note body
+    #[arg(short, long)]
+    text: Option<String>,
+}
+
+#[derive(Args)]
+struct ReorderArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Comma-separated 1-based page order, e.g. "1,3,2"
+    #[arg(long)]
+    order: String,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct CropArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// 1-based page number
+    #[arg(short, long)]
+    page: u32,
+    /// Bounding box "x0,y0,x1,y1" in points
+    #[arg(long = "box")]
+    r#box: String,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct InsertBlankArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Insert after 1-based page number (0 to prepend before page 1)
+    #[arg(short, long)]
+    after: u32,
+    /// Page width in points (default: 595.0 / A4)
+    #[arg(long, default_value_t = 595.0)]
+    width: f32,
+    /// Page height in points (default: 842.0 / A4)
+    #[arg(long, default_value_t = 842.0)]
+    height: f32,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct DeletePagesArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Comma-separated 1-based page numbers to delete, e.g. "2,4"
+    #[arg(short, long)]
+    pages: String,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct DecryptArgs {
+    /// Input encrypted PDF file path
+    input: PathBuf,
+    /// Document password
+    #[arg(short, long)]
+    password: String,
+    /// Output decrypted PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
 }
 
 #[derive(Args)]
@@ -132,12 +250,184 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Info(args) => handle_info(&args.file, engine.as_ref())?,
         Commands::Render(args) => handle_render(&args, engine.as_ref())?,
         Commands::Text(args) => handle_text(&args, engine.as_ref())?,
+        Commands::Search(args) => handle_search(&args, engine.as_ref())?,
+        Commands::Annotate(args) => handle_annotate(&args, engine.as_ref())?,
+        Commands::Reorder(args) => handle_reorder(&args)?,
+        Commands::Crop(args) => handle_crop(&args)?,
+        Commands::InsertBlank(args) => handle_insert_blank(&args)?,
+        Commands::DeletePages(args) => handle_delete_pages(&args)?,
+        Commands::Decrypt(args) => handle_decrypt(&args)?,
         Commands::Merge(args) => handle_merge(&args)?,
         Commands::Split(args) => handle_split(&args)?,
         Commands::Rotate(args) => handle_rotate(&args)?,
         Commands::Bench(args) => handle_bench(&args, engine.as_ref())?,
     }
 
+    Ok(())
+}
+
+fn handle_search(
+    args: &SearchArgs,
+    engine: &dyn PdfEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let session = DocumentSession::open_file(&args.file, None, engine, None)?;
+    let hits = session.search_document(&args.query, args.case_sensitive)?;
+
+    println!(
+        "Found {} match(es) for '{}' in {}:",
+        hits.len(),
+        args.query,
+        args.file.display()
+    );
+    for (i, hit) in hits.iter().enumerate() {
+        println!(
+            "  [{}] Page {}: \"{}\" | Rects: {:?}",
+            i + 1,
+            hit.page_index + 1,
+            hit.snippet,
+            hit.rects
+        );
+    }
+    Ok(())
+}
+
+fn handle_annotate(
+    args: &AnnotateArgs,
+    engine: &dyn PdfEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.page < 1 {
+        eprintln!("Error: page number must be >= 1");
+        std::process::exit(1);
+    }
+
+    let rect_parts: Vec<f32> = args
+        .rect
+        .split(',')
+        .map(|s| s.trim().parse::<f32>())
+        .collect::<Result<_, _>>()?;
+
+    if rect_parts.len() != 4 {
+        eprintln!("Error: rect must be 'x0,y0,x1,y1'");
+        std::process::exit(1);
+    }
+
+    let rect = PdfRect::new(rect_parts[0], rect_parts[1], rect_parts[2], rect_parts[3]);
+    let kind = match args.kind.to_lowercase().as_str() {
+        "highlight" => AnnotationKind::Highlight,
+        "underline" => AnnotationKind::Underline,
+        "strikeout" => AnnotationKind::StrikeOut,
+        "note" | "stickynote" => AnnotationKind::StickyNote,
+        "rect" | "rectangle" | "square" => AnnotationKind::Rectangle,
+        "ink" => AnnotationKind::FreehandInk {
+            points: vec![(rect.x0, rect.y0), (rect.x1, rect.y1)],
+            stroke_width: 2.0,
+        },
+        "freetext" | "text" => AnnotationKind::FreeText { font_size: 12.0 },
+        other => {
+            eprintln!("Unknown annotation kind: '{other}'");
+            std::process::exit(1);
+        }
+    };
+
+    let mut session = DocumentSession::open_file(&args.input, None, engine, None)?;
+    let annot = Annotation::new(
+        1,
+        args.page - 1,
+        kind,
+        rect,
+        [255, 235, 59, 255],
+        args.text.clone().unwrap_or_default(),
+    );
+    session.add_annotation_undoable(annot)?;
+    session.save_annotations_to_pdf(&args.input, &args.out)?;
+
+    println!(
+        "Successfully added annotation to {} and saved to {}",
+        args.input.display(),
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_reorder(args: &ReorderArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let order: Vec<u32> = args
+        .order
+        .split(',')
+        .map(|s| s.trim().parse::<u32>())
+        .collect::<Result<_, _>>()?;
+
+    reorder_pages(&args.input, &args.out, &order)?;
+    println!(
+        "Successfully reordered pages of {} into {}",
+        args.input.display(),
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_crop(args: &CropArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let parts: Vec<f32> = args
+        .r#box
+        .split(',')
+        .map(|s| s.trim().parse::<f32>())
+        .collect::<Result<_, _>>()?;
+
+    if parts.len() != 4 {
+        eprintln!("Error: box must be 'x0,y0,x1,y1'");
+        std::process::exit(1);
+    }
+
+    crop_page(
+        &args.input,
+        &args.out,
+        args.page,
+        [parts[0], parts[1], parts[2], parts[3]],
+    )?;
+    println!(
+        "Successfully cropped page {} of {} into {}",
+        args.page,
+        args.input.display(),
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_insert_blank(args: &InsertBlankArgs) -> Result<(), Box<dyn std::error::Error>> {
+    insert_blank_page(&args.input, &args.out, args.after, args.width, args.height)?;
+    println!(
+        "Successfully inserted blank page ({:.1}x{:.1} pt) after page {} into {}",
+        args.width,
+        args.height,
+        args.after,
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_delete_pages(args: &DeletePagesArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let pages: Vec<u32> = args
+        .pages
+        .split(',')
+        .map(|s| s.trim().parse::<u32>())
+        .collect::<Result<_, _>>()?;
+
+    delete_pages(&args.input, &pages, &args.out)?;
+    println!(
+        "Successfully deleted pages {:?} from {} into {}",
+        pages,
+        args.input.display(),
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_decrypt(args: &DecryptArgs) -> Result<(), Box<dyn std::error::Error>> {
+    decrypt_pdf(&args.input, &args.out, &args.password)?;
+    println!(
+        "Successfully decrypted {} into {}",
+        args.input.display(),
+        args.out.display()
+    );
     Ok(())
 }
 

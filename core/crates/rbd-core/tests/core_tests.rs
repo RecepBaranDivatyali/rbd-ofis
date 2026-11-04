@@ -127,3 +127,101 @@ fn test_command_stack_undo_redo() {
     assert!(stack.can_undo());
     assert!(!stack.can_redo());
 }
+
+#[test]
+fn test_annotation_session_undo_redo_and_cache_invalidation() {
+    use rbd_engine::{Annotation, AnnotationKind, PdfRect};
+
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let pdf_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+
+    let cache = Arc::new(TileCache::new(64));
+    let mut session =
+        DocumentSession::open_file(&pdf_path, None, engine.as_ref(), Some(cache.clone())).unwrap();
+
+    let mut buf = vec![0u8; 256 * 256 * 4];
+    session
+        .render_tile_into_rgba(0, 0, 0, 256, 256, 150.0, &mut buf)
+        .unwrap();
+    assert_eq!(cache.len(), 1, "Cache should have 1 item");
+
+    // Add annotation via undoable command
+    let annot = Annotation::new(
+        101,
+        0,
+        AnnotationKind::Highlight,
+        PdfRect::new(20.0, 30.0, 100.0, 50.0),
+        [255, 235, 59, 255],
+        "Test Highlight".into(),
+    );
+
+    session.add_annotation_undoable(annot).unwrap();
+    assert_eq!(session.annotations_for_page(0).len(), 1);
+    assert_eq!(
+        cache.len(),
+        0,
+        "Adding annotation must invalidate page tile cache!"
+    );
+
+    // Render again to re-populate cache
+    session
+        .render_tile_into_rgba(0, 0, 0, 256, 256, 150.0, &mut buf)
+        .unwrap();
+    assert_eq!(cache.len(), 1);
+
+    // Undo add annotation
+    assert!(session.can_undo());
+    assert!(session.undo().unwrap());
+    assert_eq!(
+        session.annotations_for_page(0).len(),
+        0,
+        "Undo should remove annotation"
+    );
+    assert_eq!(cache.len(), 0, "Undo must invalidate page tile cache!");
+
+    // Redo add annotation
+    assert!(session.can_redo());
+    assert!(session.redo().unwrap());
+    assert_eq!(
+        session.annotations_for_page(0).len(),
+        1,
+        "Redo should restore annotation"
+    );
+    assert_eq!(cache.len(), 0, "Redo must invalidate page tile cache!");
+}
+
+#[test]
+fn test_session_turkish_search() {
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-vikipedi-kutuphane.pdf");
+    let session = DocumentSession::open_file(&pdf_path, None, engine.as_ref(), None).unwrap();
+
+    let hits = session.search_document("kütüphane", false).unwrap();
+    assert!(!hits.is_empty(), "Should find matches");
+    assert_eq!(hits[0].page_index, 0);
+    assert!(!hits[0].rects.is_empty());
+}
+
+#[test]
+fn test_core_page_ops_crop_reorder_insert_blank() {
+    use rbd_core::{crop_page, insert_blank_page, reorder_pages};
+
+    let src_pdf = get_corpus_dir().join("pdf-basic/pdfium-hello-world-2-pages.pdf");
+    let temp_dir = std::env::temp_dir().join("rbd_core_page_ops_test");
+    let _ = std::fs::create_dir_all(&temp_dir);
+
+    let blank_pdf = temp_dir.join("blank.pdf");
+    insert_blank_page(&src_pdf, &blank_pdf, 2, 500.0, 500.0).unwrap();
+
+    let crop_pdf = temp_dir.join("crop.pdf");
+    crop_page(&blank_pdf, &crop_pdf, 1, [0.0, 0.0, 200.0, 200.0]).unwrap();
+
+    let reorder_pdf = temp_dir.join("reorder.pdf");
+    reorder_pages(&crop_pdf, &reorder_pdf, &[3, 2, 1]).unwrap();
+
+    let engine = create_engine(EngineType::Pdfium).unwrap();
+    let doc = engine.open_from_file(&reorder_pdf, None).unwrap();
+    assert_eq!(doc.page_count().unwrap(), 3);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

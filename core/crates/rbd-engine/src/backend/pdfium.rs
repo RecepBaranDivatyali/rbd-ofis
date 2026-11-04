@@ -1,4 +1,6 @@
+use crate::annotation::Annotation;
 use crate::error::EngineError;
+use crate::search::{PdfRect, SearchHit};
 use crate::traits::{DocumentMetadata, PdfDocument, PdfEngine, PdfPage};
 use pdfium_render::prelude::*;
 use std::path::{Path, PathBuf};
@@ -129,7 +131,15 @@ impl PdfEngine for PdfiumEngine {
             .load_pdf_from_file(path, password)
             .map_err(map_pdfium_error)?;
 
-        Ok(Box::new(PdfiumDocumentWrapper { doc: Arc::new(doc) }))
+        let lopdf_doc = std::fs::read(path)
+            .ok()
+            .and_then(|bytes| lopdf::Document::load_mem(&bytes).ok())
+            .map(Arc::new);
+
+        Ok(Box::new(PdfiumDocumentWrapper {
+            doc: Arc::new(doc),
+            lopdf_doc,
+        }))
     }
 
     fn open_from_bytes(
@@ -142,12 +152,18 @@ impl PdfEngine for PdfiumEngine {
             .load_pdf_from_byte_vec(bytes.to_vec(), password)
             .map_err(map_pdfium_error)?;
 
-        Ok(Box::new(PdfiumDocumentWrapper { doc: Arc::new(doc) }))
+        let lopdf_doc = lopdf::Document::load_mem(bytes).ok().map(Arc::new);
+
+        Ok(Box::new(PdfiumDocumentWrapper {
+            doc: Arc::new(doc),
+            lopdf_doc,
+        }))
     }
 }
 
 struct PdfiumDocumentWrapper {
     doc: Arc<pdfium_render::prelude::PdfDocument<'static>>,
+    lopdf_doc: Option<Arc<lopdf::Document>>,
 }
 
 impl PdfDocument for PdfiumDocumentWrapper {
@@ -173,6 +189,8 @@ impl PdfDocument for PdfiumDocumentWrapper {
         Ok(Box::new(PdfiumPageWrapper {
             _doc: self.doc.clone(),
             page,
+            page_index: index,
+            lopdf_doc: self.lopdf_doc.clone(),
         }))
     }
 
@@ -200,6 +218,8 @@ impl PdfDocument for PdfiumDocumentWrapper {
 struct PdfiumPageWrapper {
     _doc: Arc<pdfium_render::prelude::PdfDocument<'static>>,
     page: pdfium_render::prelude::PdfPage<'static>,
+    page_index: u32,
+    lopdf_doc: Option<Arc<lopdf::Document>>,
 }
 
 impl PdfPage for PdfiumPageWrapper {
@@ -338,6 +358,75 @@ impl PdfPage for PdfiumPageWrapper {
     fn extract_text(&self) -> Result<String, EngineError> {
         let text_page = self.page.text().map_err(map_pdfium_error)?;
         Ok(text_page.all())
+    }
+
+    fn search_text(
+        &self,
+        page_index: u32,
+        query: &str,
+        case_sensitive: bool,
+    ) -> Result<Vec<SearchHit>, EngineError> {
+        let text_page = self.page.text().map_err(map_pdfium_error)?;
+        let chars = text_page.chars();
+        let total_chars = chars.len();
+
+        let mut page_chars = Vec::with_capacity(total_chars);
+        let mut char_boxes: Vec<Option<PdfRect>> = Vec::with_capacity(total_chars);
+
+        for i in 0..total_chars {
+            if let Ok(ch_obj) = chars.get(i) {
+                let c = ch_obj.unicode_char().unwrap_or(' ');
+                let rect = ch_obj.tight_bounds().ok().map(|r| {
+                    PdfRect::new(
+                        r.left().value,
+                        r.bottom().value,
+                        r.right().value,
+                        r.top().value,
+                    )
+                });
+                page_chars.push(c);
+                char_boxes.push(rect);
+            }
+        }
+
+        let page_text: String = page_chars.iter().collect();
+        let match_spans = crate::search::find_matches(&page_text, query, case_sensitive);
+
+        let mut hits = Vec::with_capacity(match_spans.len());
+        for span in match_spans {
+            let match_text: String = page_chars[span.start..span.end].iter().collect();
+            let snippet = crate::search::build_snippet(&page_chars, span.start, span.end, 30);
+
+            let span_boxes: Vec<PdfRect> = char_boxes[span.start..span.end]
+                .iter()
+                .flatten()
+                .copied()
+                .collect();
+
+            let rects = if span_boxes.is_empty() {
+                let (w, h) = self.dimensions_points()?;
+                vec![PdfRect::new(0.0, 0.0, w, h)]
+            } else {
+                crate::search::group_char_rects_into_lines(&span_boxes)
+            };
+
+            hits.push(SearchHit {
+                page_index,
+                match_text,
+                snippet,
+                rects,
+            });
+        }
+
+        Ok(hits)
+    }
+
+    fn list_annotations(&self) -> Result<Vec<Annotation>, EngineError> {
+        if let Some(ref doc) = self.lopdf_doc {
+            crate::annotation::list_annotations_from_doc(doc, self.page_index)
+        } else {
+            Ok(Vec::new())
+        }
     }
 }
 
