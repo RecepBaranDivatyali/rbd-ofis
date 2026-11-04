@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive user documents from automatic cloud backup -->
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+</full-backup-content>

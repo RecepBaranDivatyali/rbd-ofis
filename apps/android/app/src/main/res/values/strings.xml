@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Uygulama Adı -->
+    <string name="app_name">RBD OFİS</string>
+
+    <!-- Ekranlar -->
+    <string name="screen_viewer">Belge Görüntüleyici</string>
+    <string name="screen_organizer">Sayfa Düzenleyici</string>
+    <string name="screen_scanner">Belge Tarayıcı</string>
+
+    <!-- Eylemler -->
+    <string name="action_open">Dosya Aç</string>
+    <string name="action_save">Kaydet</string>
+    <string name="action_save_as">Farklı Kaydet</string>
+    <string name="action_share">Paylaş</string>
+    <string name="action_close">Kapat</string>
+    <string name="action_search">Ara</string>
+    <string name="action_search_hint">Belge içinde ara…</string>
+    <string name="action_zoom_in">Yakınlaştır</string>
+    <string name="action_zoom_out">Uzaklaştır</string>
+    <string name="action_fit_page">Sayfayı Sığdır</string>
+    <string name="action_fit_width">Genişliğe Sığdır</string>
+    <string name="action_organizer">Sayfaları Düzenle</string>
+    <string name="action_rotate_clockwise">Saat Yönünde Döndür (90°)</string>
+    <string name="action_rotate_counterclockwise">Saat Yönünün Tersine Döndür (90°)</string>
+    <string name="action_delete_page">Sayfayı Sil</string>
+    <string name="action_reorder_page">Sayfa Sırasını Değiştir</string>
+    <string name="action_add_annotation">Not / Çizim Ekle</string>
+    <string name="action_scan_document">Belge Tara</string>
+
+    <!-- Durum ve Göstergeler -->
+    <string name="page_indicator">Sayfa %1$d / %2$d</string>
+    <string name="zoom_indicator">%%%1$d</string>
+    <string name="status_loading">Belge yükleniyor…</string>
+    <string name="status_saving">Belge kaydediliyor…</string>
+    <string name="status_rendering">Sayfa işleniyor…</string>
+    <string name="status_ready">Hazır</string>
+    <string name="status_no_document">Açık belge yok</string>
+    <string name="status_search_results">%1$d sonuç bulundu</string>
+    <string name="status_no_search_results">Eşleşme bulunamadı</string>
+
+    <!-- İletişim Kutuları -->
+    <string name="dialog_delete_page_title">Sayfayı Sil</string>
+    <string name="dialog_delete_page_message">%1$d numaralı sayfayı silmek istediğinizden emin misiniz?</string>
+    <string name="dialog_confirm">Sil</string>
+    <string name="dialog_cancel">İptal</string>
+    <string name="dialog_error_title">Hata</string>
+    <string name="dialog_permission_camera_title">Kamera İzni Gerekli</string>
+    <string name="dialog_permission_camera_message">Belge taramak için kamera iznine ihtiyaç duyulmaktadır.</string>
+    <string name="dialog_permission_grant">İzin Ver</string>
+
+    <!-- Hatalar ve Gizlilik -->
+    <string name="error_open_document">Belge açılamadı. Dosya bozuk veya desteklenmiyor olabilir.</string>
+    <string name="error_save_document">Belge kaydedilemedi.</string>
+    <string name="error_page_not_found">İstenen sayfa bulunamadı.</string>
+    <string name="error_native_core_unavailable">Yerel çekirdek kütüphanesi yüklenemedi. Simülasyon moduna geçildi.</string>
+    <string name="status_saved">Belge kaydedildi.</string>
+    <string name="status_save_failed">Belge kaydedilemedi.</string>
+    <string name="privacy_assurance">RBD OFİS %100 çevrimdışıdır. Hiçbir veri cihazınızdan dışarı çıkmaz.</string>
+</resources>

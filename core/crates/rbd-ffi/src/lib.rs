@@ -8,6 +8,8 @@ use std::path::Path;
 use std::slice;
 use std::sync::{Arc, OnceLock};
 
+pub mod jni;
+
 // Exact status codes matching apps/windows/RbdOfis.Interop/Native/NativeTypes.cs
 pub const RBD_OK: i32 = 0;
 pub const RBD_ERR_NULL_PTR: i32 = -1;

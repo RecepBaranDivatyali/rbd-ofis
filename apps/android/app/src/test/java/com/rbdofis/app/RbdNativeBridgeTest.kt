@@ -1,0 +1,148 @@
+package com.rbdofis.app
+
+import com.rbdofis.app.core.PageRect
+import com.rbdofis.app.core.PdfAnnotation
+import com.rbdofis.app.core.RbdNativeBridge
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import java.io.File
+
+class RbdNativeBridgeTest {
+
+    private lateinit var bridge: RbdNativeBridge
+
+    @Before
+    fun setUp() {
+        bridge = RbdNativeBridge.getInstance()
+        bridge.setForceMockMode(true)
+    }
+
+    @Test
+    fun testOpenDocumentReturnsValidHandle() {
+        val handle = bridge.openDocument("/tmp/sample.pdf")
+        assertTrue("Handle should be a positive non-zero value", handle > 0L)
+
+        val pageCount = bridge.getPageCount(handle)
+        assertTrue("Page count should be positive", pageCount > 0)
+
+        bridge.closeDocument(handle)
+        assertEquals(0, bridge.getPageCount(handle))
+    }
+
+    @Test
+    fun testOpenDocumentFromBytes() {
+        val sampleBytes = "%PDF-1.7 mock content".toByteArray(Charsets.UTF_8)
+        val handle = bridge.openDocumentFromBytes(sampleBytes)
+        assertTrue(handle > 0L)
+
+        val count = bridge.getPageCount(handle)
+        assertEquals(5, count)
+
+        bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testPageDimensionsAndRotation() {
+        val handle = bridge.openDocument("/test/a4.pdf")
+        val initialSize = bridge.getPageSize(handle, 0)
+        assertEquals(595.28f, initialSize.width, 0.1f)
+        assertEquals(841.89f, initialSize.height, 0.1f)
+
+        // Rotate 90 degrees clockwise -> width and height swap
+        val rotated = bridge.rotatePage(handle, 0, 90)
+        assertTrue(rotated)
+
+        val rotatedSize = bridge.getPageSize(handle, 0)
+        assertEquals(841.89f, rotatedSize.width, 0.1f)
+        assertEquals(595.28f, rotatedSize.height, 0.1f)
+
+        // Rotate another 90 degrees (180 total) -> back to portrait
+        bridge.rotatePage(handle, 0, 90)
+        val portraitSize = bridge.getPageSize(handle, 0)
+        assertEquals(595.28f, portraitSize.width, 0.1f)
+        assertEquals(841.89f, portraitSize.height, 0.1f)
+
+        bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testDeletePage() {
+        val handle = bridge.openDocument("/test/multi.pdf")
+        val initialCount = bridge.getPageCount(handle)
+        assertTrue(initialCount >= 2)
+
+        val success = bridge.deletePage(handle, 0)
+        assertTrue(success)
+        assertEquals(initialCount - 1, bridge.getPageCount(handle))
+
+        // Deleting invalid page index should return false
+        val invalidDelete = bridge.deletePage(handle, 999)
+        assertFalse(invalidDelete)
+
+        bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testReorderPage() {
+        val handle = bridge.openDocument("/test/reorder.pdf")
+        val count = bridge.getPageCount(handle)
+        assertTrue(count >= 3)
+
+        val reordered = bridge.reorderPage(handle, 0, 2)
+        assertTrue(reordered)
+        assertEquals(count, bridge.getPageCount(handle))
+
+        bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testSearchText() {
+        val handle = bridge.openDocument("/test/search.pdf")
+        val results = bridge.searchText(handle, "test")
+        assertNotNull(results)
+        assertTrue("Search should return matches in mock mode", results.isNotEmpty())
+
+        val emptyResults = bridge.searchText(handle, "")
+        assertTrue(emptyResults.isEmpty())
+
+        bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testAnnotations() {
+        val handle = bridge.openDocument("/test/annot.pdf")
+        val annotation = PdfAnnotation.Highlight(
+            id = "highlight-1",
+            pageIndex = 0,
+            bounds = PageRect(100f, 150f, 300f, 170f)
+        )
+
+        val added = bridge.addAnnotation(handle, 0, annotation)
+        assertTrue(added)
+
+        val annotations = bridge.getAnnotations(handle, 0)
+        assertEquals(1, annotations.size)
+        assertEquals("highlight-1", annotations[0].id)
+
+        bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testSaveDocument() {
+        val handle = bridge.openDocument("/test/save.pdf")
+        val tempFile = File.createTempFile("rbd_test_save", ".pdf")
+        try {
+            val saved = bridge.saveDocument(handle, tempFile.absolutePath)
+            assertTrue(saved)
+            assertTrue(tempFile.exists())
+            assertTrue(tempFile.length() > 0)
+        } finally {
+            tempFile.delete()
+            bridge.closeDocument(handle)
+        }
+    }
+}
