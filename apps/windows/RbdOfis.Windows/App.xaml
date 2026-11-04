@@ -1,7 +1,8 @@
 <Application x:Class="RbdOfis.Windows.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:RbdOfis.Windows">
+             xmlns:local="clr-namespace:RbdOfis.Windows"
+             ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <!-- Fluent Dark Theme Brushes (Default) -->
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1E1E1E"/>

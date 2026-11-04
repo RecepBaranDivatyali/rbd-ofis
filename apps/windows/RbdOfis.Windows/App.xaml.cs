@@ -47,6 +47,7 @@ public partial class App : Application
         }
 
         var mainWindow = new MainWindow(initialPdfPath);
+        MainWindow = mainWindow;
         mainWindow.Show();
     }
 }
