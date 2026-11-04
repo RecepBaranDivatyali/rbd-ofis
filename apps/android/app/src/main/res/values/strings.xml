@@ -91,4 +91,64 @@
     <string name="error_page_not_found">İstenen sayfa bulunamadı.</string>
     <string name="error_native_core_unavailable">Yerel çekirdek kütüphanesi yüklenemedi. Simülasyon moduna geçildi.</string>
     <string name="privacy_assurance">RBD OFİS %100 çevrimdışıdır. Hiçbir veri cihazınızdan dışarı çıkmaz.</string>
+
+    <!-- Pro PDF Araçları (Phase 4 Track 4D) -->
+    <string name="action_pro_tools">Pro PDF Araçları</string>
+    <string name="pro_tools_title">Gelişmiş PDF Araçları</string>
+    <string name="pro_tool_compress">Sıkıştır</string>
+    <string name="pro_tool_watermark">Filigran</string>
+    <string name="pro_tool_page_numbers">Sayfa No</string>
+    <string name="pro_tool_bates_stamp">Bates Damgası</string>
+    <string name="pro_tool_redact">Redaksiyon</string>
+    <string name="pro_tool_forms">Formlar</string>
+
+    <!-- Sıkıştırma -->
+    <string name="compress_remove_unused">Kullanılmayan nesneleri temizle</string>
+    <string name="compress_recompress_images">Görüntü akışlarını yeniden sıkıştır</string>
+    <string name="compress_strip_metadata">Gereksiz meta verileri kaldır</string>
+    <string name="compress_action">Belgeyi Sıkıştır</string>
+    <string name="compress_savings_report">Orijinal: %1$s → Sıkıştırılmış: %2$s\nTasarruf: %3$s (%%%4$.1f)</string>
+
+    <!-- Filigran -->
+    <string name="watermark_text_label">Filigran Metni</string>
+    <string name="watermark_text_default">GİZLİ BELGE</string>
+    <string name="watermark_opacity">Opaklık: %%%1$d</string>
+    <string name="watermark_rotation">Döndürme Açısı: %1$d°</string>
+    <string name="watermark_font_size">Yazı Boyutu: %1$d pt</string>
+    <string name="watermark_on_top">İçeriğin üzerinde göster</string>
+    <string name="watermark_apply">Filigranı Uygula</string>
+
+    <!-- Sayfa Numarası ve Bates -->
+    <string name="stamp_pattern_label">Sayfa Numarası Şablonu</string>
+    <string name="stamp_pattern_default">Sayfa {page} / {total}</string>
+    <string name="stamp_position_label">Damga Konumu</string>
+    <string name="pos_top_left">Sol Üst</string>
+    <string name="pos_top_center">Üst Orta</string>
+    <string name="pos_top_right">Sağ Üst</string>
+    <string name="pos_bottom_left">Sol Alt</string>
+    <string name="pos_bottom_center">Alt Orta</string>
+    <string name="pos_bottom_right">Sağ Alt</string>
+    <string name="stamp_margin_label">Kenar Boşluğu: %1$d pt</string>
+    <string name="stamp_apply_numbers">Sayfa Numaralarını Uygula</string>
+
+    <string name="bates_prefix_label">Bates Öneki</string>
+    <string name="bates_start_num_label">Başlangıç Numarası</string>
+    <string name="bates_padding_label">Basamak Sayısı</string>
+    <string name="bates_suffix_label">Bates Soneki</string>
+    <string name="stamp_apply_bates">Bates Damgasını Uygula</string>
+
+    <!-- Redaksiyon -->
+    <string name="redact_description">Kalıcı redaksiyon, seçilen alanlardaki metin ve vektör grafiklerini belgeden geri dönülemez biçimde tamamen kazır ve siyah sansür kutusu yerleştirir.</string>
+    <string name="redact_json_label">Redaksiyon Alanları JSON</string>
+    <string name="redact_apply">Kalıcı Olarak Sansürle</string>
+
+    <!-- Formlar -->
+    <string name="forms_no_fields">Bu belgede interaktif form alanı bulunmamaktadır.</string>
+    <string name="forms_flatten_label">Form alanlarını düzleştir (salt okunur yap)</string>
+    <string name="forms_apply">Formu Doldur ve Kaydet</string>
+
+    <!-- Pro Araçlar Durum -->
+    <string name="status_pro_tool_success">İşlem başarıyla tamamlandı.</string>
+    <string name="status_pro_tool_failed">İşlem başarısız oldu: %1$s</string>
+    <string name="status_processing_pro_tool">İşleniyor…</string>
 </resources>

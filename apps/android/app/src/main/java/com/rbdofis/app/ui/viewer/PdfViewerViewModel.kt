@@ -1,10 +1,13 @@
 package com.rbdofis.app.ui.viewer
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rbdofis.app.core.CompressionStats
+import com.rbdofis.app.core.FormFieldInfo
 import com.rbdofis.app.core.PdfAnnotation
 import com.rbdofis.app.core.SearchResult
 import com.rbdofis.app.data.DocumentState
@@ -13,6 +16,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
+
+enum class ProToolTab {
+    COMPRESS,
+    WATERMARK,
+    PAGE_NUMBERS,
+    BATES_STAMP,
+    REDACT,
+    FORM_FIELDS
+}
 
 data class ViewerUiState(
     val documentState: DocumentState = DocumentState(),
@@ -31,7 +44,15 @@ data class ViewerUiState(
     val strokeWidthPx: Float = 3.0f,
     val annotations: List<PdfAnnotation> = emptyList(),
     val canUndo: Boolean = false,
-    val canRedo: Boolean = false
+    val canRedo: Boolean = false,
+
+    // Pro PDF Tools State (Phase 4 Track 4D)
+    val isProToolsOpen: Boolean = false,
+    val activeProTool: ProToolTab = ProToolTab.COMPRESS,
+    val compressionStats: CompressionStats? = null,
+    val formFields: List<FormFieldInfo> = emptyList(),
+    val isProcessingProTool: Boolean = false,
+    val proToolMessage: String? = null
 )
 
 class PdfViewerViewModel(
@@ -240,6 +261,186 @@ class PdfViewerViewModel(
                 annotations = list,
                 canUndo = repository.canUndo(),
                 canRedo = repository.canRedo()
+            )
+        }
+    }
+
+    // =========================================================================
+    // Pro PDF Tools (Phase 4 Track 4D)
+    // =========================================================================
+
+    private fun createProOutputPath(context: Context, suffix: String): String {
+        val dir = File(context.cacheDir, "pro_tools")
+        dir.mkdirs()
+        val originalName = _uiState.value.documentState.fileName.substringBeforeLast(".pdf").ifBlank { "document" }
+        val timestamp = System.currentTimeMillis()
+        return File(dir, "${originalName}_${suffix}_$timestamp.pdf").absolutePath
+    }
+
+    fun openProTools(tab: ProToolTab = ProToolTab.COMPRESS) {
+        _uiState.value = _uiState.value.copy(
+            isProToolsOpen = true,
+            activeProTool = tab,
+            proToolMessage = null
+        )
+        if (tab == ProToolTab.FORM_FIELDS) {
+            loadFormFields()
+        }
+    }
+
+    fun closeProTools() {
+        _uiState.value = _uiState.value.copy(isProToolsOpen = false, proToolMessage = null)
+    }
+
+    fun selectProToolTab(tab: ProToolTab) {
+        _uiState.value = _uiState.value.copy(activeProTool = tab, proToolMessage = null)
+        if (tab == ProToolTab.FORM_FIELDS) {
+            loadFormFields()
+        }
+    }
+
+    fun compressDocument(context: Context, removeUnused: Boolean, recompress: Boolean, stripMetadata: Boolean) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingProTool = true, proToolMessage = null)
+            val outPath = createProOutputPath(context, "compressed")
+            val res = repository.compressDocument(outPath, removeUnused, recompress, stripMetadata)
+            res.fold(
+                onSuccess = { stats ->
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingProTool = false,
+                        compressionStats = stats,
+                        proToolMessage = "success"
+                    )
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingProTool = false,
+                        proToolMessage = err.message ?: "Failed"
+                    )
+                }
+            )
+        }
+    }
+
+    fun applyWatermark(
+        context: Context,
+        text: String,
+        fontSize: Float,
+        rotationDeg: Float,
+        opacity: Float,
+        r: Int,
+        g: Int,
+        b: Int,
+        onTop: Boolean
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingProTool = true, proToolMessage = null)
+            val outPath = createProOutputPath(context, "watermark")
+            val res = repository.applyWatermark(outPath, text, fontSize, rotationDeg, opacity, r, g, b, onTop)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = "success")
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = err.message ?: "Failed")
+                }
+            )
+        }
+    }
+
+    fun applyPageNumbers(
+        context: Context,
+        pattern: String,
+        position: Int,
+        fontSize: Float,
+        margin: Float
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingProTool = true, proToolMessage = null)
+            val outPath = createProOutputPath(context, "numbered")
+            val res = repository.applyPageNumbers(outPath, pattern, position, fontSize, margin)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = "success")
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = err.message ?: "Failed")
+                }
+            )
+        }
+    }
+
+    fun applyBatesStamp(
+        context: Context,
+        prefix: String,
+        startNumber: Int,
+        paddingDigits: Int,
+        suffix: String,
+        position: Int
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingProTool = true, proToolMessage = null)
+            val outPath = createProOutputPath(context, "bates")
+            val res = repository.applyBatesStamp(outPath, prefix, startNumber, paddingDigits, suffix, position)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = "success")
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = err.message ?: "Failed")
+                }
+            )
+        }
+    }
+
+    fun applyRedaction(context: Context, redactionsJson: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingProTool = true, proToolMessage = null)
+            val outPath = createProOutputPath(context, "redacted")
+            val res = repository.redactDocument(outPath, redactionsJson)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = "success")
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = err.message ?: "Failed")
+                }
+            )
+        }
+    }
+
+    fun loadFormFields() {
+        viewModelScope.launch {
+            val res = repository.readFormFields()
+            res.fold(
+                onSuccess = { fields ->
+                    _uiState.value = _uiState.value.copy(formFields = fields)
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(formFields = emptyList())
+                }
+            )
+        }
+    }
+
+    fun fillFormFields(context: Context, fieldValuesJson: String, flatten: Boolean) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingProTool = true, proToolMessage = null)
+            val outPath = createProOutputPath(context, "form_filled")
+            val res = repository.fillFormFields(outPath, fieldValuesJson, flatten)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = "success")
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = err.message ?: "Failed")
+                }
             )
         }
     }

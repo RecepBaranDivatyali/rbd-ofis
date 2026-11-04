@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Uygulama Adı -->
+    <string name="app_name">RBD OFİS</string>
+
+    <!-- Ekranlar -->
+    <string name="screen_viewer">Belge Görüntüleyici</string>
+    <string name="screen_organizer">Sayfa Düzenleyici</string>
+    <string name="screen_scanner">Belge Tarayıcı</string>
+
+    <!-- Eylemler -->
+    <string name="action_open">Dosya Aç</string>
+    <string name="action_save">Kaydet</string>
+    <string name="action_save_as">Farklı Kaydet</string>
+    <string name="action_share">Paylaş</string>
+    <string name="action_close">Kapat</string>
+    <string name="action_search">Ara</string>
+    <string name="action_search_hint">Belge içinde ara…</string>
+    <string name="action_zoom_in">Yakınlaştır</string>
+    <string name="action_zoom_out">Uzaklaştır</string>
+    <string name="action_fit_page">Sayfayı Sığdır</string>
+    <string name="action_fit_width">Genişliğe Sığdır</string>
+    <string name="action_organizer">Sayfaları Düzenle</string>
+    <string name="action_rotate_clockwise">Saat Yönünde Döndür (90°)</string>
+    <string name="action_rotate_counterclockwise">Saat Yönünün Tersine Döndür (90°)</string>
+    <string name="action_delete_page">Sayfayı Sil</string>
+    <string name="action_reorder_page">Sayfa Sırasını Değiştir</string>
+    <string name="action_add_annotation">Not / Çizim Ekle</string>
+    <string name="action_scan_document">Belge Tara</string>
+
+    <!-- Kalem ve Çizim Araçları (Track 3C) -->
+    <string name="tool_pan">Gezinme</string>
+    <string name="tool_pen">Mürekkepli Kalem</string>
+    <string name="tool_highlighter">Fosforlu Kalem</string>
+    <string name="tool_eraser">Silgi</string>
+    <string name="action_undo">Geri Al</string>
+    <string name="action_redo">Yinele</string>
+    <string name="action_clear_canvas">Tüm Çizimleri Temizle</string>
+    <string name="action_toggle_ink">Kalem Çizimi</string>
+    <string name="color_black">Siyah</string>
+    <string name="color_blue">Mavi</string>
+    <string name="color_red">Kırmızı</string>
+    <string name="color_yellow">Sarı</string>
+    <string name="color_green">Yeşil</string>
+    <string name="color_pink">Pembe</string>
+    <string name="stroke_width">Çizgi Kalınlığı</string>
+
+    <!-- Belge Tarayıcı Eylemleri ve Filtreleri (Track 3D) -->
+    <string name="action_capture">Fotoğraf Çek</string>
+    <string name="action_torch_on">Flaş Aç</string>
+    <string name="action_torch_off">Flaş Kapat</string>
+    <string name="action_retake">Yeniden Çek</string>
+    <string name="action_save_pdf">PDF Olarak Kaydet</string>
+    <string name="action_append_to_doc">Mevcut Belgeye Ekle</string>
+    <string name="action_open_scanned_pdf">Taramayı Aç</string>
+    <string name="filter_original">Orijinal</string>
+    <string name="filter_grayscale">Gri Tonlama</string>
+    <string name="filter_binarized">Siyah-Beyaz Belge</string>
+    <string name="scanner_hint">Belgeyi çerçevenin içine hizalayın</string>
+    <string name="status_processing_image">Görüntü işleniyor…</string>
+    <string name="status_generating_pdf">PDF oluşturuluyor…</string>
+    <string name="error_camera_unavailable">Kamera başlatılamadı.</string>
+    <string name="error_scan_failed">Belge tarama işlemi başarısız oldu.</string>
+
+    <!-- Durum ve Göstergeler -->
+    <string name="page_indicator">Sayfa %1$d / %2$d</string>
+    <string name="zoom_indicator">%%%1$d</string>
+    <string name="status_loading">Belge yükleniyor…</string>
+    <string name="status_saving">Belge kaydediliyor…</string>
+    <string name="status_rendering">Sayfa işleniyor…</string>
+    <string name="status_ready">Hazır</string>
+    <string name="status_no_document">Açık belge yok</string>
+    <string name="status_search_results">%1$d sonuç bulundu</string>
+    <string name="status_no_search_results">Eşleşme bulunamadı</string>
+    <string name="status_saved">Belge kaydedildi.</string>
+    <string name="status_save_failed">Belge kaydedilemedi.</string>
+
+    <!-- İletişim Kutuları -->
+    <string name="dialog_delete_page_title">Sayfayı Sil</string>
+    <string name="dialog_delete_page_message">%1$d numaralı sayfayı silmek istediğinizden emin misiniz?</string>
+    <string name="dialog_confirm">Sil</string>
+    <string name="dialog_cancel">İptal</string>
+    <string name="dialog_error_title">Hata</string>
+    <string name="dialog_permission_camera_title">Kamera İzni Gerekli</string>
+    <string name="dialog_permission_camera_message">Belge taramak için kamera iznine ihtiyaç duyulmaktadır.</string>
+    <string name="dialog_permission_grant">İzin Ver</string>
+
+    <!-- Hatalar ve Gizlilik -->
+    <string name="error_open_document">Belge açılamadı. Dosya bozuk veya desteklenmiyor olabilir.</string>
+    <string name="error_save_document">Belge kaydedilemedi.</string>
+    <string name="error_page_not_found">İstenen sayfa bulunamadı.</string>
+    <string name="error_native_core_unavailable">Yerel çekirdek kütüphanesi yüklenemedi. Simülasyon moduna geçildi.</string>
+    <string name="privacy_assurance">RBD OFİS %100 çevrimdışıdır. Hiçbir veri cihazınızdan dışarı çıkmaz.</string>
+
+    <!-- Pro PDF Araçları (Phase 4 Track 4D) -->
+    <string name="action_pro_tools">Pro PDF Araçları</string>
+    <string name="pro_tools_title">Gelişmiş PDF Araçları</string>
+    <string name="pro_tool_compress">Sıkıştır</string>
+    <string name="pro_tool_watermark">Filigran</string>
+    <string name="pro_tool_page_numbers">Sayfa No</string>
+    <string name="pro_tool_bates_stamp">Bates Damgası</string>
+    <string name="pro_tool_redact">Redaksiyon</string>
+    <string name="pro_tool_forms">Formlar</string>
+
+    <!-- Sıkıştırma -->
+    <string name="compress_remove_unused">Kullanılmayan nesneleri temizle</string>
+    <string name="compress_recompress_images">Görüntü akışlarını yeniden sıkıştır</string>
+    <string name="compress_strip_metadata">Gereksiz meta verileri kaldır</string>
+    <string name="compress_action">Belgeyi Sıkıştır</string>
+    <string name="compress_savings_report">Orijinal: %1$s → Sıkıştırılmış: %2$s\nTasarruf: %3$s (%%%4$.1f)</string>
+
+    <!-- Filigran -->
+    <string name="watermark_text_label">Filigran Metni</string>
+    <string name="watermark_text_default">GİZLİ BELGE</string>
+    <string name="watermark_opacity">Opaklık: %%%1$d</string>
+    <string name="watermark_rotation">Döndürme Açısı: %1$d°</string>
+    <string name="watermark_font_size">Yazı Boyutu: %1$d pt</string>
+    <string name="watermark_on_top">İçeriğin üzerinde göster</string>
+    <string name="watermark_apply">Filigranı Uygula</string>
+
+    <!-- Sayfa Numarası ve Bates -->
+    <string name="stamp_pattern_label">Sayfa Numarası Şablonu</string>
+    <string name="stamp_pattern_default">Sayfa {page} / {total}</string>
+    <string name="stamp_position_label">Damga Konumu</string>
+    <string name="pos_top_left">Sol Üst</string>
+    <string name="pos_top_center">Üst Orta</string>
+    <string name="pos_top_right">Sağ Üst</string>
+    <string name="pos_bottom_left">Sol Alt</string>
+    <string name="pos_bottom_center">Alt Orta</string>
+    <string name="pos_bottom_right">Sağ Alt</string>
+    <string name="stamp_margin_label">Kenar Boşluğu: %1$d pt</string>
+    <string name="stamp_apply_numbers">Sayfa Numaralarını Uygula</string>
+
+    <string name="bates_prefix_label">Bates Öneki</string>
+    <string name="bates_start_num_label">Başlangıç Numarası</string>
+    <string name="bates_padding_label">Basamak Sayısı</string>
+    <string name="bates_suffix_label">Bates Soneki</string>
+    <string name="stamp_apply_bates">Bates Damgasını Uygula</string>
+
+    <!-- Redaksiyon -->
+    <string name="redact_description">Kalıcı redaksiyon, seçilen alanlardaki metin ve vektör grafiklerini belgeden geri dönülemez biçimde tamamen kazır ve siyah sansür kutusu yerleştirir.</string>
+    <string name="redact_json_label">Redaksiyon Alanları JSON</string>
+    <string name="redact_apply">Kalıcı Olarak Sansürle</string>
+
+    <!-- Formlar -->
+    <string name="forms_no_fields">Bu belgede interaktif form alanı bulunmamaktadır.</string>
+    <string name="forms_flatten_label">Form alanlarını düzleştir (salt okunur yap)</string>
+    <string name="forms_apply">Formu Doldur ve Kaydet</string>
+
+    <!-- Pro Araçlar Durum -->
+    <string name="status_pro_tool_success">İşlem başarıyla tamamlandı.</string>
+    <string name="status_pro_tool_failed">İşlem başarısız oldu: %1$s</string>
+    <string name="status_processing_pro_tool">İşleniyor…</string>
+</resources>

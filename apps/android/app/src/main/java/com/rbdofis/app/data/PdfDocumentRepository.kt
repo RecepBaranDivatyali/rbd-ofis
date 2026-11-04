@@ -1,6 +1,8 @@
 package com.rbdofis.app.data
 
 import android.graphics.Bitmap
+import com.rbdofis.app.core.CompressionStats
+import com.rbdofis.app.core.FormFieldInfo
 import com.rbdofis.app.core.PageDimensions
 import com.rbdofis.app.core.PdfAnnotation
 import com.rbdofis.app.core.RbdNativeBridge
@@ -378,6 +380,100 @@ class PdfDocumentRepository(
         if (index in 0 until _documentState.value.pageCount) {
             _documentState.value = _documentState.value.copy(currentPageIndex = index)
         }
+    }
+
+    // =========================================================================
+    // Pro PDF Tools (Phase 4 Track 4D)
+    // =========================================================================
+
+    suspend fun compressDocument(
+        outputPath: String,
+        removeUnused: Boolean = true,
+        recompress: Boolean = true,
+        stripMetadata: Boolean = false
+    ): Result<CompressionStats> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val stats = nativeBridge.compressDocument(inputPath, outputPath, removeUnused, recompress, stripMetadata)
+        if (stats != null) Result.success(stats)
+        else Result.failure(IllegalStateException("Document compression failed"))
+    }
+
+    suspend fun applyWatermark(
+        outputPath: String,
+        text: String,
+        fontSize: Float = 36f,
+        rotationDeg: Float = 45f,
+        opacity: Float = 0.3f,
+        r: Int = 128,
+        g: Int = 128,
+        b: Int = 128,
+        onTop: Boolean = true
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val success = nativeBridge.applyWatermark(inputPath, outputPath, text, fontSize, rotationDeg, opacity, r, g, b, onTop)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Failed to apply watermark"))
+    }
+
+    suspend fun applyPageNumbers(
+        outputPath: String,
+        pattern: String = "Sayfa {page} / {total}",
+        position: Int = 4,
+        fontSize: Float = 10f,
+        margin: Float = 36f
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val success = nativeBridge.applyPageNumbers(inputPath, outputPath, pattern, position, fontSize, margin)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Failed to apply page numbers"))
+    }
+
+    suspend fun applyBatesStamp(
+        outputPath: String,
+        prefix: String,
+        startNumber: Int = 1,
+        paddingDigits: Int = 6,
+        suffix: String = "",
+        position: Int = 5
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val success = nativeBridge.applyBatesStamp(inputPath, outputPath, prefix, startNumber, paddingDigits, suffix, position)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Failed to apply Bates stamp"))
+    }
+
+    suspend fun redactDocument(
+        outputPath: String,
+        redactionsJson: String
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val success = nativeBridge.redactDocument(inputPath, outputPath, redactionsJson)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Permanent redaction failed"))
+    }
+
+    suspend fun readFormFields(): Result<List<FormFieldInfo>> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val fields = nativeBridge.readFormFields(inputPath)
+        Result.success(fields)
+    }
+
+    suspend fun fillFormFields(
+        outputPath: String,
+        fieldValuesJson: String,
+        flatten: Boolean = false
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val success = nativeBridge.fillFormFields(inputPath, outputPath, fieldValuesJson, flatten)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Failed to fill form fields"))
     }
 
     private fun clearPageCache(pageIndex: Int) {

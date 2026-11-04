@@ -131,7 +131,8 @@ tasks.register<JavaExec>("runUnitTests") {
         "com.rbdofis.app.RbdNativeBridgeTest",
         "com.rbdofis.app.PdfDocumentRepositoryTest",
         "com.rbdofis.app.InkAnnotationTest",
-        "com.rbdofis.app.DocumentScannerTest"
+        "com.rbdofis.app.DocumentScannerTest",
+        "com.rbdofis.app.ProToolsTest"
     )
     jvmArgs("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US")
 }

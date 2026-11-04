@@ -91,4 +91,64 @@
     <string name="error_page_not_found">Requested page was not found.</string>
     <string name="error_native_core_unavailable">Native core library unavailable. Switched to simulation mode.</string>
     <string name="privacy_assurance">RBD OFIS is 100% offline. No data ever leaves your device.</string>
+
+    <!-- Pro PDF Tools (Phase 4 Track 4D) -->
+    <string name="action_pro_tools">Pro PDF Tools</string>
+    <string name="pro_tools_title">Advanced PDF Tools</string>
+    <string name="pro_tool_compress">Compress</string>
+    <string name="pro_tool_watermark">Watermark</string>
+    <string name="pro_tool_page_numbers">Page No</string>
+    <string name="pro_tool_bates_stamp">Bates Stamp</string>
+    <string name="pro_tool_redact">Redaction</string>
+    <string name="pro_tool_forms">Forms</string>
+
+    <!-- Compression -->
+    <string name="compress_remove_unused">Remove unused objects</string>
+    <string name="compress_recompress_images">Recompress image streams</string>
+    <string name="compress_strip_metadata">Strip redundant metadata</string>
+    <string name="compress_action">Compress Document</string>
+    <string name="compress_savings_report">Original: %1$s → Compressed: %2$s\nSavings: %3$s (%%%4$.1f)</string>
+
+    <!-- Watermark -->
+    <string name="watermark_text_label">Watermark Text</string>
+    <string name="watermark_text_default">CONFIDENTIAL</string>
+    <string name="watermark_opacity">Opacity: %%%1$d</string>
+    <string name="watermark_rotation">Rotation Angle: %1$d°</string>
+    <string name="watermark_font_size">Font Size: %1$d pt</string>
+    <string name="watermark_on_top">Overlay on top of content</string>
+    <string name="watermark_apply">Apply Watermark</string>
+
+    <!-- Page Numbers & Bates -->
+    <string name="stamp_pattern_label">Page Number Pattern</string>
+    <string name="stamp_pattern_default">Page {page} of {total}</string>
+    <string name="stamp_position_label">Stamp Position</string>
+    <string name="pos_top_left">Top Left</string>
+    <string name="pos_top_center">Top Center</string>
+    <string name="pos_top_right">Top Right</string>
+    <string name="pos_bottom_left">Bottom Left</string>
+    <string name="pos_bottom_center">Bottom Center</string>
+    <string name="pos_bottom_right">Right Bottom</string>
+    <string name="stamp_margin_label">Margin: %1$d pt</string>
+    <string name="stamp_apply_numbers">Apply Page Numbers</string>
+
+    <string name="bates_prefix_label">Bates Prefix</string>
+    <string name="bates_start_num_label">Start Number</string>
+    <string name="bates_padding_label">Padding Digits</string>
+    <string name="bates_suffix_label">Bates Suffix</string>
+    <string name="stamp_apply_bates">Apply Bates Stamp</string>
+
+    <!-- Redaction -->
+    <string name="redact_description">Permanent redaction irrevocably strips text and vector streams within target regions from the document and overlays solid black security boxes.</string>
+    <string name="redact_json_label">Redaction Regions JSON</string>
+    <string name="redact_apply">Permanently Redact</string>
+
+    <!-- Forms -->
+    <string name="forms_no_fields">No interactive form fields found in this document.</string>
+    <string name="forms_flatten_label">Flatten form fields (make read-only)</string>
+    <string name="forms_apply">Fill and Save Form</string>
+
+    <!-- Pro Tools Status -->
+    <string name="status_pro_tool_success">Operation completed successfully.</string>
+    <string name="status_pro_tool_failed">Operation failed: %1$s</string>
+    <string name="status_processing_pro_tool">Processing…</string>
 </resources>

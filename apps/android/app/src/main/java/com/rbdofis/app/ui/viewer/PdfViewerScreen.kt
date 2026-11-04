@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Draw
@@ -125,6 +126,17 @@ fun PdfViewerScreen(
                             Icon(
                                 imageVector = Icons.Default.DocumentScanner,
                                 contentDescription = stringResource(R.string.action_scan_document)
+                            )
+                        }
+
+                        // Pro Tools
+                        IconButton(
+                            onClick = { viewModel.openProTools() },
+                            enabled = docState.isOpen
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoFixHigh,
+                                contentDescription = stringResource(R.string.action_pro_tools)
                             )
                         }
 
@@ -359,6 +371,22 @@ fun PdfViewerScreen(
                     onClearAll = { viewModel.clearAllAnnotationsOnPage() }
                 )
             }
+        }
+
+        // Pro PDF Tools Bottom Sheet
+        if (uiState.isProToolsOpen) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            com.rbdofis.app.ui.ProToolsBottomSheet(
+                uiState = uiState,
+                onDismiss = { viewModel.closeProTools() },
+                onSelectTab = { viewModel.selectProToolTab(it) },
+                onCompress = { u, r, m -> viewModel.compressDocument(context, u, r, m) },
+                onApplyWatermark = { t, f, rot, op, r, g, b, top -> viewModel.applyWatermark(context, t, f, rot, op, r, g, b, top) },
+                onApplyPageNumbers = { p, pos, f, m -> viewModel.applyPageNumbers(context, p, pos, f, m) },
+                onApplyBatesStamp = { p, s, pad, suf, pos -> viewModel.applyBatesStamp(context, p, s, pad, suf, pos) },
+                onApplyRedaction = { json -> viewModel.applyRedaction(context, json) },
+                onFillFormFields = { json, flat -> viewModel.fillFormFields(context, json, flat) }
+            )
         }
     }
 }
