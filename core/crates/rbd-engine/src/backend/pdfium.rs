@@ -14,46 +14,58 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
         return Ok(pdfium);
     }
 
-    // Try multiple candidate paths for pdfium.dll
+    // Try multiple candidate directories and platform library names (pdfium.dll / libpdfium.so / libpdfium.dylib)
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     if let Ok(env_path) = std::env::var("PDFIUM_PATH") {
-        candidates.push(PathBuf::from(env_path));
+        let p = PathBuf::from(&env_path);
+        if p.is_dir() {
+            candidates.push(Pdfium::pdfium_platform_library_name_at_path(&p));
+        }
+        candidates.push(p);
     }
 
+    let mut search_dirs: Vec<PathBuf> = Vec::new();
     if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        candidates.push(PathBuf::from(&manifest_dir).join("../../vendor/pdfium/bin/pdfium.dll"));
-        candidates.push(PathBuf::from(&manifest_dir).join("vendor/pdfium/bin/pdfium.dll"));
+        let m = PathBuf::from(&manifest_dir);
+        search_dirs.push(m.join("../../vendor/pdfium/bin"));
+        search_dirs.push(m.join("../../vendor/pdfium/lib"));
+        search_dirs.push(m.join("vendor/pdfium/bin"));
+        search_dirs.push(m.join("vendor/pdfium/lib"));
     }
 
     if let Ok(exe_path) = std::env::current_exe()
         && let Some(parent) = exe_path.parent()
     {
-        candidates.push(parent.join("pdfium.dll"));
-        candidates.push(parent.join("vendor/pdfium/bin/pdfium.dll"));
-        candidates.push(parent.join("../../vendor/pdfium/bin/pdfium.dll"));
-        candidates.push(parent.join("../../../vendor/pdfium/bin/pdfium.dll"));
-        candidates.push(parent.join("../../../../vendor/pdfium/bin/pdfium.dll"));
-        candidates.push(parent.join("../../../../../core/vendor/pdfium/bin/pdfium.dll"));
-        candidates.push(parent.join("../../../../../../core/vendor/pdfium/bin/pdfium.dll"));
+        search_dirs.push(parent.to_path_buf());
+        search_dirs.push(parent.join("vendor/pdfium/bin"));
+        search_dirs.push(parent.join("../../vendor/pdfium/bin"));
+        search_dirs.push(parent.join("../../../vendor/pdfium/bin"));
+        search_dirs.push(parent.join("../../../../vendor/pdfium/bin"));
+        search_dirs.push(parent.join("../../../../../core/vendor/pdfium/bin"));
+        search_dirs.push(parent.join("../../../../../../core/vendor/pdfium/bin"));
     }
 
-    // Workspace and repository relative paths
-    candidates.push(PathBuf::from("core/vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from("../core/vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from("../../core/vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from("../../../core/vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from(
-        "../../../../core/vendor/pdfium/bin/pdfium.dll",
-    ));
-    candidates.push(PathBuf::from(
-        "../../../../../core/vendor/pdfium/bin/pdfium.dll",
-    ));
-    candidates.push(PathBuf::from("../vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from("../../vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from("vendor/pdfium/bin/pdfium.dll"));
-    candidates.push(PathBuf::from("pdfium.dll"));
-    candidates.push(PathBuf::from("runtimes/win-x64/native/pdfium.dll"));
+    for rel in [
+        "core/vendor/pdfium/bin",
+        "core/vendor/pdfium/lib",
+        "../core/vendor/pdfium/bin",
+        "../../core/vendor/pdfium/bin",
+        "../../../core/vendor/pdfium/bin",
+        "../../../../core/vendor/pdfium/bin",
+        "../../../../../core/vendor/pdfium/bin",
+        "../vendor/pdfium/bin",
+        "../../vendor/pdfium/bin",
+        "vendor/pdfium/bin",
+        ".",
+        "runtimes/win-x64/native",
+    ] {
+        search_dirs.push(PathBuf::from(rel));
+    }
+
+    for dir in search_dirs {
+        candidates.push(Pdfium::pdfium_platform_library_name_at_path(&dir));
+    }
 
     let mut load_error = None;
 

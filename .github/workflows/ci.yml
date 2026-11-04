@@ -48,8 +48,33 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
-      - name: Generate synthetic test corpus
-        run: python corpus/generate.py
+      - name: Fetch PDFium native library for Linux / macOS
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p core/vendor/pdfium/bin
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            curl -sSL https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-linux-x64.tgz | tar -xz -C core/vendor/pdfium
+            cp -f core/vendor/pdfium/lib/libpdfium.so core/vendor/pdfium/bin/libpdfium.so
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "arm64" ]; then
+              ASSET="pdfium-mac-arm64.tgz"
+            else
+              ASSET="pdfium-mac-x64.tgz"
+            fi
+            curl -sSL "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/${ASSET}" | tar -xz -C core/vendor/pdfium
+            cp -f core/vendor/pdfium/lib/libpdfium.dylib core/vendor/pdfium/bin/libpdfium.dylib
+          fi
+      - name: Cache test corpus files
+        uses: actions/cache@v4
+        with:
+          path: corpus/files
+          key: corpus-files-${{ hashFiles('corpus/manifest.json') }}
+      - name: Generate & fetch test corpus
+        run: |
+          python corpus/generate.py
+          python corpus/fetch.py
       - name: Check formatting
         working-directory: core
         run: cargo fmt --all -- --check
@@ -63,15 +88,25 @@ jobs:
   windows-app:
     name: Windows App (.NET 9)
     runs-on: windows-latest
-    needs: rust-core
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+      - name: Fetch basic test corpus for live FFI test
+        run: |
+          python corpus/generate.py
+          python corpus/fetch.py --category pdf-basic
+      - name: Build rbd-ffi native DLL
+        working-directory: core
+        run: cargo build --release -p rbd-ffi
       - name: Build Windows Solution
         working-directory: apps/windows
         run: dotnet build RbdOfis.sln --configuration Release
-      - name: Run Windows Unit Tests
+      - name: Run Windows Unit & Live FFI Tests
         working-directory: apps/windows
         run: dotnet test RbdOfis.sln --configuration Release --no-build --verbosity normal
