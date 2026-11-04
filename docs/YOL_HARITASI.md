@@ -124,17 +124,16 @@ flowchart LR
 - Okuyucu + açıklama + sayfa düzenleyici + sekmeler + karanlık mod + dosya ilişkilendirme + Türkçe/İngilizce arayüz.
 - 🚪 **Kapı:** Soğuk açılış < 1 sn (Gerçekleşen: 998 ms), gerçek kullanıcı testleri tamamlandı, GitHub'da `v0.1.0-alpha` sürümü ve bağımsız taşınabilir ZIP paketi (`dist/RbdOfis-v0.1.0-alpha-win-x64.zip`) yayınlandı.
 
-### Faz 3: Android (Aktif Faz)
-- **Track 3A:** Rust Çekirdek Android NDK / JNI FFI Köprüsü (`rbd-ffi` JNI C-ABI, DirectByteBuffer sıfır kopyalama).
+### Faz 3: Android — [✅ TAMAMLANDI - v0.1.0-alpha APK]
+- **Track 3A:** Rust Çekirdek Android NDK / JNI FFI Köprüsü (`rbd-ffi` JNI C-ABI, DirectByteBuffer sıfır kopyalama, ART VM panik izolasyonu).
 - **Track 3B:** Android Proje Mimarisi (`apps/android`: Kotlin, Jetpack Compose, Material 3, Navigation, MVVM).
-- **Track 3C:** Mobil Okuyucu & Tiled Canvas (Dokunmatik pinch-to-zoom, akıcı fling kaydırma, LRU karo önbelleği).
-- **Track 3D:** Kalem ve Açıklama Araçları (S-Pen / dokunmatik çizim, fosforlu vurgu, notlar, ISO 32000 PDF kaydetme).
-- **Track 3E:** Çevrimdışı Belge Tarayıcı (CameraX ile kenar tespiti, perspektif düzeltme, doğrudan PDF'e kaydetme).
-- **Track 3F:** Kalite, Güvenlik ve Bağımsız Denetim (ADR-0003 sıfır telemetri ve sıfır kapalı SDK kuralı, 60 FPS performans kapısı).
-- 🚪 **Kapı:** Orta segment telefonda akıcı kaydırma (60 fps), çökmesiz korpus açılışı, APK/AAB derlemesi.
+- **Track 3C:** Stylus & Kalem Desteği (`InkAnnotationCanvas`: S-Pen ve parmak ayrımı, pürüzsüz Quadratic Bézier eğrileri, çok renkli mürekkep/fosforlu kalem, vektörel silgi, çok seviyeli Geri Al/Yinele).
+- **Track 3D:** Çevrimdışı Belge Tarayıcı (`DocumentScannerScreen`: CameraX canlı vizörü, ITU-R BT.601 gri tonlama ve Otsu binarizasyon ile keskin siyah-beyaz belge tarama, doğrudan A4 PDF üretimi).
+- **Track 3E:** Güvenlik ve Gizlilik (ADR-0003: Sıfır telemetri, sıfır internet `INTERNET` izni yok, kapalı kaynak Google Play Services/ML Kit yok, 91 anahtarlı 1:1 TR/EN dil simetrisi).
+- 🚪 **Kapı:** 22/22 Android birim testi başarılı, bağımsız mimar onayı tamamlandı, `dist/android/rbd-ofis-v0.1.0-alpha.apk` (19.5 MB) üretildi.
 
-### Faz 4: Pro PDF Araçları (Adobe'un paralı özellikleri)
-OCR (aranabilir PDF), sıkıştırma, **gerçek** redaksiyon, dijital imza (PAdES), form oluşturma ve doldurma, belge karşılaştırma, filigran, sayfa numarası/Bates, PDF/A, toplu işlem (batch), hazır iş akışları.
+### Faz 4: Pro PDF Araçları (Adobe'un paralı özellikleri) — [Sıradaki Faz]
+OCR (aranabilir PDF), akıllı PDF sıkıştırma, **gerçek** redaksiyon (kalıcı piksel ve içerik sansürleme), dijital imza (PAdES), form oluşturma ve doldurma, belge karşılaştırma, filigran, sayfa numarası/Bates, PDF/A, toplu işlem (batch), hazır iş akışları.
 
 ### Faz 5: Dönüştürücüler
 PDF ↔ Word/Excel/PowerPoint, PDF ↔ resim, HTML/Markdown → PDF, EPUB.
