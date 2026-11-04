@@ -4,7 +4,7 @@ use crate::command::{
 use crate::error::CoreError;
 use crate::tile_cache::{TileCache, TileKey};
 use rbd_engine::{Annotation, DocumentMetadata, PdfDocument, PdfEngine, PixelFormat, SearchHit};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -17,6 +17,7 @@ pub struct DocumentSession {
     tile_cache: Arc<TileCache>,
     annotations: Vec<Annotation>,
     command_stack: CommandStack,
+    source_path: Option<PathBuf>,
 }
 
 impl DocumentSession {
@@ -48,6 +49,7 @@ impl DocumentSession {
             tile_cache: cache,
             annotations,
             command_stack: CommandStack::default(),
+            source_path: Some(path.to_path_buf()),
         })
     }
 
@@ -79,7 +81,13 @@ impl DocumentSession {
             tile_cache: cache,
             annotations,
             command_stack: CommandStack::default(),
+            source_path: None,
         })
+    }
+
+    /// Return the source file path on disk if this session was opened from a file.
+    pub fn source_path(&self) -> Option<&Path> {
+        self.source_path.as_deref()
     }
 
     /// Unique session / document identifier.

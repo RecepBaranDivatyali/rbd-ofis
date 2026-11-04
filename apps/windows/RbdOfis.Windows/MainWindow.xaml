@@ -5,120 +5,220 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="RBD OFİS" Height="760" Width="1100"
+        Title="RBD OFİS — Açık Kaynak, Offline Ofis ve PDF Paketi"
+        Height="820" Width="1240"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E">
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource AppForegroundBrush}">
+
+    <Window.InputBindings>
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
+        <KeyBinding Key="F" Modifiers="Control" Command="{Binding SearchCommand}" />
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
+    </Window.InputBindings>
+
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/> <!-- Row 0: Top Header & Menu -->
+            <RowDefinition Height="Auto"/> <!-- Row 1: Document Tab Strip -->
+            <RowDefinition Height="Auto"/> <!-- Row 2: Main Toolbar -->
+            <RowDefinition Height="Auto"/> <!-- Row 3: Annotation & Search Ribbon -->
+            <RowDefinition Height="*"/>    <!-- Row 4: Workspace Area (Sidebar + Canvas) -->
+            <RowDefinition Height="Auto"/> <!-- Row 5: Status Bar -->
         </Grid.RowDefinitions>
 
-        <!-- Top Menu / Header Bar -->
-        <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="12,8">
+        <!-- Row 0: Top Header & Global App Menu -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
             <DockPanel LastChildFill="True">
+                <!-- Right Side: Theme & Language Controls -->
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                    <TextBlock x:Name="LanguageLabelText" Text="Dil / Language:" Foreground="#CCCCCC" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                    <Button x:Name="ThemeToggleButton" Content="🌙 Koyu Tema" Click="OnThemeToggleClicked" Margin="0,0,10,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+                    <TextBlock x:Name="LanguageLabelText" Text="Dil / Language:" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
                     <ComboBox x:Name="LanguageComboBox" Width="110" SelectionChanged="OnLanguageSelectionChanged">
                         <ComboBoxItem Content="Türkçe (TR)" Tag="tr-TR" IsSelected="True"/>
                         <ComboBoxItem Content="English (EN)" Tag="en-US"/>
                     </ComboBox>
                 </StackPanel>
 
+                <!-- Left Side: App Branding & Office Spike Tab Switcher -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock x:Name="AppTitleText" Text="RBD OFİS" Foreground="#FFFFFF" FontWeight="Bold" FontSize="16" Margin="0,0,12,0"/>
-                    <TextBlock x:Name="AppSubtitleText" Text="Açık Kaynak, Offline Ofis ve PDF Paketi" Foreground="#888888" VerticalAlignment="Center" FontSize="12"/>
+                    <TextBlock x:Name="AppTitleText" Text="RBD OFİS" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="AppSubtitleText" Text="Açık Kaynak, Offline Ofis ve PDF Paketi" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" FontSize="12" Margin="0,0,20,0"/>
+
+                    <RadioButton x:Name="ModePdfRadio" Content="PDF Düzenleyici" IsChecked="True" Checked="OnModeRadioChanged" Foreground="{DynamicResource AppForegroundBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <RadioButton x:Name="ModeOfficeRadio" Content="ONLYOFFICE Düzenleyici" Checked="OnModeRadioChanged" Foreground="{DynamicResource AppForegroundBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <!-- Main Toolbar -->
-        <Border Grid.Row="1" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,6">
+        <!-- Row 1: Document Tab Strip (Multi-Document Tabs) -->
+        <Border Grid.Row="1" Background="{DynamicResource TabStripBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="6,2">
+            <DockPanel LastChildFill="True">
+                <Button x:Name="NewTabButton" Content="＋" Click="OnNewTabClicked" DockPanel.Dock="Right" Width="30" Height="26" Margin="4,0,0,0" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" ToolTip="Yeni Sekme"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="DocumentTabsContainer" Orientation="Horizontal"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Row 2: Main Document Navigation & Zoom Toolbar -->
+        <Border Grid.Row="2" Background="{DynamicResource ToolbarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
             <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Button x:Name="OpenButton" Content="Dosya Aç..." Click="OnOpenFileClicked" Margin="0,0,8,0" Padding="10,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
-                
-                <Separator Margin="4,0,8,0"/>
+                <!-- File Actions -->
+                <Button x:Name="OpenFileButton" Content="📁 Dosya Aç..." Click="OnOpenFileClicked" Margin="0,0,4,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+                <Button x:Name="SaveFileButton" Content="💾 Kaydet" Click="OnSaveFileClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+
+                <Separator Margin="4,2,8,2"/>
+
+                <!-- Sidebar Toggle -->
+                <Button x:Name="ToggleThumbnailsButton" Content="🖼 Sayfalar" Click="OnToggleThumbnailsClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+
+                <Separator Margin="4,2,8,2"/>
 
                 <!-- Page Navigation -->
-                <Button x:Name="PrevPageButton" Content="◀ Önceki" Click="OnPrevPageClicked" Margin="0,0,4,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
-                <TextBlock x:Name="PageStatusText" Text="Sayfa 1 / 2000" Foreground="#E0E0E0" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold"/>
-                <Button x:Name="NextPageButton" Content="Sonraki ▶" Click="OnNextPageClicked" Margin="4,0,8,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
+                <Button x:Name="PrevPageButton" Content="◀ Önceki" Click="OnPrevPageClicked" Margin="0,0,4,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+                <TextBox x:Name="PageJumpTextBox" Text="1" Width="40" TextAlignment="Center" VerticalAlignment="Center" Margin="2,0" Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" KeyDown="OnPageJumpKeyDown"/>
+                <TextBlock x:Name="PageTotalLabel" Text="/ 2000" VerticalAlignment="Center" Foreground="{DynamicResource AppForegroundBrush}" Margin="2,0,4,0"/>
+                <Button x:Name="NextPageButton" Content="Sonraki ▶" Click="OnNextPageClicked" Margin="4,0,8,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
 
-                <Separator Margin="4,0,8,0"/>
+                <Separator Margin="4,2,8,2"/>
+
+                <!-- View Modes -->
+                <ComboBox x:Name="ViewModeComboBox" Width="120" SelectionChanged="OnViewModeSelectionChanged" Margin="0,0,8,0" VerticalAlignment="Center">
+                    <ComboBoxItem Content="Sürekli Akış" Tag="Continuous" IsSelected="True"/>
+                    <ComboBoxItem Content="Tek Sayfa" Tag="Single"/>
+                    <ComboBoxItem Content="İki Sayfa" Tag="TwoPage"/>
+                </ComboBox>
+
+                <Separator Margin="4,2,8,2"/>
 
                 <!-- Zoom Controls -->
-                <Button x:Name="ZoomOutButton" Content="−" Click="OnZoomOutClicked" Width="30" Margin="0,0,4,0" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555" ToolTip="Uzaklaştır"/>
-                <TextBlock x:Name="ZoomText" Text="100%" Foreground="#E0E0E0" VerticalAlignment="Center" Width="45" TextAlignment="Center"/>
-                <Button x:Name="ZoomInButton" Content="+" Click="OnZoomInClicked" Width="30" Margin="4,0,8,0" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555" ToolTip="Yakınlaştır"/>
-                <Button x:Name="ZoomFitWidthButton" Content="Genişliğe Sığdır" Click="OnZoomFitWidthClicked" Margin="0,0,8,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
+                <Button x:Name="ZoomOutButton" Content="−" Click="OnZoomOutClicked" Width="28" Margin="0,0,2,0" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+                <Slider x:Name="ZoomSlider" Width="100" Minimum="25" Maximum="500" Value="100" ValueChanged="OnZoomSliderValueChanged" VerticalAlignment="Center" Margin="4,0"/>
+                <TextBlock x:Name="ZoomValueText" Text="100%" Width="45" TextAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AppForegroundBrush}"/>
+                <Button x:Name="ZoomInButton" Content="+" Click="OnZoomInClicked" Width="28" Margin="2,0,4,0" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+                <Button x:Name="FitWidthButton" Content="Genişliğe Sığdır" Click="OnFitWidthClicked" Margin="0,0,4,0" Padding="6,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+                <Button x:Name="FitPageButton" Content="Sayfaya Sığdır" Click="OnFitPageClicked" Margin="0,0,8,0" Padding="6,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
 
-                <Separator Margin="4,0,8,0"/>
+                <Separator Margin="4,2,8,2"/>
 
-                <!-- Smoke test runner button -->
-                <Button x:Name="SmokeTestButton" Content="FFI Sıfır-Kopya Testi" Click="OnRunSmokeTestClicked" Margin="0,0,8,0" Padding="10,4" Background="#0E639C" Foreground="#FFFFFF" BorderBrush="#1177BB"/>
+                <!-- Search Button -->
+                <Button x:Name="ToggleSearchButton" Content="🔍 Ara (Ctrl+F)" Click="OnToggleSearchClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
+
+                <!-- Page Organizer Window -->
+                <Button x:Name="PageOrganizerButton" Content="📑 Sayfa Düzenleyici" Click="OnPageOrganizerClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
             </WrapPanel>
         </Border>
 
-        <!-- Tabbed Workspace -->
-        <TabControl x:Name="MainTabControl" Grid.Row="2" Background="#1E1E1E" BorderBrush="#3E3E42">
-            
-            <!-- Tab 1: PDF Viewer with Direct2D/WriteableBitmap Canvas -->
-            <TabItem x:Name="PdfTabHeader" Header="PDF Görüntüleyici" Background="#252526" Foreground="#FFFFFF">
-                <Grid Background="#181818">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+        <!-- Row 3: Annotation Toolbar & Search Ribbon -->
+        <Border Grid.Row="3" Background="{DynamicResource SubToolbarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+            <DockPanel LastChildFill="True">
+                <!-- Search Bar Drawer (Visible when Ctrl+F is pressed) -->
+                <Border x:Name="SearchBarBorder" DockPanel.Dock="Right" Visibility="Collapsed" Background="{DynamicResource ControlBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="6,2" Margin="10,0,0,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBox x:Name="SearchQueryTextBox" Width="180" Margin="0,0,6,0" Padding="4,2" Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" KeyDown="OnSearchQueryKeyDown"/>
+                        <CheckBox x:Name="CaseSensitiveCheckBox" Content="Aa" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource AppForegroundBrush}" ToolTip="Büyük/Küçük Harf Duyarlı"/>
+                        <Button x:Name="SearchPrevButton" Content="◀" Click="OnSearchPrevClicked" Width="26" Margin="0,0,2,0" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"/>
+                        <Button x:Name="SearchNextButton" Content="▶" Click="OnSearchNextClicked" Width="26" Margin="0,0,6,0" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"/>
+                        <TextBlock x:Name="SearchCountLabel" Text="0 / 0" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource AppForegroundBrush}"/>
+                        <Button Content="✕" Click="OnCloseSearchClicked" Width="20" Height="20" Background="Transparent" Foreground="{DynamicResource MutedForegroundBrush}" BorderThickness="0"/>
+                    </StackPanel>
+                </Border>
 
-                    <!-- Render Metrics & Zero-Copy Status Bar -->
-                    <Border Grid.Row="0" Background="#1E1E1E" BorderBrush="#2D2D30" BorderThickness="0,0,0,1" Padding="10,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="StatsZeroCopyText" Text="Sıfır-Kopya Doğrudan Çizim: Aktif (Direct2D BackBuffer)" Foreground="#4EC9B0" FontSize="11" Margin="0,0,20,0"/>
-                            <TextBlock x:Name="StatsTileCountText" Text="Görünür Karo Sayısı: 0" Foreground="#9CDCFE" FontSize="11" Margin="0,0,20,0"/>
-                            <TextBlock x:Name="StatsRenderTimeText" Text="Karo Çizim Süresi: 0.00 ms" Foreground="#CE9178" FontSize="11" Margin="0,0,20,0"/>
-                            <TextBlock x:Name="StatsDocHeightText" Text="Sanal Döküman Yüksekliği: 0 px" Foreground="#DCDCAA" FontSize="11"/>
-                        </StackPanel>
-                    </Border>
+                <!-- Annotation Tool Toggles -->
+                <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton x:Name="ToolSelectRadio" Content="✋ Seç" IsChecked="True" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="{DynamicResource AppForegroundBrush}"/>
+                    <RadioButton x:Name="ToolHighlightRadio" Content="🖊 Vurgula" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#FFD700"/>
+                    <RadioButton x:Name="ToolUnderlineRadio" Content="U Altı Çizili" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#00B0FF"/>
+                    <RadioButton x:Name="ToolStrikeOutRadio" Content="S Üstü Çizili" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#FF5252"/>
+                    <RadioButton x:Name="ToolStickyNoteRadio" Content="💬 Not Ekle" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#FFC107"/>
+                    <RadioButton x:Name="ToolRectangleRadio" Content="▢ Dikdörtgen" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#E040FB"/>
+                    <RadioButton x:Name="ToolInkRadio" Content="✏ Serbest Çizim" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="{DynamicResource AppForegroundBrush}"/>
+                    <RadioButton x:Name="ToolTextRadio" Content="T Metin" Checked="OnToolSelected" Margin="0,0,8,0" Foreground="{DynamicResource AppForegroundBrush}"/>
 
-                    <!-- Scrollable Tiled Viewport -->
-                    <ScrollViewer x:Name="PdfScrollViewer" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ScrollChanged="OnPdfScrollChanged">
-                        <Grid x:Name="VirtualDocumentCanvas" Background="#252526" HorizontalAlignment="Center">
-                            <!-- Image backing the unmanaged WriteableBitmap backbuffer -->
-                            <Image x:Name="CanvasImage" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                        </Grid>
-                    </ScrollViewer>
-                </Grid>
-            </TabItem>
+                    <Separator Margin="4,2,8,2"/>
 
-            <!-- Tab 2: ONLYOFFICE Offline Editor Host per ADR-0004 -->
-            <TabItem x:Name="OfficeTabHeader" Header="ONLYOFFICE Düzenleyici" Background="#252526" Foreground="#FFFFFF">
-                <Grid Background="#1E1E1E">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                    <!-- Undo / Redo Buttons -->
+                    <Button x:Name="UndoButton" Content="↶ Geri Al" Click="OnUndoClicked" Margin="0,0,4,0" Padding="6,2" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" ToolTip="Ctrl+Z"/>
+                    <Button x:Name="RedoButton" Content="↷ Yinele" Click="OnRedoClicked" Margin="0,0,8,0" Padding="6,2" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}" ToolTip="Ctrl+Y"/>
 
-                    <!-- Offline Security Testing Ribbon -->
-                    <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,6">
-                        <DockPanel LastChildFill="True">
-                            <Button x:Name="TestUrlButton" Content="Adrese Git / Test Et" DockPanel.Dock="Right" Click="OnTestNavigateClicked" Margin="8,0,0,0" Padding="8,2" Background="#3E3E42" Foreground="#FFFFFF"/>
-                            <TextBlock x:Name="OfflineFilterLabelText" Text="Offline Güvenlik Filtresi Testi:" Foreground="#CCCCCC" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
-                            <TextBox x:Name="UrlTestTextBox" Text="https://rbd-office.local/index.html" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,2"/>
-                        </DockPanel>
-                    </Border>
+                    <Separator Margin="4,2,8,2"/>
 
-                    <!-- WebView2 Offline Host Container -->
-                    <wv2:WebView2 x:Name="OfficeWebView" Grid.Row="1"/>
-                </Grid>
-            </TabItem>
-        </TabControl>
+                    <!-- Annotation Save Embed Button -->
+                    <Button x:Name="SaveAnnotationsButton" Content="Açıklamaları Belgeye Yaz" Click="OnSaveAnnotationsClicked" Padding="8,2" Background="{DynamicResource SuccessButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource BorderBrush}"/>
+                </WrapPanel>
+            </DockPanel>
+        </Border>
 
-        <!-- Bottom Application Status Bar -->
-        <StatusBar Grid.Row="3" Background="#007ACC" Foreground="#FFFFFF">
+        <!-- Row 4: Workspace Area (Sidebar + Canvas OR ONLYOFFICE WebHost) -->
+        <Grid Grid.Row="4">
+            <!-- Mode 1: PDF Viewer Workspace -->
+            <Grid x:Name="PdfWorkspaceGrid" Visibility="Visible">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="SidebarColumn" Width="220"/> <!-- Thumbnail & Search Hits Sidebar -->
+                    <ColumnDefinition Width="Auto"/> <!-- Splitter -->
+                    <ColumnDefinition Width="*"/>   <!-- Document Viewer Canvas -->
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Sidebar (Thumbnails & Search Hits) -->
+                <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Sidebar Header -->
+                        <Border Grid.Row="0" Background="{DynamicResource TabStripBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,6">
+                            <DockPanel LastChildFill="True">
+                                <Button Content="✕" Click="OnCloseSidebarClicked" DockPanel.Dock="Right" Width="20" Height="20" Background="Transparent" Foreground="{DynamicResource MutedForegroundBrush}" BorderThickness="0"/>
+                                <TextBlock x:Name="SidebarTitleText" Text="Sayfalar" FontWeight="SemiBold" Foreground="{DynamicResource AppForegroundBrush}"/>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Thumbnail Items List -->
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="ThumbnailsContainer" HorizontalAlignment="Center" Margin="0,8"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- GridSplitter -->
+                <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"/>
+
+                <!-- Main Virtualized Canvas Viewport -->
+                <ScrollViewer x:Name="PdfScrollViewer" Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ScrollChanged="OnPdfScrollChanged" PreviewMouseWheel="OnPdfScrollViewerPreviewMouseWheel">
+                    <Grid x:Name="VirtualDocumentCanvas" Background="{DynamicResource CanvasBackgroundBrush}" HorizontalAlignment="Center">
+                        <!-- Direct2D / WriteableBitmap Pixel Canvas -->
+                        <Image x:Name="CanvasImage" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+
+                        <!-- Interactive Annotation & Search Highlight Overlay Canvas -->
+                        <Canvas x:Name="OverlayCanvas"
+                                Background="Transparent"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                MouseLeftButtonDown="OnOverlayCanvasMouseDown"
+                                MouseMove="OnOverlayCanvasMouseMove"
+                                MouseLeftButtonUp="OnOverlayCanvasMouseUp"/>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Mode 2: ONLYOFFICE Offline WebHost Container per ADR-0004 -->
+            <Grid x:Name="OfficeWorkspaceGrid" Visibility="Collapsed">
+                <wv2:WebView2 x:Name="OfficeWebView"/>
+            </Grid>
+        </Grid>
+
+        <!-- Row 5: Application Status Bar with Diagnostics -->
+        <StatusBar Grid.Row="5" Background="{DynamicResource StatusBarBackgroundBrush}" Foreground="#FFFFFF">
             <StatusBarItem>
                 <TextBlock x:Name="StatusMessageText" Text="Hazır • Offline Mod Aktif (Sıfır Ağ Erişimi)" Foreground="#FFFFFF" FontSize="12"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <TextBlock x:Name="DiagnosticsText" Text="Açılış: 0 ms • Karo Çizim: 0.00 ms • Bellek: 0 MB" Foreground="#E0E0E0" FontSize="11" Margin="15,0,0,0"/>
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
                 <TextBlock x:Name="SecuritySandboxText" Text="🔒 Yalıtım Alanı Aktif • https://rbd-office.local/" Foreground="#FFFFFF" FontSize="12" Margin="0,0,10,0"/>

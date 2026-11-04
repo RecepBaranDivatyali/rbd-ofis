@@ -68,7 +68,85 @@ internal static class StringCatalogs
         ["Phase2FeatureNotice"] = "Faz 2'de yerel dosya seçici ile açılacak.",
         ["SmokeTestReportFormat"] = "✅ {0}\nGecikme: {1} µs\nPiksel boyutu: {2} bayt",
         ["SmokeTestFailedFormat"] = "❌ Test Başarısız: {0}",
-        ["SmokeTestDialogTitle"] = "RBD OFİS — FFI Sıfır-Kopya Smoke Testi"
+        ["SmokeTestDialogTitle"] = "RBD OFİS — FFI Sıfır-Kopya Smoke Testi",
+
+        // Phase 2 Additions: Multi-Document Tabs
+        ["NewTab"] = "Yeni Sekme",
+        ["CloseTab"] = "Sekmeyi Kapat",
+        ["UntitledDocument"] = "Başlıksız Belge",
+
+        // View Modes
+        ["ContinuousView"] = "Sürekli Akış",
+        ["SinglePageView"] = "Tek Sayfa",
+        ["TwoPageView"] = "İki Sayfa",
+        ["ViewMode"] = "Görünüm Modu",
+
+        // Thumbnail Sidebar
+        ["ToggleThumbnails"] = "Küçük Resimler",
+        ["ThumbnailsTitle"] = "Sayfalar",
+
+        // Search UI
+        ["SearchTitle"] = "Belgede Ara (Ctrl+F)",
+        ["SearchPlaceholder"] = "Aranacak kelimeyi yazın...",
+        ["CaseSensitive"] = "Büyük/Küçük Harf (Aa)",
+        ["PrevMatch"] = "Önceki Eşleşme",
+        ["NextMatch"] = "Sonraki Eşleşme",
+        ["NoMatches"] = "Eşleşme bulunamadı",
+        ["MatchCount"] = "Eşleşme: {0} / {1}",
+        ["SearchResults"] = "Arama Sonuçları",
+
+        // Annotation Toolbar
+        ["ToolSelect"] = "Seç",
+        ["ToolHighlight"] = "Vurgula",
+        ["ToolUnderline"] = "Altı Çizili",
+        ["ToolStrikeOut"] = "Üstü Çizili",
+        ["ToolStickyNote"] = "Not Ekle",
+        ["ToolRectangle"] = "Dikdörtgen",
+        ["ToolInk"] = "Serbest Kalem",
+        ["ToolText"] = "Metin Ekle",
+        ["Undo"] = "Geri Al (Ctrl+Z)",
+        ["Redo"] = "Yinele (Ctrl+Y)",
+        ["SaveAnnotations"] = "Açıklamaları Kaydet",
+        ["AnnotationsSavedNotice"] = "Açıklamalar PDF belgesine başarıyla işlendi.",
+        ["StickyNotePrompt"] = "Not metnini girin:",
+        ["FreeTextPrompt"] = "Eklenecek metni girin:",
+        ["ColorYellow"] = "Sarı",
+        ["ColorGreen"] = "Yeşil",
+        ["ColorPink"] = "Pembe",
+        ["ColorBlue"] = "Mavi",
+
+        // Visual Page Organizer
+        ["PageOrganizerTitle"] = "Sayfa Düzenleyici",
+        ["DeletePage"] = "Sayfayı Sil",
+        ["MoveLeft"] = "Sola Taşı",
+        ["MoveRight"] = "Sağa Taşı",
+        ["CropPage"] = "Sayfayı Kırp",
+        ["InsertBlankPage"] = "Boş Sayfa Ekle",
+        ["MergePdfTitle"] = "PDF Belgelerini Birleştir",
+        ["SplitPdfTitle"] = "PDF Belgesini Böl",
+        ["SelectFiles"] = "Dosyaları Seç...",
+        ["MergeAction"] = "Birleştir ve Kaydet",
+        ["SplitAction"] = "Aralığı Çıkar ve Kaydet",
+        ["StartPage"] = "Başlangıç Sayfası:",
+        ["EndPage"] = "Bitiş Sayfası:",
+        ["PasswordPrompt"] = "Şifre Çözme:",
+        ["DecryptPdfTitle"] = "PDF Şifresini Kaldır",
+
+        // Theme & Polish
+        ["ThemeDark"] = "Koyu Tema",
+        ["ThemeLight"] = "Açık Tema",
+        ["ToggleTheme"] = "Temayı Değiştir",
+        ["DiagnosticsFormat"] = "Açılış: {0:F0} ms • Karo: {1:F2} ms • Bellek: {2:F1} MB",
+        ["OperationSuccess"] = "İşlem başarıyla tamamlandı: {0}",
+        ["OperationFailed"] = "İşlem başarısız: {0}",
+        ["FitPage"] = "Sayfaya Sığdır",
+        ["DefaultStickyNoteText"] = "RBD OFİS Notu",
+        ["DefaultFreeText"] = "Örnek Açıklama Metni",
+        ["DocumentPrefix"] = "Belge",
+        ["PageLayoutUpdated"] = "Sayfa düzeni başarıyla güncellendi.",
+        ["CropAction"] = "Seçili Sayfayı Kırp",
+        ["CropMarginsPrompt"] = "Kırpma Sınırları (Sol, Alt, Sağ, Üst pt):",
+        ["NativeEngineInitFailed"] = "Yerel PDF motoru yüklenemedi; simülasyon motoruna geçildi."
     };
 
     public static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
@@ -131,6 +209,84 @@ internal static class StringCatalogs
         ["Phase2FeatureNotice"] = "Will be opened via native file picker in Phase 2.",
         ["SmokeTestReportFormat"] = "✅ {0}\nLatency: {1} µs\nPixel buffer size: {2} bytes",
         ["SmokeTestFailedFormat"] = "❌ Test Failed: {0}",
-        ["SmokeTestDialogTitle"] = "RBD OFİS — FFI Zero-Copy Smoke Test"
+        ["SmokeTestDialogTitle"] = "RBD OFİS — FFI Zero-Copy Smoke Test",
+
+        // Phase 2 Additions: Multi-Document Tabs
+        ["NewTab"] = "New Tab",
+        ["CloseTab"] = "Close Tab",
+        ["UntitledDocument"] = "Untitled Document",
+
+        // View Modes
+        ["ContinuousView"] = "Continuous View",
+        ["SinglePageView"] = "Single Page",
+        ["TwoPageView"] = "Two Pages",
+        ["ViewMode"] = "View Mode",
+
+        // Thumbnail Sidebar
+        ["ToggleThumbnails"] = "Thumbnails",
+        ["ThumbnailsTitle"] = "Pages",
+
+        // Search UI
+        ["SearchTitle"] = "Search Document (Ctrl+F)",
+        ["SearchPlaceholder"] = "Type text to find...",
+        ["CaseSensitive"] = "Match Case (Aa)",
+        ["PrevMatch"] = "Previous Match",
+        ["NextMatch"] = "Next Match",
+        ["NoMatches"] = "No matches found",
+        ["MatchCount"] = "Match: {0} of {1}",
+        ["SearchResults"] = "Search Results",
+
+        // Annotation Toolbar
+        ["ToolSelect"] = "Select",
+        ["ToolHighlight"] = "Highlight",
+        ["ToolUnderline"] = "Underline",
+        ["ToolStrikeOut"] = "Strikeout",
+        ["ToolStickyNote"] = "Sticky Note",
+        ["ToolRectangle"] = "Rectangle",
+        ["ToolInk"] = "Freehand Ink",
+        ["ToolText"] = "Free Text",
+        ["Undo"] = "Undo (Ctrl+Z)",
+        ["Redo"] = "Redo (Ctrl+Y)",
+        ["SaveAnnotations"] = "Save Annotations",
+        ["AnnotationsSavedNotice"] = "Annotations successfully saved to PDF document.",
+        ["StickyNotePrompt"] = "Enter note text:",
+        ["FreeTextPrompt"] = "Enter text to insert:",
+        ["ColorYellow"] = "Yellow",
+        ["ColorGreen"] = "Green",
+        ["ColorPink"] = "Pink",
+        ["ColorBlue"] = "Blue",
+
+        // Visual Page Organizer
+        ["PageOrganizerTitle"] = "Page Organizer",
+        ["DeletePage"] = "Delete Page",
+        ["MoveLeft"] = "Move Left",
+        ["MoveRight"] = "Move Right",
+        ["CropPage"] = "Crop Page",
+        ["InsertBlankPage"] = "Insert Blank Page",
+        ["MergePdfTitle"] = "Merge PDF Documents",
+        ["SplitPdfTitle"] = "Split PDF Document",
+        ["SelectFiles"] = "Select Files...",
+        ["MergeAction"] = "Merge & Save",
+        ["SplitAction"] = "Extract & Save",
+        ["StartPage"] = "Start Page:",
+        ["EndPage"] = "End Page:",
+        ["PasswordPrompt"] = "Decrypt Password:",
+        ["DecryptPdfTitle"] = "Decrypt PDF Document",
+
+        // Theme & Polish
+        ["ThemeDark"] = "Dark Theme",
+        ["ThemeLight"] = "Light Theme",
+        ["ToggleTheme"] = "Toggle Theme",
+        ["DiagnosticsFormat"] = "Open: {0:F0} ms • Tile: {1:F2} ms • Memory: {2:F1} MB",
+        ["OperationSuccess"] = "Operation completed successfully: {0}",
+        ["OperationFailed"] = "Operation failed: {0}",
+        ["FitPage"] = "Fit Page",
+        ["DefaultStickyNoteText"] = "RBD OFIS Note",
+        ["DefaultFreeText"] = "Sample Annotation Text",
+        ["DocumentPrefix"] = "Document",
+        ["PageLayoutUpdated"] = "Page layout updated successfully.",
+        ["CropAction"] = "Crop Selected Page",
+        ["CropMarginsPrompt"] = "Crop Box (Left, Bottom, Right, Top pt):",
+        ["NativeEngineInitFailed"] = "Failed to load native PDF engine; switched to simulation engine."
     };
 }

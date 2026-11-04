@@ -1,12 +1,16 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
+using System.Text.Json;
+using RbdOfis.Interop.Models;
 
 namespace RbdOfis.Interop.Native;
 
 /// <summary>
 /// Fully self-contained mock implementation of the rbd-ffi C-ABI contract.
-/// Allows verifying zero-copy pinned buffer rendering, handle lifecycles, and viewport rendering
+/// Allows verifying zero-copy pinned buffer rendering, handle lifecycles, annotations, search, and page operations
 /// in unit tests and automated test runners without requiring rbd_ffi.dll to be pre-built.
 /// </summary>
 public sealed class MockNativeRbdApi : INativeRbdApi
@@ -23,9 +27,16 @@ public sealed class MockNativeRbdApi : INativeRbdApi
     public int LastTileWidth { get; private set; }
     public int LastTileHeight { get; private set; }
 
+    // In-memory annotation and undo/redo stacks per document
+    private readonly Dictionary<IntPtr, List<AnnotationDto>> _annotations = new();
+    private readonly Dictionary<IntPtr, Stack<List<AnnotationDto>>> _undoStack = new();
+    private readonly Dictionary<IntPtr, Stack<List<AnnotationDto>>> _redoStack = new();
+
+    private static List<AnnotationDto> CloneList(List<AnnotationDto> list) => new(list);
+
     public int EngineInit(out IntPtr outEngine)
     {
-        nint handle = System.Threading.Interlocked.Increment(ref _handleCounter);
+        int handle = System.Threading.Interlocked.Increment(ref _handleCounter);
         outEngine = new IntPtr(handle);
         return (int)RbdStatusCode.Success;
     }
@@ -43,8 +54,11 @@ public sealed class MockNativeRbdApi : INativeRbdApi
             return (int)RbdStatusCode.ErrorNullPointer;
         }
 
-        nint handle = System.Threading.Interlocked.Increment(ref _handleCounter);
+        int handle = System.Threading.Interlocked.Increment(ref _handleCounter);
         outDoc = new IntPtr(handle);
+        _annotations[outDoc] = new List<AnnotationDto>();
+        _undoStack[outDoc] = new Stack<List<AnnotationDto>>();
+        _redoStack[outDoc] = new Stack<List<AnnotationDto>>();
         return (int)RbdStatusCode.Success;
     }
 
@@ -56,14 +70,19 @@ public sealed class MockNativeRbdApi : INativeRbdApi
             return (int)RbdStatusCode.ErrorNullPointer;
         }
 
-        nint handle = System.Threading.Interlocked.Increment(ref _handleCounter);
+        int handle = System.Threading.Interlocked.Increment(ref _handleCounter);
         outDoc = new IntPtr(handle);
+        _annotations[outDoc] = new List<AnnotationDto>();
+        _undoStack[outDoc] = new Stack<List<AnnotationDto>>();
+        _redoStack[outDoc] = new Stack<List<AnnotationDto>>();
         return (int)RbdStatusCode.Success;
     }
 
     public void DocumentFree(IntPtr doc)
     {
-        // Document handle released
+        _annotations.Remove(doc);
+        _undoStack.Remove(doc);
+        _redoStack.Remove(doc);
     }
 
     public int DocumentGetPageCount(SafeDocumentHandle doc, out int outCount)
@@ -124,7 +143,7 @@ public sealed class MockNativeRbdApi : INativeRbdApi
         byte* basePtr = (byte*)buffer.ToPointer();
         byte r = (byte)((pageIndex * 37 + tileX * 13) % 256);
         byte g = (byte)((pageIndex * 53 + tileY * 29) % 256);
-        byte b = (byte)(240); // Document paper-like tone
+        byte b = 240; // Document paper-like tone
         byte a = 255;
 
         for (int y = 0; y < tileHeight; y++)
@@ -145,6 +164,248 @@ public sealed class MockNativeRbdApi : INativeRbdApi
     }
 
     public string GetLastError() => "No error";
+    public string GetVersionString() => "rbd-mock-0.1.0-alpha";
 
-    public string GetVersionString() => "rbd-mock-0.1.0";
+    public int DocumentExtractPageText(SafeDocumentHandle doc, uint pageIndex, out string text)
+    {
+        if (doc.IsInvalid)
+        {
+            text = string.Empty;
+            return (int)RbdStatusCode.ErrorNullPointer;
+        }
+
+        text = $"RBD OFİS Document Page {pageIndex + 1}\nHello world! Bu bir test PDF dökümanıdır. Türkçe karakterler: ç, ğ, ı, ö, ş, ü, İ.\nEnd of page {pageIndex + 1}.";
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentSearchJson(SafeDocumentHandle doc, string query, bool caseSensitive, out string json)
+    {
+        if (doc.IsInvalid || string.IsNullOrEmpty(query))
+        {
+            json = "[]";
+            return (int)RbdStatusCode.Success;
+        }
+
+        var hits = new List<SearchHitDto>();
+        // Return simulated hits across early pages
+        int samplePages = Math.Min(ConfiguredPageCount, 5);
+        for (uint p = 0; p < samplePages; p++)
+        {
+            hits.Add(new SearchHitDto
+            {
+                Page = p,
+                Text = query,
+                CharOffset = 25,
+                Rects =
+                [
+                    new PdfRect(72f, 700f, 150f, 720f)
+                ]
+            });
+        }
+
+        json = JsonSerializer.Serialize(hits);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentGetAnnotationsJson(SafeDocumentHandle doc, uint pageIndex, out string json)
+    {
+        IntPtr key = doc.DangerousGetHandle();
+        if (_annotations.TryGetValue(key, out var list))
+        {
+            var pageAnnots = list.Where(a => a.PageIndex == pageIndex).ToList();
+            json = JsonSerializer.Serialize(pageAnnots);
+            return (int)RbdStatusCode.Success;
+        }
+
+        json = "[]";
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentAddAnnotationJson(SafeDocumentHandle doc, string annotJson)
+    {
+        if (string.IsNullOrWhiteSpace(annotJson)) return (int)RbdStatusCode.ErrorInvalidArgument;
+        var annot = JsonSerializer.Deserialize<AnnotationDto>(annotJson);
+        if (annot == null) return (int)RbdStatusCode.ErrorInvalidArgument;
+
+        IntPtr key = doc.DangerousGetHandle();
+        if (!_annotations.ContainsKey(key)) _annotations[key] = new List<AnnotationDto>();
+        if (!_undoStack.ContainsKey(key)) _undoStack[key] = new Stack<List<AnnotationDto>>();
+        if (!_redoStack.ContainsKey(key)) _redoStack[key] = new Stack<List<AnnotationDto>>();
+
+        var list = _annotations[key];
+        _undoStack[key].Push(CloneList(list));
+        _redoStack[key].Clear();
+
+        list.RemoveAll(a => a.Id == annot.Id);
+        list.Add(annot);
+
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentRemoveAnnotation(SafeDocumentHandle doc, ulong annotId)
+    {
+        IntPtr key = doc.DangerousGetHandle();
+        if (_annotations.TryGetValue(key, out var list))
+        {
+            if (!_undoStack.ContainsKey(key)) _undoStack[key] = new Stack<List<AnnotationDto>>();
+            if (!_redoStack.ContainsKey(key)) _redoStack[key] = new Stack<List<AnnotationDto>>();
+
+            var oldList = CloneList(list);
+            int count = list.RemoveAll(a => a.Id == annotId);
+            if (count > 0)
+            {
+                _undoStack[key].Push(oldList);
+                _redoStack[key].Clear();
+            }
+        }
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentUpdateAnnotationJson(SafeDocumentHandle doc, string annotJson)
+    {
+        if (string.IsNullOrWhiteSpace(annotJson)) return (int)RbdStatusCode.ErrorInvalidArgument;
+        var annot = JsonSerializer.Deserialize<AnnotationDto>(annotJson);
+        if (annot == null) return (int)RbdStatusCode.ErrorInvalidArgument;
+
+        IntPtr key = doc.DangerousGetHandle();
+        if (_annotations.TryGetValue(key, out var list))
+        {
+            if (!_undoStack.ContainsKey(key)) _undoStack[key] = new Stack<List<AnnotationDto>>();
+            if (!_redoStack.ContainsKey(key)) _redoStack[key] = new Stack<List<AnnotationDto>>();
+
+            int idx = list.FindIndex(a => a.Id == annot.Id);
+            if (idx >= 0)
+            {
+                _undoStack[key].Push(CloneList(list));
+                _redoStack[key].Clear();
+                list[idx] = annot;
+                return (int)RbdStatusCode.Success;
+            }
+        }
+        return DocumentAddAnnotationJson(doc, annotJson);
+    }
+
+    public int DocumentUndo(SafeDocumentHandle doc, out bool didUndo)
+    {
+        IntPtr key = doc.DangerousGetHandle();
+        if (_undoStack.TryGetValue(key, out var uStack) && uStack.Count > 0)
+        {
+            if (!_redoStack.ContainsKey(key)) _redoStack[key] = new Stack<List<AnnotationDto>>();
+            _redoStack[key].Push(CloneList(_annotations[key]));
+            _annotations[key] = uStack.Pop();
+            didUndo = true;
+            return (int)RbdStatusCode.Success;
+        }
+
+        didUndo = false;
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentRedo(SafeDocumentHandle doc, out bool didRedo)
+    {
+        IntPtr key = doc.DangerousGetHandle();
+        if (_redoStack.TryGetValue(key, out var rStack) && rStack.Count > 0)
+        {
+            if (!_undoStack.ContainsKey(key)) _undoStack[key] = new Stack<List<AnnotationDto>>();
+            _undoStack[key].Push(CloneList(_annotations[key]));
+            _annotations[key] = rStack.Pop();
+            didRedo = true;
+            return (int)RbdStatusCode.Success;
+        }
+
+        didRedo = false;
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentCanUndo(SafeDocumentHandle doc, out bool canUndo)
+    {
+        IntPtr key = doc.DangerousGetHandle();
+        canUndo = _undoStack.TryGetValue(key, out var stack) && stack.Count > 0;
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentCanRedo(SafeDocumentHandle doc, out bool canRedo)
+    {
+        IntPtr key = doc.DangerousGetHandle();
+        canRedo = _redoStack.TryGetValue(key, out var stack) && stack.Count > 0;
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentSaveAnnotations(SafeDocumentHandle doc, string outputPath)
+    {
+        File.WriteAllText(outputPath, "%PDF-1.7 mock output with annotations");
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int DocumentSaveAnnotationsToPath(SafeDocumentHandle doc, string inputPath, string outputPath)
+    {
+        if (File.Exists(inputPath))
+        {
+            File.Copy(inputPath, outputPath, overwrite: true);
+        }
+        else
+        {
+            File.WriteAllText(outputPath, "%PDF-1.7 mock output with annotations");
+        }
+        return (int)RbdStatusCode.Success;
+    }
+
+    // Page operations
+    public int PageOpRotate(string inPath, string outPath, int degrees)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpDeletePages(string inPath, string outPath, string pagesJson)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpSplit(string inPath, string outPath, uint startPage, uint endPage)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpMerge(string outPath, string inPathsJson)
+    {
+        try
+        {
+            var paths = JsonSerializer.Deserialize<List<string>>(inPathsJson);
+            if (paths != null && paths.Count > 0 && File.Exists(paths[0]))
+            {
+                File.Copy(paths[0], outPath, overwrite: true);
+                return (int)RbdStatusCode.Success;
+            }
+        }
+        catch { }
+        File.WriteAllText(outPath, "%PDF-1.7 merged mock");
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpReorder(string inPath, string outPath, string orderJson)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpCrop(string inPath, string outPath, uint pageNum, float x0, float y0, float x1, float y1)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpInsertBlank(string inPath, string outPath, uint afterPage, float widthPt, float heightPt)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int PageOpDecrypt(string inPath, string outPath, string passwordUtf8)
+    {
+        File.Copy(inPath, outPath, overwrite: true);
+        return (int)RbdStatusCode.Success;
+    }
 }

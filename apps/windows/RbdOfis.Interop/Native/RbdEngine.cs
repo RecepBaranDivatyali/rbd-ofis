@@ -42,7 +42,7 @@ public sealed class RbdEngine : IDisposable
         }
 
         var docHandle = new SafeDocumentHandle(rawDoc, _api.DocumentFree);
-        return new RbdDocument(docHandle, _api);
+        return new RbdDocument(docHandle, _api, filePath);
     }
 
     /// <summary>

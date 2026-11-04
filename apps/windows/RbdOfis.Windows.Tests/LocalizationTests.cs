@@ -79,6 +79,46 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void Verify_Phase2_Keys_Are_Present_And_Complete()
+    {
+        string[] requiredPhase2Keys =
+        [
+            "ToggleThumbnails",
+            "ThumbnailsTitle",
+            "SearchTitle",
+            "SearchPlaceholder",
+            "CaseSensitive",
+            "MatchCount",
+            "ToolSelect",
+            "ToolHighlight",
+            "ToolUnderline",
+            "ToolStrikeOut",
+            "ToolStickyNote",
+            "ToolRectangle",
+            "ToolInk",
+            "ToolText",
+            "Undo",
+            "Redo",
+            "SaveAnnotations",
+            "PageOrganizerTitle",
+            "MergePdfTitle",
+            "SplitPdfTitle",
+            "ThemeDark",
+            "ThemeLight",
+            "DiagnosticsFormat"
+        ];
+
+        var turkish = LocalizationManager.GetCatalogForCulture("tr-TR");
+        var english = LocalizationManager.GetCatalogForCulture("en-US");
+
+        foreach (string key in requiredPhase2Keys)
+        {
+            Assert.True(turkish.ContainsKey(key), $"Turkish catalog missing Phase 2 key '{key}'.");
+            Assert.True(english.ContainsKey(key), $"English catalog missing Phase 2 key '{key}'.");
+        }
+    }
+
+    [Fact]
     public void Verify_MainWindow_CodeBehind_Uses_Localization_For_All_User_Dialogs()
     {
         string? projectRoot = null;
@@ -114,6 +154,38 @@ public class LocalizationTests
             Assert.DoesNotContain("\"Faz 2'de yerel dosya seçici ile açılacak.\"", sourceCode);
             Assert.DoesNotContain("\"Neden: \"", sourceCode);
             Assert.DoesNotContain("\"WebView2 Offline Host Hatası: \"", sourceCode);
+            Assert.DoesNotContain("\"RBD OFİS Notu\"", sourceCode);
+            Assert.DoesNotContain("\"Örnek Açıklama Metni\"", sourceCode);
+            Assert.DoesNotContain("\"🌙 Koyu Tema\"", sourceCode);
+            Assert.DoesNotContain("\"☀️ Açık Tema\"", sourceCode);
+            Assert.DoesNotContain("\"Belge_\"", sourceCode);
+        }
+
+        string? organizerPath = null;
+        currentDir = AppContext.BaseDirectory;
+        for (int i = 0; i < 6; i++)
+        {
+            string candidate = Path.Combine(currentDir, "apps", "windows", "RbdOfis.Windows", "PageOrganizerWindow.xaml.cs");
+            if (File.Exists(candidate))
+            {
+                organizerPath = candidate;
+                break;
+            }
+            string candidateDirect = Path.Combine(currentDir, "..", "RbdOfis.Windows", "PageOrganizerWindow.xaml.cs");
+            if (File.Exists(candidateDirect))
+            {
+                organizerPath = Path.GetFullPath(candidateDirect);
+                break;
+            }
+            string? parent = Directory.GetParent(currentDir)?.FullName;
+            if (parent == null) break;
+            currentDir = parent;
+        }
+
+        if (organizerPath != null && File.Exists(organizerPath))
+        {
+            string orgCode = File.ReadAllText(organizerPath);
+            Assert.DoesNotContain("\"Sayfa düzeni güncellendi.\"", orgCode);
         }
     }
 

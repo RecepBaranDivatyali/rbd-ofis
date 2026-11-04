@@ -1,0 +1,49 @@
+<Window x:Class="RbdOfis.Windows.PageOrganizerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Sayfa Düzenleyici — RBD OFİS" Height="650" Width="950"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="#FFFFFF">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Operations Toolbar -->
+        <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,8">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="RotateCwButton" Content="Saat Yönünde Döndür (+90°)" Click="OnRotateCwClicked" Margin="0,0,6,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                <Button x:Name="RotateCcwButton" Content="Ters Yönde Döndür (-90°)" Click="OnRotateCcwClicked" Margin="0,0,6,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                <Button x:Name="DeleteButton" Content="Sayfayı Sil" Click="OnDeletePageClicked" Margin="0,0,6,0" Padding="8,4" Background="#A1260D" Foreground="#FFFFFF"/>
+                <Button x:Name="MoveLeftButton" Content="Sola Taşı" Click="OnMoveLeftClicked" Margin="0,0,6,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                <Button x:Name="MoveRightButton" Content="Sağa Taşı" Click="OnMoveRightClicked" Margin="0,0,6,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                <Button x:Name="CropButton" Content="Sayfayı Kırp" Click="OnCropClicked" Margin="0,0,6,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                <Button x:Name="InsertBlankButton" Content="Boş Sayfa Ekle" Click="OnInsertBlankClicked" Margin="0,0,6,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+
+                <Separator Margin="6,0,10,0"/>
+
+                <Button x:Name="MergePdfButton" Content="PDF Belgelerini Birleştir" Click="OnMergePdfClicked" Margin="0,0,6,0" Padding="8,4" Background="#0E639C" Foreground="#FFFFFF"/>
+                <Button x:Name="SplitPdfButton" Content="PDF Belgesini Böl" Click="OnSplitPdfClicked" Margin="0,0,6,0" Padding="8,4" Background="#0E639C" Foreground="#FFFFFF"/>
+            </WrapPanel>
+        </Border>
+
+        <!-- Page Thumbnail Grid -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="15">
+            <WrapPanel x:Name="PagesWrapPanel" Orientation="Horizontal" HorizontalAlignment="Center"/>
+        </ScrollViewer>
+
+        <!-- Bottom Action Bar -->
+        <Border Grid.Row="2" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,1,0,0" Padding="12,10">
+            <DockPanel LastChildFill="False">
+                <TextBlock x:Name="StatusLabel" Text="Toplam Sayfa: 0" Foreground="#CCCCCC" VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                <Button x:Name="CloseButton" Content="Kapat" Click="OnCloseClicked" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="16,6" Background="#3E3E42" Foreground="#FFFFFF"/>
+                <Button x:Name="ApplyButton" Content="Kaydet / Uygula" Click="OnApplyClicked" DockPanel.Dock="Right" Padding="16,6" Background="#107C41" Foreground="#FFFFFF" FontWeight="SemiBold"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -455,6 +455,649 @@ pub unsafe extern "C" fn rbd_document_search_json(
 }
 
 // ---------------------------------------------------------------------------
+// Document Annotation Management & Undo / Redo Entrypoints
+// ---------------------------------------------------------------------------
+
+/// Add an annotation to the document session from a JSON string with undo support.
+///
+/// # Safety
+/// `doc` must be a valid document handle and `annotation_json` must be a valid null-terminated UTF-8 string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_add_annotation_json(
+    doc: *mut c_void,
+    annotation_json: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || annotation_json.is_null() {
+            set_last_error("Null pointer passed to rbd_document_add_annotation_json");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let json_str = unsafe { CStr::from_ptr(annotation_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in annotation JSON");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let annotation: rbd_engine::Annotation = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to deserialize annotation JSON: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        doc_handle
+            .session
+            .add_annotation_undoable(annotation)
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Remove an annotation by ID with undo support.
+///
+/// # Safety
+/// `doc` must be a valid document handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_remove_annotation(
+    doc: *mut c_void,
+    annotation_id: u64,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() {
+            set_last_error("Null pointer passed to rbd_document_remove_annotation");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        doc_handle
+            .session
+            .remove_annotation_undoable(annotation_id)
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Retrieve all annotations for a specific page as a JSON string.
+/// The returned string must be freed using `rbd_free_string`.
+///
+/// # Safety
+/// `doc` must be a valid document handle and `out_json_utf8_ptr` must be a writable pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_get_annotations_json(
+    doc: *mut c_void,
+    page_index: u32,
+    out_json_utf8_ptr: *mut *mut c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_json_utf8_ptr.is_null() {
+            set_last_error("Null pointer passed to rbd_document_get_annotations_json");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        let annotations = doc_handle.session.annotations_for_page(page_index);
+
+        let json = serde_json::to_string(&annotations).map_err(|e| {
+            set_last_error(&format!("Failed to serialize annotations: {e}"));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        let cs = CString::new(json).map_err(|_| {
+            set_last_error("Failed to convert annotations JSON to CString");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        unsafe {
+            *out_json_utf8_ptr = cs.into_raw();
+        }
+        Ok(())
+    }))
+}
+
+/// Update an existing annotation with undo support.
+///
+/// # Safety
+/// `doc` and `annotation_json` must be non-null valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_update_annotation_json(
+    doc: *mut c_void,
+    annotation_json: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || annotation_json.is_null() {
+            set_last_error("Null pointer passed to rbd_document_update_annotation_json");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let json_str = unsafe { CStr::from_ptr(annotation_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in annotation JSON");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let annotation: rbd_engine::Annotation = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to deserialize annotation JSON: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        doc_handle
+            .session
+            .update_annotation_undoable(annotation)
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Undo the last annotation action.
+/// Sets `*out_undone = 1` if an action was undone, or `0` if nothing was available to undo.
+///
+/// # Safety
+/// `doc` and `out_undone` must be non-null valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_undo(doc: *mut c_void, out_undone: *mut i32) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_undone.is_null() {
+            set_last_error("Null pointer passed to rbd_document_undo");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let undone = doc_handle.session.undo().map_err(|e| map_core_error(&e))?;
+
+        unsafe {
+            *out_undone = if undone { 1 } else { 0 };
+        }
+        Ok(())
+    }))
+}
+
+/// Redo the last undone annotation action.
+/// Sets `*out_redone = 1` if an action was redone, or `0` if nothing was available to redo.
+///
+/// # Safety
+/// `doc` and `out_redone` must be non-null valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_redo(doc: *mut c_void, out_redone: *mut i32) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_redone.is_null() {
+            set_last_error("Null pointer passed to rbd_document_redo");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let redone = doc_handle.session.redo().map_err(|e| map_core_error(&e))?;
+
+        unsafe {
+            *out_redone = if redone { 1 } else { 0 };
+        }
+        Ok(())
+    }))
+}
+
+/// Query whether an undo action is currently available.
+///
+/// # Safety
+/// `doc` and `out_can_undo` must be non-null valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_can_undo(doc: *mut c_void, out_can_undo: *mut i32) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_can_undo.is_null() {
+            set_last_error("Null pointer passed to rbd_document_can_undo");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        unsafe {
+            *out_can_undo = if doc_handle.session.can_undo() { 1 } else { 0 };
+        }
+        Ok(())
+    }))
+}
+
+/// Query whether a redo action is currently available.
+///
+/// # Safety
+/// `doc` and `out_can_redo` must be non-null valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_can_redo(doc: *mut c_void, out_can_redo: *mut i32) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_can_redo.is_null() {
+            set_last_error("Null pointer passed to rbd_document_can_redo");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        unsafe {
+            *out_can_redo = if doc_handle.session.can_redo() { 1 } else { 0 };
+        }
+        Ok(())
+    }))
+}
+
+/// Save annotations to the specified PDF file path.
+/// If opened from a file, the original source file is used as input.
+///
+/// # Safety
+/// `doc` and `output_path_utf8` must be non-null valid pointers.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_save_annotations(
+    doc: *mut c_void,
+    output_path_utf8: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || output_path_utf8.is_null() {
+            set_last_error("Null pointer passed to rbd_document_save_annotations");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let out_str = unsafe { CStr::from_ptr(output_path_utf8) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in output path");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let out_path = Path::new(out_str);
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+
+        let in_path = match doc_handle.session.source_path() {
+            Some(p) => p,
+            None => {
+                if out_path.exists() {
+                    out_path
+                } else {
+                    set_last_error("Source file path unknown and output file does not exist");
+                    return Err(RBD_ERR_FILE_IO);
+                }
+            }
+        };
+
+        doc_handle
+            .session
+            .save_annotations_to_pdf(in_path, out_path)
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Save annotations specifying both input template path and output path.
+///
+/// # Safety
+/// Pointers must be non-null valid pointers to null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_save_annotations_to_path(
+    doc: *mut c_void,
+    input_path_utf8: *const c_char,
+    output_path_utf8: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || input_path_utf8.is_null() || output_path_utf8.is_null() {
+            set_last_error("Null pointer passed to rbd_document_save_annotations_to_path");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(input_path_utf8) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in input path");
+                RBD_ERR_INVALID_PARAM
+            })?;
+        let out_str = unsafe { CStr::from_ptr(output_path_utf8) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in output path");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        doc_handle
+            .session
+            .save_annotations_to_pdf(Path::new(in_str), Path::new(out_str))
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// Standalone PDF Page Operations Entrypoints
+// ---------------------------------------------------------------------------
+
+/// Merge multiple PDF documents into a single output file.
+/// `in_paths_json` must be a valid JSON array of UTF-8 file paths.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_merge(
+    out_path: *const c_char,
+    in_paths_json: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if out_path.is_null() || in_paths_json.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_merge");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in output path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let json_str = unsafe { CStr::from_ptr(in_paths_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in in_paths_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let paths: Vec<String> = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to parse in_paths_json: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        if paths.is_empty() {
+            set_last_error("Empty paths array passed to rbd_page_op_merge");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let path_refs: Vec<&Path> = paths.iter().map(Path::new).collect();
+        rbd_core::page_ops::merge(&path_refs, Path::new(out_str))
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Split a page range [start_page, end_page] (1-based inclusive) into an output PDF.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_split(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    start_page: u32,
+    end_page: u32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_split");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::page_ops::split(Path::new(in_str), start_page, end_page, Path::new(out_str))
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Rotate all pages in a PDF document by `degrees` (must be a multiple of 90).
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_rotate(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    degrees: i32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_rotate");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::page_ops::rotate(Path::new(in_str), degrees, Path::new(out_str))
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Delete pages specified in `pages_json` (1-based page numbers JSON array).
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_delete_pages(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    pages_json: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() || pages_json.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_delete_pages");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let json_str = unsafe { CStr::from_ptr(pages_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in pages_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let pages: Vec<u32> = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to parse pages_json: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::page_ops::delete_pages(Path::new(in_str), &pages, Path::new(out_str))
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Reorder pages according to `order_json` (1-based page numbers JSON array).
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_reorder(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    order_json: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() || order_json.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_reorder");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let json_str = unsafe { CStr::from_ptr(order_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in order_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let order: Vec<u32> = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to parse order_json: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::page_ops::reorder_pages(Path::new(in_str), Path::new(out_str), &order)
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Crop the 1-based `page_num` to bounding box `[x0, y0, x1, y1]` in points.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_crop(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    page_num: u32,
+    x0: f32,
+    y0: f32,
+    x1: f32,
+    y1: f32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_crop");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::page_ops::crop_page(
+            Path::new(in_str),
+            Path::new(out_str),
+            page_num,
+            [x0, y0, x1, y1],
+        )
+        .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Insert a blank page after 1-based `after_page` with dimensions `width_pt` x `height_pt`.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_insert_blank(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    after_page: u32,
+    width_pt: f32,
+    height_pt: f32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_insert_blank");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        if width_pt <= 0.0 || height_pt <= 0.0 {
+            set_last_error("Invalid page dimensions for blank page");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::page_ops::insert_blank_page(
+            Path::new(in_str),
+            Path::new(out_str),
+            after_page,
+            width_pt,
+            height_pt,
+        )
+        .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Decrypt a password-protected PDF document.
+///
+/// # Safety
+/// `in_path` and `out_path` must be valid null-terminated UTF-8 strings.
+/// `password_utf8` may be null (empty password).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_page_op_decrypt(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    password_utf8: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_page_op_decrypt");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let password = if password_utf8.is_null() {
+            ""
+        } else {
+            unsafe { CStr::from_ptr(password_utf8) }
+                .to_str()
+                .map_err(|_| {
+                    set_last_error("Invalid UTF-8 in password");
+                    RBD_ERR_INVALID_PARAM
+                })?
+        };
+
+        rbd_core::page_ops::decrypt_pdf(Path::new(in_str), Path::new(out_str), password)
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Existing Legacy RbdSession Entrypoints (retained for backward compatibility)
 // ---------------------------------------------------------------------------
 
@@ -892,6 +1535,220 @@ mod tests {
 
             rbd_document_free(doc);
             rbd_engine_free(engine);
+        }
+    }
+
+    #[test]
+    fn test_ffi_annotations_and_undo_redo() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sample_pdf =
+            manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        assert!(sample_pdf.exists());
+
+        unsafe {
+            let mut engine = std::ptr::null_mut();
+            assert_eq!(rbd_engine_init(&mut engine), RBD_OK);
+
+            let path_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+            let mut doc = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_open_file(engine, path_c.as_ptr(), &mut doc),
+                RBD_OK
+            );
+
+            // Verify initial annotations are empty
+            let mut json_ptr: *mut c_char = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_get_annotations_json(doc, 0, &mut json_ptr),
+                RBD_OK
+            );
+            assert!(!json_ptr.is_null());
+            let json = CStr::from_ptr(json_ptr).to_str().unwrap();
+            assert_eq!(json, "[]");
+            rbd_free_string(json_ptr);
+
+            // Add annotation
+            let annot_json = r#"{
+                "id": 42,
+                "page_index": 0,
+                "kind": "Highlight",
+                "rect": { "x0": 10.0, "y0": 20.0, "x1": 100.0, "y1": 50.0 },
+                "color_rgba": [255, 255, 0, 128],
+                "contents": "Test annotation content"
+            }"#;
+            let annot_c = CString::new(annot_json).unwrap();
+            assert_eq!(
+                rbd_document_add_annotation_json(doc, annot_c.as_ptr()),
+                RBD_OK
+            );
+
+            // Get annotations - verify presence
+            let mut json_ptr: *mut c_char = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_get_annotations_json(doc, 0, &mut json_ptr),
+                RBD_OK
+            );
+            let json = CStr::from_ptr(json_ptr).to_str().unwrap();
+            assert!(json.contains("Test annotation content"));
+            assert!(json.contains("Highlight"));
+            rbd_free_string(json_ptr);
+
+            // Test undo
+            let mut undone: i32 = 0;
+            assert_eq!(rbd_document_undo(doc, &mut undone), RBD_OK);
+            assert_eq!(undone, 1);
+
+            let mut json_ptr: *mut c_char = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_get_annotations_json(doc, 0, &mut json_ptr),
+                RBD_OK
+            );
+            let json = CStr::from_ptr(json_ptr).to_str().unwrap();
+            assert_eq!(json, "[]");
+            rbd_free_string(json_ptr);
+
+            // Test redo
+            let mut redone: i32 = 0;
+            assert_eq!(rbd_document_redo(doc, &mut redone), RBD_OK);
+            assert_eq!(redone, 1);
+
+            let mut json_ptr: *mut c_char = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_get_annotations_json(doc, 0, &mut json_ptr),
+                RBD_OK
+            );
+            let json = CStr::from_ptr(json_ptr).to_str().unwrap();
+            assert!(json.contains("Test annotation content"));
+            rbd_free_string(json_ptr);
+
+            // Save annotations to temporary output PDF
+            let out_pdf =
+                std::env::temp_dir().join(format!("rbd_ffi_annot_{}.pdf", std::process::id()));
+            let out_c = CString::new(out_pdf.to_str().unwrap()).unwrap();
+            assert_eq!(rbd_document_save_annotations(doc, out_c.as_ptr()), RBD_OK);
+            assert!(out_pdf.exists());
+            let _ = std::fs::remove_file(out_pdf);
+
+            // Remove annotation
+            assert_eq!(rbd_document_remove_annotation(doc, 42), RBD_OK);
+            let mut json_ptr: *mut c_char = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_get_annotations_json(doc, 0, &mut json_ptr),
+                RBD_OK
+            );
+            let json = CStr::from_ptr(json_ptr).to_str().unwrap();
+            assert_eq!(json, "[]");
+            rbd_free_string(json_ptr);
+
+            rbd_document_free(doc);
+            rbd_engine_free(engine);
+        }
+    }
+
+    #[test]
+    fn test_ffi_page_operations() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sample_pdf =
+            manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        assert!(sample_pdf.exists());
+
+        let pid = std::process::id();
+        let in_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+
+        unsafe {
+            // 1. Insert blank page
+            let out_blank = std::env::temp_dir().join(format!("rbd_ffi_test_blank_{pid}.pdf"));
+            let out_blank_c = CString::new(out_blank.to_str().unwrap()).unwrap();
+            assert_eq!(
+                rbd_page_op_insert_blank(in_c.as_ptr(), out_blank_c.as_ptr(), 1, 595.0, 842.0),
+                RBD_OK
+            );
+            assert!(out_blank.exists());
+
+            // 2. Rotate
+            let out_rot = std::env::temp_dir().join(format!("rbd_ffi_test_rot_{pid}.pdf"));
+            let out_rot_c = CString::new(out_rot.to_str().unwrap()).unwrap();
+            assert_eq!(
+                rbd_page_op_rotate(in_c.as_ptr(), out_rot_c.as_ptr(), 90),
+                RBD_OK
+            );
+            assert!(out_rot.exists());
+
+            // 3. Crop
+            let out_crop = std::env::temp_dir().join(format!("rbd_ffi_test_crop_{pid}.pdf"));
+            let out_crop_c = CString::new(out_crop.to_str().unwrap()).unwrap();
+            assert_eq!(
+                rbd_page_op_crop(
+                    in_c.as_ptr(),
+                    out_crop_c.as_ptr(),
+                    1,
+                    50.0,
+                    50.0,
+                    300.0,
+                    400.0
+                ),
+                RBD_OK
+            );
+            assert!(out_crop.exists());
+
+            // 4. Merge
+            let out_merge = std::env::temp_dir().join(format!("rbd_ffi_test_merge_{pid}.pdf"));
+            let out_merge_c = CString::new(out_merge.to_str().unwrap()).unwrap();
+            let json_merge =
+                serde_json::to_string(&[sample_pdf.to_str().unwrap(), out_blank.to_str().unwrap()])
+                    .unwrap();
+            let json_merge_c = CString::new(json_merge).unwrap();
+            assert_eq!(
+                rbd_page_op_merge(out_merge_c.as_ptr(), json_merge_c.as_ptr()),
+                RBD_OK
+            );
+            assert!(out_merge.exists());
+
+            // 5. Delete pages
+            let out_del = std::env::temp_dir().join(format!("rbd_ffi_test_del_{pid}.pdf"));
+            let out_del_c = CString::new(out_del.to_str().unwrap()).unwrap();
+            let del_json = CString::new("[1]").unwrap();
+            assert_eq!(
+                rbd_page_op_delete_pages(
+                    out_merge_c.as_ptr(),
+                    out_del_c.as_ptr(),
+                    del_json.as_ptr()
+                ),
+                RBD_OK
+            );
+            assert!(out_del.exists());
+
+            // 6. Reorder
+            let out_reord = std::env::temp_dir().join(format!("rbd_ffi_test_reord_{pid}.pdf"));
+            let out_reord_c = CString::new(out_reord.to_str().unwrap()).unwrap();
+            let order_json = CString::new("[2, 1]").unwrap();
+            assert_eq!(
+                rbd_page_op_reorder(
+                    out_merge_c.as_ptr(),
+                    out_reord_c.as_ptr(),
+                    order_json.as_ptr()
+                ),
+                RBD_OK
+            );
+            assert!(out_reord.exists());
+
+            // 7. Split
+            let out_split = std::env::temp_dir().join(format!("rbd_ffi_test_split_{pid}.pdf"));
+            let out_split_c = CString::new(out_split.to_str().unwrap()).unwrap();
+            assert_eq!(
+                rbd_page_op_split(out_merge_c.as_ptr(), out_split_c.as_ptr(), 1, 1),
+                RBD_OK
+            );
+            assert!(out_split.exists());
+
+            // Clean up temporary files
+            let _ = std::fs::remove_file(out_blank);
+            let _ = std::fs::remove_file(out_rot);
+            let _ = std::fs::remove_file(out_crop);
+            let _ = std::fs::remove_file(out_merge);
+            let _ = std::fs::remove_file(out_del);
+            let _ = std::fs::remove_file(out_reord);
+            let _ = std::fs::remove_file(out_split);
         }
     }
 }

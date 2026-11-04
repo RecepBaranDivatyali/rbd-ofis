@@ -33,4 +33,30 @@ public interface INativeRbdApi
 
     string GetLastError();
     string GetVersionString();
+
+    int DocumentExtractPageText(SafeDocumentHandle doc, uint pageIndex, out string text);
+    int DocumentSearchJson(SafeDocumentHandle doc, string query, bool caseSensitive, out string json);
+
+    int DocumentGetAnnotationsJson(SafeDocumentHandle doc, uint pageIndex, out string json);
+    int DocumentAddAnnotationJson(SafeDocumentHandle doc, string annotJson);
+    int DocumentRemoveAnnotation(SafeDocumentHandle doc, ulong annotId);
+    int DocumentUpdateAnnotationJson(SafeDocumentHandle doc, string annotJson);
+
+    int DocumentUndo(SafeDocumentHandle doc, out bool didUndo);
+    int DocumentRedo(SafeDocumentHandle doc, out bool didRedo);
+    int DocumentCanUndo(SafeDocumentHandle doc, out bool canUndo);
+    int DocumentCanRedo(SafeDocumentHandle doc, out bool canRedo);
+
+    int DocumentSaveAnnotations(SafeDocumentHandle doc, string outputPath);
+    int DocumentSaveAnnotationsToPath(SafeDocumentHandle doc, string inputPath, string outputPath);
+
+    // Standalone Page operations
+    int PageOpRotate(string inPath, string outPath, int degrees);
+    int PageOpDeletePages(string inPath, string outPath, string pagesJson);
+    int PageOpSplit(string inPath, string outPath, uint startPage, uint endPage);
+    int PageOpMerge(string outPath, string inPathsJson);
+    int PageOpReorder(string inPath, string outPath, string orderJson);
+    int PageOpCrop(string inPath, string outPath, uint pageNum, float x0, float y0, float x1, float y1);
+    int PageOpInsertBlank(string inPath, string outPath, uint afterPage, float widthPt, float heightPt);
+    int PageOpDecrypt(string inPath, string outPath, string passwordUtf8);
 }

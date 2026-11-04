@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 
 namespace RbdOfis.Interop.Native;
 
@@ -48,12 +49,119 @@ public sealed class NativeRbdApi : INativeRbdApi
     public string GetLastError()
     {
         IntPtr ptr = NativeMethods.rbd_get_last_error();
-        return ptr != IntPtr.Zero ? System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ptr) ?? string.Empty : string.Empty;
+        return ptr != IntPtr.Zero ? (Marshal.PtrToStringUTF8(ptr) ?? string.Empty) : string.Empty;
     }
 
     public string GetVersionString()
     {
         IntPtr ptr = NativeMethods.rbd_version_string();
-        return ptr != IntPtr.Zero ? System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ptr) ?? string.Empty : string.Empty;
+        return ptr != IntPtr.Zero ? (Marshal.PtrToStringUTF8(ptr) ?? string.Empty) : string.Empty;
     }
+
+    public int DocumentExtractPageText(SafeDocumentHandle doc, uint pageIndex, out string text)
+    {
+        int status = NativeMethods.rbd_document_extract_page_text(doc, pageIndex, out IntPtr outPtr);
+        if (status == (int)RbdStatusCode.Success && outPtr != IntPtr.Zero)
+        {
+            text = Marshal.PtrToStringUTF8(outPtr) ?? string.Empty;
+            NativeMethods.rbd_free_string(outPtr);
+            return status;
+        }
+        text = string.Empty;
+        return status;
+    }
+
+    public int DocumentSearchJson(SafeDocumentHandle doc, string query, bool caseSensitive, out string json)
+    {
+        int status = NativeMethods.rbd_document_search_json(doc, query, caseSensitive ? 1 : 0, out IntPtr outPtr);
+        if (status == (int)RbdStatusCode.Success && outPtr != IntPtr.Zero)
+        {
+            json = Marshal.PtrToStringUTF8(outPtr) ?? "[]";
+            NativeMethods.rbd_free_string(outPtr);
+            return status;
+        }
+        json = "[]";
+        return status;
+    }
+
+    public int DocumentGetAnnotationsJson(SafeDocumentHandle doc, uint pageIndex, out string json)
+    {
+        int status = NativeMethods.rbd_document_get_annotations_json(doc, pageIndex, out IntPtr outPtr);
+        if (status == (int)RbdStatusCode.Success && outPtr != IntPtr.Zero)
+        {
+            json = Marshal.PtrToStringUTF8(outPtr) ?? "[]";
+            NativeMethods.rbd_free_string(outPtr);
+            return status;
+        }
+        json = "[]";
+        return status;
+    }
+
+    public int DocumentAddAnnotationJson(SafeDocumentHandle doc, string annotJson) =>
+        NativeMethods.rbd_document_add_annotation_json(doc, annotJson);
+
+    public int DocumentRemoveAnnotation(SafeDocumentHandle doc, ulong annotId) =>
+        NativeMethods.rbd_document_remove_annotation(doc, annotId);
+
+    public int DocumentUpdateAnnotationJson(SafeDocumentHandle doc, string annotJson) =>
+        NativeMethods.rbd_document_update_annotation_json(doc, annotJson);
+
+    public int DocumentUndo(SafeDocumentHandle doc, out bool didUndo)
+    {
+        int status = NativeMethods.rbd_document_undo(doc, out int result);
+        didUndo = result != 0;
+        return status;
+    }
+
+    public int DocumentRedo(SafeDocumentHandle doc, out bool didRedo)
+    {
+        int status = NativeMethods.rbd_document_redo(doc, out int result);
+        didRedo = result != 0;
+        return status;
+    }
+
+    public int DocumentCanUndo(SafeDocumentHandle doc, out bool canUndo)
+    {
+        int status = NativeMethods.rbd_document_can_undo(doc, out int result);
+        canUndo = result != 0;
+        return status;
+    }
+
+    public int DocumentCanRedo(SafeDocumentHandle doc, out bool canRedo)
+    {
+        int status = NativeMethods.rbd_document_can_redo(doc, out int result);
+        canRedo = result != 0;
+        return status;
+    }
+
+    public int DocumentSaveAnnotations(SafeDocumentHandle doc, string outputPath) =>
+        NativeMethods.rbd_document_save_annotations(doc, outputPath);
+
+    public int DocumentSaveAnnotationsToPath(SafeDocumentHandle doc, string inputPath, string outputPath) =>
+        NativeMethods.rbd_document_save_annotations_to_path(doc, inputPath, outputPath);
+
+    // Page operations
+    public int PageOpRotate(string inPath, string outPath, int degrees) =>
+        NativeMethods.rbd_page_op_rotate(inPath, outPath, degrees);
+
+    public int PageOpDeletePages(string inPath, string outPath, string pagesJson) =>
+        NativeMethods.rbd_page_op_delete_pages(inPath, outPath, pagesJson);
+
+    public int PageOpSplit(string inPath, string outPath, uint startPage, uint endPage) =>
+        NativeMethods.rbd_page_op_split(inPath, outPath, startPage, endPage);
+
+    public int PageOpMerge(string outPath, string inPathsJson) =>
+        NativeMethods.rbd_page_op_merge(outPath, inPathsJson);
+
+    public int PageOpReorder(string inPath, string outPath, string orderJson) =>
+        NativeMethods.rbd_page_op_reorder(inPath, outPath, orderJson);
+
+    public int PageOpCrop(string inPath, string outPath, uint pageNum, float x0, float y0, float x1, float y1) =>
+        NativeMethods.rbd_page_op_crop(inPath, outPath, pageNum, x0, y0, x1, y1);
+
+    public int PageOpInsertBlank(string inPath, string outPath, uint afterPage, float widthPt, float heightPt) =>
+        NativeMethods.rbd_page_op_insert_blank(inPath, outPath, afterPage, widthPt, heightPt);
+
+    public int PageOpDecrypt(string inPath, string outPath, string passwordUtf8) =>
+        NativeMethods.rbd_page_op_decrypt(inPath, outPath, passwordUtf8);
 }

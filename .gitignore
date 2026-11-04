@@ -33,4 +33,6 @@ Thumbs.db
 .vscode/
 *.log
 .xwin-cache/
+*.dll
+!core/vendor/pdfium/bin/pdfium.dll
 
