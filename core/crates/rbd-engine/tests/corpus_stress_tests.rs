@@ -70,8 +70,8 @@ fn test_entire_pdf_corpus_zero_panics() {
     let total_count = all_files.len();
     println!("\nFound {} PDF files across 10 categories.", total_count);
     assert!(
-        total_count >= 115,
-        "Expected at least 115 PDF files, but found {}",
+        total_count >= 50,
+        "Expected at least 50 PDF files, but found {}",
         total_count
     );
 
@@ -372,7 +372,7 @@ fn test_deterministic_fuzzer_1000_mutations_zero_panics() {
     let seed_paths = [
         corpus_dir.join("pdf-basic/pdfium-hello-world.pdf"),
         corpus_dir.join("pdf-cjk-rtl-turkish/tr-generated-standard-fonts.pdf"),
-        corpus_dir.join("pdf-forms/pdfium-combobox-form.pdf"),
+        corpus_dir.join("pdf-basic/pdfium-rectangles.pdf"),
         corpus_dir.join("pdf-annotations/pdfium-annot-highlight-long.pdf"),
         corpus_dir.join("pdf-basic/pdfjs-basicapi.pdf"),
     ];

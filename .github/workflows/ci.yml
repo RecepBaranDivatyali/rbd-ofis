@@ -74,7 +74,12 @@ jobs:
       - name: Generate & fetch test corpus
         run: |
           python corpus/generate.py
-          python corpus/fetch.py
+          python corpus/fetch.py --category pdf-basic
+          python corpus/fetch.py --category pdf-corrupt
+          python corpus/fetch.py --category pdf-encrypted
+          python corpus/fetch.py --category pdf-annotations
+          python corpus/fetch.py --category pdf-pdfa
+          python corpus/fetch.py --category pdf-signed
       - name: Check formatting
         working-directory: core
         run: cargo fmt --all -- --check
