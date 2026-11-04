@@ -157,7 +157,7 @@ fn test_pdfium_and_hayro_pixel_format_channel_consistency() {
 #[test]
 fn test_turkish_character_extraction() {
     let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
-    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-vikipedi-kutuphane.pdf");
+    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-generated-standard-fonts.pdf");
     assert!(pdf_path.exists(), "pdf file must exist at {:?}", pdf_path);
 
     let doc = engine
@@ -205,25 +205,25 @@ fn test_encrypted_pdf_handling() {
 #[test]
 fn test_turkish_aware_search_with_bounding_boxes() {
     let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
-    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-vikipedi-kutuphane.pdf");
+    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-generated-standard-fonts.pdf");
     assert!(pdf_path.exists(), "pdf file must exist at {:?}", pdf_path);
 
     let doc = engine
         .open_from_file(&pdf_path, None)
         .expect("Open turkish pdf");
 
-    // Search query in lowercase: "kütüphane"
+    // Search query in lowercase: "şaşırtıcı"
     let hits_lower = doc
-        .search_document("kütüphane", false)
+        .search_document("şaşırtıcı", false)
         .expect("Search lowercase");
     assert!(
         !hits_lower.is_empty(),
-        "Should find matches for 'kütüphane'"
+        "Should find matches for 'şaşırtıcı'"
     );
 
-    // Search query in uppercase: "KÜTÜPHANE"
+    // Search query in uppercase: "ŞAŞIRTICI"
     let hits_upper = doc
-        .search_document("KÜTÜPHANE", false)
+        .search_document("ŞAŞIRTICI", false)
         .expect("Search uppercase");
     assert_eq!(
         hits_lower.len(),
@@ -244,7 +244,7 @@ fn test_turkish_aware_search_with_bounding_boxes() {
         .open_from_file(&pdf_path, None)
         .expect("Open with Hayro");
     let hayro_hits = hayro_doc
-        .search_document("kütüphane", false)
+        .search_document("Şaşırtıcı", false)
         .expect("Hayro search");
     assert!(!hayro_hits.is_empty(), "Hayro should also find hits");
     assert!(

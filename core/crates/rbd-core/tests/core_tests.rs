@@ -193,10 +193,10 @@ fn test_annotation_session_undo_redo_and_cache_invalidation() {
 #[test]
 fn test_session_turkish_search() {
     let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
-    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-vikipedi-kutuphane.pdf");
+    let pdf_path = get_corpus_dir().join("pdf-cjk-rtl-turkish/tr-generated-standard-fonts.pdf");
     let session = DocumentSession::open_file(&pdf_path, None, engine.as_ref(), None).unwrap();
 
-    let hits = session.search_document("kütüphane", false).unwrap();
+    let hits = session.search_document("ŞAŞIRTICI", false).unwrap();
     assert!(!hits.is_empty(), "Should find matches");
     assert_eq!(hits[0].page_index, 0);
     assert!(!hits[0].rects.is_empty());
