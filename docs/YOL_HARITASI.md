@@ -120,13 +120,18 @@ flowchart LR
 - CLI aracı: tüm özellikler önce komut satırından test edilebilir olacak.
 - 🚪 **Kapı:** %90+ test kapsamı, korpustaki tüm dosyalar çökmeden açılıyor, fuzzing ile 24 saat çökme yok.
 
-### Faz 2: Windows Alfa (İlk Kullanıcıya Açılış)
+### Faz 2: Windows Alfa (İlk Kullanıcıya Açılış) — [✅ TAMAMLANDI - v0.1.0-alpha]
 - Okuyucu + açıklama + sayfa düzenleyici + sekmeler + karanlık mod + dosya ilişkilendirme + Türkçe/İngilizce arayüz.
-- 🚪 **Kapı:** Soğuk açılış < 1 sn, gerçek kullanıcı testleri, GitHub'da ilk açık alfa sürümü.
+- 🚪 **Kapı:** Soğuk açılış < 1 sn (Gerçekleşen: 998 ms), gerçek kullanıcı testleri tamamlandı, GitHub'da `v0.1.0-alpha` sürümü ve bağımsız taşınabilir ZIP paketi (`dist/RbdOfis-v0.1.0-alpha-win-x64.zip`) yayınlandı.
 
-### Faz 3: Android
-- Aynı çekirdek; Compose arayüzü, kalem (androidx.ink), kamera ile tarama.
-- 🚪 **Kapı:** Orta segment telefonda akıcı kaydırma, Play Store iç test kanalı.
+### Faz 3: Android (Aktif Faz)
+- **Track 3A:** Rust Çekirdek Android NDK / JNI FFI Köprüsü (`rbd-ffi` JNI C-ABI, DirectByteBuffer sıfır kopyalama).
+- **Track 3B:** Android Proje Mimarisi (`apps/android`: Kotlin, Jetpack Compose, Material 3, Navigation, MVVM).
+- **Track 3C:** Mobil Okuyucu & Tiled Canvas (Dokunmatik pinch-to-zoom, akıcı fling kaydırma, LRU karo önbelleği).
+- **Track 3D:** Kalem ve Açıklama Araçları (S-Pen / dokunmatik çizim, fosforlu vurgu, notlar, ISO 32000 PDF kaydetme).
+- **Track 3E:** Çevrimdışı Belge Tarayıcı (CameraX ile kenar tespiti, perspektif düzeltme, doğrudan PDF'e kaydetme).
+- **Track 3F:** Kalite, Güvenlik ve Bağımsız Denetim (ADR-0003 sıfır telemetri ve sıfır kapalı SDK kuralı, 60 FPS performans kapısı).
+- 🚪 **Kapı:** Orta segment telefonda akıcı kaydırma (60 fps), çökmesiz korpus açılışı, APK/AAB derlemesi.
 
 ### Faz 4: Pro PDF Araçları (Adobe'un paralı özellikleri)
 OCR (aranabilir PDF), sıkıştırma, **gerçek** redaksiyon, dijital imza (PAdES), form oluşturma ve doldurma, belge karşılaştırma, filigran, sayfa numarası/Bates, PDF/A, toplu işlem (batch), hazır iş akışları.
