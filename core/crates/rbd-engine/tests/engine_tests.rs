@@ -368,3 +368,145 @@ fn test_decrypt_pdf_error_handling() {
     let res = decrypt_pdf(&enc_path, &out_path, "wrong_password_123");
     assert!(res.is_err(), "Decryption with invalid password must fail");
 }
+
+#[test]
+fn test_phase4_permanent_redaction_end_to_end() {
+    use rbd_engine::{PageRedaction, PdfRect, redact_document};
+
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let out_path = temp_dir.join(format!("test_redacted_{}.pdf", std::process::id()));
+
+    let redaction = PageRedaction::new(0, vec![PdfRect::new(50.0, 650.0, 350.0, 750.0)]);
+
+    redact_document(&in_path, &[redaction], &out_path).expect("Redact document");
+    assert!(out_path.exists());
+
+    // Verify text is purged from document
+    let raw_bytes = std::fs::read(&out_path).unwrap();
+    let raw_str = String::from_utf8_lossy(&raw_bytes);
+    assert!(
+        !raw_str.contains("Hello, world!"),
+        "Redacted document must not contain original text"
+    );
+
+    let _ = std::fs::remove_file(&out_path);
+}
+
+#[test]
+fn test_phase4_compression_end_to_end() {
+    use rbd_engine::{CompressionOptions, compress_document};
+
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let out_path = temp_dir.join(format!("test_compressed_{}.pdf", std::process::id()));
+
+    let options = CompressionOptions::standard();
+    let res = compress_document(&in_path, &options, &out_path).expect("Compress document");
+    assert!(out_path.exists());
+    assert!(res.compressed_size > 0);
+
+    // Document must be valid and readable
+    let doc = lopdf::Document::load(&out_path).expect("Load compressed doc");
+    assert_eq!(doc.get_pages().len(), 1);
+
+    let _ = std::fs::remove_file(&out_path);
+}
+
+#[test]
+fn test_phase4_watermark_page_number_bates_end_to_end() {
+    use rbd_engine::{
+        BatesOptions, PageNumberOptions, StampPosition, WatermarkOptions, apply_bates_stamp,
+        apply_page_numbers, apply_watermark,
+    };
+
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let p_wm = temp_dir.join(format!("test_wm_{}.pdf", std::process::id()));
+    let p_num = temp_dir.join(format!("test_num_{}.pdf", std::process::id()));
+    let p_bates = temp_dir.join(format!("test_bates_{}.pdf", std::process::id()));
+
+    // 1. Watermark
+    let wm_opts = WatermarkOptions {
+        text: "RBD OFIS PRO".into(),
+        ..Default::default()
+    };
+    apply_watermark(&in_path, &wm_opts, &p_wm).expect("Apply watermark");
+
+    // 2. Page Number
+    let num_opts = PageNumberOptions {
+        template: "Sayfa {page} / {total}".into(),
+        position: StampPosition::BottomCenter,
+        font_size: 10.0,
+        margin: 20.0,
+        color_rgb: (60, 60, 60),
+        start_page: 1,
+    };
+    apply_page_numbers(&p_wm, &num_opts, &p_num).expect("Apply page numbers");
+
+    // 3. Bates Stamp
+    let bates_opts = BatesOptions {
+        prefix: "RBD-E2E-".into(),
+        start_number: 42,
+        padding: 5,
+        suffix: "".into(),
+        position: StampPosition::TopRight,
+        margin: 20.0,
+        color_rgb: (0, 0, 0),
+    };
+    apply_bates_stamp(&p_num, &bates_opts, &p_bates).expect("Apply Bates stamp");
+
+    let final_bytes = std::fs::read(&p_bates).unwrap();
+    let final_str = String::from_utf8_lossy(&final_bytes);
+    assert!(final_str.contains("RBD OFIS PRO"));
+    assert!(final_str.contains("Sayfa 1 / 1"));
+    assert!(final_str.contains("RBD-E2E-00042"));
+
+    let _ = std::fs::remove_file(&p_wm);
+    let _ = std::fs::remove_file(&p_num);
+    let _ = std::fs::remove_file(&p_bates);
+}
+
+#[test]
+fn test_phase4_form_filling_and_flattening_end_to_end() {
+    use rbd_engine::{fill_form_fields, read_form_fields};
+    use std::collections::HashMap;
+
+    let in_path = get_corpus_dir().join("pdf-forms/pdfium-text-form.pdf");
+    assert!(in_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let out_path = temp_dir.join(format!("test_flattened_form_{}.pdf", std::process::id()));
+
+    let fields_before = read_form_fields(&in_path).expect("Read initial fields");
+    assert!(!fields_before.is_empty());
+
+    let mut updates = HashMap::new();
+    updates.insert(
+        fields_before[0].name.clone(),
+        "EndToEndFormValue".to_string(),
+    );
+
+    fill_form_fields(&in_path, &updates, true, &out_path).expect("Fill and flatten");
+    assert!(out_path.exists());
+
+    // After flattening, interactive fields are removed
+    let fields_after = read_form_fields(&out_path).expect("Read fields after flatten");
+    assert!(
+        fields_after.is_empty(),
+        "Flattened doc should have no interactive fields"
+    );
+
+    // But text is baked
+    let raw_bytes = std::fs::read(&out_path).unwrap();
+    let raw_str = String::from_utf8_lossy(&raw_bytes);
+    assert!(raw_str.contains("EndToEndFormValue"));
+
+    let _ = std::fs::remove_file(&out_path);
+}
