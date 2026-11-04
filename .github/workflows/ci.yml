@@ -80,6 +80,7 @@ jobs:
           python corpus/fetch.py --category pdf-annotations
           python corpus/fetch.py --category pdf-pdfa
           python corpus/fetch.py --category pdf-signed
+          python corpus/fetch.py --category pdf-forms
       - name: Check formatting
         working-directory: core
         run: cargo fmt --all -- --check
@@ -143,6 +144,6 @@ jobs:
       - name: Grant execute permission for gradlew
         working-directory: apps/android
         run: chmod +x gradlew
-      - name: Run Android Unit Tests and Build Debug APK
+      - name: Run Android Unit Tests
         working-directory: apps/android
-        run: ./gradlew runUnitTests assembleDebug --no-daemon
+        run: ./gradlew runUnitTests --no-daemon
