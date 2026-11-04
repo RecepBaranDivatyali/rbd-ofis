@@ -196,4 +196,70 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "rbd_page_op_decrypt", StringMarshalling = StringMarshalling.Utf8)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int rbd_page_op_decrypt(string inPath, string outPath, string passwordUtf8);
+
+    // Professional PDF Tools (Phase 4 Track 4B/4C)
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_redact_document", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_redact_document(string inPath, string outPath, string redactionsJson);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_compress_document", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_compress_document(
+        string inPath,
+        string outPath,
+        int removeUnused,
+        int recompress,
+        int stripMeta,
+        IntPtr outSavingsJson,
+        nuint maxSavingsLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_apply_watermark", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_apply_watermark(
+        string inPath,
+        string outPath,
+        string text,
+        float fontSize,
+        float rotationDeg,
+        float opacity,
+        byte r,
+        byte g,
+        byte b,
+        int onTop);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_apply_page_numbers", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_apply_page_numbers(
+        string inPath,
+        string outPath,
+        string pattern,
+        int position,
+        float fontSize,
+        float margin);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_apply_bates_stamp", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_apply_bates_stamp(
+        string inPath,
+        string outPath,
+        string prefix,
+        uint startNumber,
+        uint paddingDigits,
+        string suffix,
+        int position);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_read_form_fields", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_read_form_fields(
+        string inPath,
+        IntPtr outJson,
+        nuint maxJsonLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_pro_fill_form_fields", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_pro_fill_form_fields(
+        string inPath,
+        string outPath,
+        string fieldValuesJson,
+        int flatten);
 }

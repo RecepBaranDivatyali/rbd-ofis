@@ -59,4 +59,13 @@ public interface INativeRbdApi
     int PageOpCrop(string inPath, string outPath, uint pageNum, float x0, float y0, float x1, float y1);
     int PageOpInsertBlank(string inPath, string outPath, uint afterPage, float widthPt, float heightPt);
     int PageOpDecrypt(string inPath, string outPath, string passwordUtf8);
+
+    // Professional PDF Tools (Phase 4 Track 4B/4C)
+    int ProRedactDocument(string inPath, string outPath, string redactionsJson);
+    int ProCompressDocument(string inPath, string outPath, bool removeUnused, bool recompress, bool stripMeta, out string savingsJson);
+    int ProApplyWatermark(string inPath, string outPath, string text, float fontSize, float rotationDeg, float opacity, byte r, byte g, byte b, bool onTop);
+    int ProApplyPageNumbers(string inPath, string outPath, string pattern, int position, float fontSize, float margin);
+    int ProApplyBatesStamp(string inPath, string outPath, string prefix, uint startNumber, uint paddingDigits, string suffix, int position);
+    int ProReadFormFields(string inPath, out string fieldsJson);
+    int ProFillFormFields(string inPath, string outPath, string fieldValuesJson, bool flatten);
 }

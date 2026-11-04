@@ -45,8 +45,12 @@ public partial class MainWindow : Window
         StickyNote,
         Rectangle,
         FreehandInk,
-        FreeText
+        FreeText,
+        Redact
     }
+
+    private readonly List<(uint PageIndex, PdfRect Rect)> _pendingRedactions = new();
+    private readonly ProPdfService _proService = new();
 
     private enum ViewMode
     {
@@ -208,6 +212,7 @@ public partial class MainWindow : Window
         FitPageButton.Content = lm["FitPage"];
         ToggleSearchButton.Content = $"🔍 {lm["SearchTitle"].Split('(')[0].Trim()}";
         PageOrganizerButton.Content = $"📑 {lm["PageOrganizerTitle"]}";
+        ProToolsButton.Content = $"⚡ {lm["ProTools"]}";
         SidebarTitleText.Text = lm["ThumbnailsTitle"];
         ThemeToggleButton.Content = _isDarkTheme ? $"🌙 {lm["ThemeDark"]}" : $"☀️ {lm["ThemeLight"]}";
         AssociatePdfButton.Content = $"🔗 {lm["AssociatePdf"]}";
@@ -221,9 +226,11 @@ public partial class MainWindow : Window
         ToolRectangleRadio.Content = $"▢ {lm["ToolRectangle"]}";
         ToolInkRadio.Content = $"✏ {lm["ToolInk"]}";
         ToolTextRadio.Content = $"T {lm["ToolText"]}";
+        ToolRedactRadio.Content = $"⬛ {lm["Redact"]}";
         UndoButton.Content = $"↶ {lm["Undo"].Split('(')[0].Trim()}";
         RedoButton.Content = $"↷ {lm["Redo"].Split('(')[0].Trim()}";
         SaveAnnotationsButton.Content = lm["SaveAnnotations"];
+        ApplyRedactionButton.Content = lm["ApplyRedaction"];
 
         // Status
         StatusMessageText.Text = $"{lm["StatusReady"]} • {lm["StatusOfflineSecure"]}";
@@ -651,6 +658,34 @@ public partial class MainWindow : Window
                 }
             }
         }
+
+        // 3. Render Pending Redaction blackout boxes (Phase 4 Track 4C)
+        foreach (var (page, r) in _pendingRedactions)
+        {
+            if (page >= (uint)firstPage && page <= (uint)lastPage)
+            {
+                double pageTopY = page * pageStride;
+                var (_, actualH) = _activeTab.Document.GetPageSize((int)page);
+                double pageHeightPt = actualH > 0 ? actualH : PageHeightPt;
+
+                double left = r.X0 * zoom;
+                double top = pageTopY + (pageHeightPt - r.Y1) * zoom;
+                double w = r.Width * zoom;
+                double h = r.Height * zoom;
+
+                var redactVisual = new System.Windows.Shapes.Rectangle
+                {
+                    Width = Math.Max(w, 4),
+                    Height = Math.Max(h, 4),
+                    Fill = new SolidColorBrush(Color.FromArgb(200, 20, 20, 20)),
+                    Stroke = Brushes.Red,
+                    StrokeThickness = 2
+                };
+                Canvas.SetLeft(redactVisual, left);
+                Canvas.SetTop(redactVisual, top);
+                OverlayCanvas.Children.Add(redactVisual);
+            }
+        }
     }
 
     private void UpdatePageIndicator(int firstPageIndex = -1)
@@ -726,14 +761,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Live preview element for Rectangle, Highlight, Ink
-        if (_currentTool is AnnotationTool.Rectangle or AnnotationTool.Highlight or AnnotationTool.Underline or AnnotationTool.StrikeOut)
+        // Live preview element for Rectangle, Highlight, Ink, Redact
+        if (_currentTool is AnnotationTool.Rectangle or AnnotationTool.Highlight or AnnotationTool.Underline or AnnotationTool.StrikeOut or AnnotationTool.Redact)
         {
             var previewRect = new System.Windows.Shapes.Rectangle
             {
-                Stroke = _currentTool == AnnotationTool.Rectangle ? Brushes.Red : Brushes.Gold,
-                StrokeThickness = 1.5,
-                Fill = _currentTool == AnnotationTool.Highlight ? new SolidColorBrush(Color.FromArgb(80, 255, 235, 59)) : null
+                Stroke = _currentTool == AnnotationTool.Redact ? Brushes.Red : (_currentTool == AnnotationTool.Rectangle ? Brushes.Red : Brushes.Gold),
+                StrokeThickness = _currentTool == AnnotationTool.Redact ? 2.0 : 1.5,
+                Fill = _currentTool == AnnotationTool.Redact
+                    ? new SolidColorBrush(Color.FromArgb(160, 200, 0, 0))
+                    : (_currentTool == AnnotationTool.Highlight ? new SolidColorBrush(Color.FromArgb(80, 255, 235, 59)) : null)
             };
             _tempPreviewElement = previewRect;
             OverlayCanvas.Children.Add(previewRect);
@@ -807,6 +844,16 @@ public partial class MainWindow : Window
         double y1 = pageHeightPt - (relTop / zoom);
 
         var box = new PdfRect((float)x0, (float)y0, (float)x1, (float)y1);
+        if (_currentTool == AnnotationTool.Redact)
+        {
+            if (box.Width > 5 && box.Height > 5)
+            {
+                _pendingRedactions.Add((pageIndex, box));
+                RenderTiledViewport();
+            }
+            return;
+        }
+
         ulong id = ++_annotationIdCounter;
 
         List<(float X, float Y)> pdfInkPoints = new();
@@ -1009,6 +1056,12 @@ public partial class MainWindow : Window
         else if (sender == ToolRectangleRadio) _currentTool = AnnotationTool.Rectangle;
         else if (sender == ToolInkRadio) _currentTool = AnnotationTool.FreehandInk;
         else if (sender == ToolTextRadio) _currentTool = AnnotationTool.FreeText;
+        else if (sender == ToolRedactRadio) _currentTool = AnnotationTool.Redact;
+
+        if (ApplyRedactionButton != null)
+        {
+            ApplyRedactionButton.Visibility = _currentTool == AnnotationTool.Redact ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private void OnToggleThumbnailsClicked(object sender, RoutedEventArgs e)
@@ -1046,6 +1099,90 @@ public partial class MainWindow : Window
                 MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+    }
+
+    private void OnProToolsClicked(object sender, RoutedEventArgs e)
+    {
+        if (_activeTab == null || string.IsNullOrWhiteSpace(_activeTab.Document.FilePath) || !File.Exists(_activeTab.Document.FilePath))
+        {
+            return;
+        }
+
+        var dialog = new ProPdfToolsDialog(_activeTab.Document.FilePath, ProToolTab.Compress, _proService)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() == true && dialog.DocumentModified && !string.IsNullOrWhiteSpace(dialog.ResultFilePath))
+        {
+            ReloadActiveTabDocument(dialog.ResultFilePath);
+        }
+    }
+
+    private void OnApplyRedactionClicked(object sender, RoutedEventArgs e)
+    {
+        var lm = LocalizationManager.Instance;
+        if (_pendingRedactions.Count == 0)
+        {
+            MessageBox.Show(lm["RedactionNoAreas"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (_activeTab == null || string.IsNullOrWhiteSpace(_activeTab.Document.FilePath) || !File.Exists(_activeTab.Document.FilePath))
+        {
+            return;
+        }
+
+        var confirm = MessageBox.Show(lm["RedactPrompt"], lm["Redact"], MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var grouped = new Dictionary<uint, List<PdfRect>>();
+            foreach (var (p, r) in _pendingRedactions)
+            {
+                if (!grouped.ContainsKey(p)) grouped[p] = new List<PdfRect>();
+                grouped[p].Add(r);
+            }
+
+            var redactions = new List<PageRedactionDto>();
+            foreach (var (page, rects) in grouped)
+            {
+                redactions.Add(new PageRedactionDto
+                {
+                    PageIndex = page,
+                    Rects = rects,
+                    FillColor = [0, 0, 0]
+                });
+            }
+
+            string tempOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rbd_redact_{Guid.NewGuid():N}.pdf");
+            _proService.Redact(_activeTab.Document.FilePath, tempOut, redactions);
+
+            ReloadActiveTabDocument(tempOut);
+            MessageBox.Show(lm["RedactionSuccess"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ReloadActiveTabDocument(string newPdfPath)
+    {
+        if (_activeTab == null || !File.Exists(newPdfPath)) return;
+
+        var newDoc = _engine.OpenDocument(newPdfPath);
+        newDoc.FilePath = newPdfPath;
+
+        _activeTab.Document.Dispose();
+        _activeTab.Document = newDoc;
+        _activeTab.Title = System.IO.Path.GetFileName(newPdfPath);
+        _activeTab.TabButton.Content = _activeTab.Title;
+
+        _pendingRedactions.Clear();
+        RebuildThumbnails();
+        RenderTiledViewport();
     }
 
     private void OnAssociatePdfClicked(object sender, RoutedEventArgs e)

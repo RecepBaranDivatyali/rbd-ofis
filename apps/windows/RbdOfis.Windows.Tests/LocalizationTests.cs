@@ -122,6 +122,55 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void Verify_Phase4_ProTools_Keys_Are_Present_And_Complete()
+    {
+        string[] requiredProKeys =
+        [
+            "ProTools",
+            "Redact",
+            "ApplyRedaction",
+            "RedactPrompt",
+            "RedactionSuccess",
+            "RedactionNoAreas",
+            "Compress",
+            "CompressTitle",
+            "CompressionSavings",
+            "RemoveUnusedObjects",
+            "RecompressStreams",
+            "StripMetadata",
+            "Watermark",
+            "WatermarkTitle",
+            "WatermarkTextPrompt",
+            "WatermarkApplied",
+            "PageNumbers",
+            "PageNumbersTitle",
+            "PageNumberPatternPrompt",
+            "PageNumbersApplied",
+            "BatesStamp",
+            "BatesStampTitle",
+            "BatesPrefixPrompt",
+            "BatesStartPrompt",
+            "BatesDigitsPrompt",
+            "BatesApplied",
+            "FormFields",
+            "FormFieldsTitle",
+            "NoFormFieldsFound",
+            "FlattenForm",
+            "SaveFormFields",
+            "FormFieldsSaved"
+        ];
+
+        var turkish = LocalizationManager.GetCatalogForCulture("tr-TR");
+        var english = LocalizationManager.GetCatalogForCulture("en-US");
+
+        foreach (string key in requiredProKeys)
+        {
+            Assert.True(turkish.ContainsKey(key), $"Turkish catalog missing Phase 4 Pro key '{key}'.");
+            Assert.True(english.ContainsKey(key), $"English catalog missing Phase 4 Pro key '{key}'.");
+        }
+    }
+
+    [Fact]
     public void Verify_MainWindow_CodeBehind_Uses_Localization_For_All_User_Dialogs()
     {
         string? projectRoot = null;

@@ -109,7 +109,12 @@
                 <Button x:Name="ToggleSearchButton" Content="🔍 Ara (Ctrl+F)" Click="OnToggleSearchClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
 
                 <!-- Page Organizer Window -->
-                <Button x:Name="PageOrganizerButton" Content="📑 Sayfa Düzenleyici" Click="OnPageOrganizerClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
+                <Button x:Name="PageOrganizerButton" Content="📑 Sayfa Düzenleyici" Click="OnPageOrganizerClicked" Margin="0,0,4,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
+
+                <Separator Margin="4,2,8,2"/>
+
+                <!-- Professional PDF Tools (Phase 4 Track 4C) -->
+                <Button x:Name="ProToolsButton" Content="⚡ Pro Araçlar" Click="OnProToolsClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
             </WrapPanel>
         </Border>
 
@@ -137,7 +142,8 @@
                     <RadioButton x:Name="ToolStickyNoteRadio" Content="💬 Not Ekle" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#FFC107"/>
                     <RadioButton x:Name="ToolRectangleRadio" Content="▢ Dikdörtgen" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="#E040FB"/>
                     <RadioButton x:Name="ToolInkRadio" Content="✏ Serbest Çizim" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="{DynamicResource AppForegroundBrush}"/>
-                    <RadioButton x:Name="ToolTextRadio" Content="T Metin" Checked="OnToolSelected" Margin="0,0,8,0" Foreground="{DynamicResource AppForegroundBrush}"/>
+                    <RadioButton x:Name="ToolTextRadio" Content="T Metin" Checked="OnToolSelected" Margin="0,0,4,0" Foreground="{DynamicResource AppForegroundBrush}"/>
+                    <RadioButton x:Name="ToolRedactRadio" Content="⬛ Redaksiyon" Checked="OnToolSelected" Margin="0,0,8,0" Foreground="#FF5252"/>
 
                     <Separator Margin="4,2,8,2"/>
 
@@ -149,6 +155,9 @@
 
                     <!-- Annotation Save Embed Button -->
                     <Button x:Name="SaveAnnotationsButton" Content="Açıklamaları Belgeye Yaz" Click="OnSaveAnnotationsClicked" Padding="8,2" Background="{DynamicResource SuccessButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource BorderBrush}"/>
+
+                    <!-- Permanent Redaction Apply Button -->
+                    <Button x:Name="ApplyRedactionButton" Content="Kalıcı Redaksiyon Uygula" Click="OnApplyRedactionClicked" Margin="6,0,0,0" Padding="8,2" Background="#A80000" Foreground="#FFFFFF" BorderBrush="{DynamicResource BorderBrush}" Visibility="Collapsed"/>
                 </WrapPanel>
             </DockPanel>
         </Border>

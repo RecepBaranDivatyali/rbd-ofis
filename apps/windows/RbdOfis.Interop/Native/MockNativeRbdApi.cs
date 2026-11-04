@@ -408,4 +408,56 @@ public sealed class MockNativeRbdApi : INativeRbdApi
         File.Copy(inPath, outPath, overwrite: true);
         return (int)RbdStatusCode.Success;
     }
+
+    // Professional PDF Tools (Phase 4 Track 4B/4C)
+    public int ProRedactDocument(string inPath, string outPath, string redactionsJson)
+    {
+        if (File.Exists(inPath)) File.Copy(inPath, outPath, overwrite: true);
+        else File.WriteAllText(outPath, "%PDF-1.7 mock redacted");
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ProCompressDocument(string inPath, string outPath, bool removeUnused, bool recompress, bool stripMeta, out string savingsJson)
+    {
+        long inSize = File.Exists(inPath) ? new FileInfo(inPath).Length : 10000;
+        if (File.Exists(inPath)) File.Copy(inPath, outPath, overwrite: true);
+        else File.WriteAllText(outPath, "%PDF-1.7 mock compressed");
+        long outSize = (long)(inSize * 0.7);
+        savingsJson = $"{{\"original_size\":{inSize},\"compressed_size\":{outSize},\"savings_percent\":30.0}}";
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ProApplyWatermark(string inPath, string outPath, string text, float fontSize, float rotationDeg, float opacity, byte r, byte g, byte b, bool onTop)
+    {
+        if (File.Exists(inPath)) File.Copy(inPath, outPath, overwrite: true);
+        else File.WriteAllText(outPath, "%PDF-1.7 mock watermarked");
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ProApplyPageNumbers(string inPath, string outPath, string pattern, int position, float fontSize, float margin)
+    {
+        if (File.Exists(inPath)) File.Copy(inPath, outPath, overwrite: true);
+        else File.WriteAllText(outPath, "%PDF-1.7 mock numbered");
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ProApplyBatesStamp(string inPath, string outPath, string prefix, uint startNumber, uint paddingDigits, string suffix, int position)
+    {
+        if (File.Exists(inPath)) File.Copy(inPath, outPath, overwrite: true);
+        else File.WriteAllText(outPath, "%PDF-1.7 mock bates");
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ProReadFormFields(string inPath, out string fieldsJson)
+    {
+        fieldsJson = "[{\"name\":\"sample_field\",\"field_type\":\"Text\",\"value\":\"Demo Value\",\"read_only\":false}]";
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ProFillFormFields(string inPath, string outPath, string fieldValuesJson, bool flatten)
+    {
+        if (File.Exists(inPath)) File.Copy(inPath, outPath, overwrite: true);
+        else File.WriteAllText(outPath, "%PDF-1.7 mock form filled");
+        return (int)RbdStatusCode.Success;
+    }
 }

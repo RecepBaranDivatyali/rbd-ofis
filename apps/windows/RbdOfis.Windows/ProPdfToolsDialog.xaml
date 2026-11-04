@@ -1,0 +1,184 @@
+<Window x:Class="RbdOfis.Windows.ProPdfToolsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pro PDF Araçları — RBD OFİS" Height="520" Width="680"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="#FFFFFF"
+        ResizeMode="NoResize">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock x:Name="DialogTitleText" Grid.Row="0" Text="⚡ Pro PDF Araçları" FontSize="16" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,12"/>
+
+        <!-- Tabs -->
+        <TabControl x:Name="ProTabControl" Grid.Row="1" Background="#252526" BorderBrush="#3E3E42" Foreground="#FFFFFF">
+            <!-- Tab 1: Compress -->
+            <TabItem x:Name="CompressTabHeader" Header="⚡ Sıkıştır">
+                <StackPanel Margin="16" VerticalAlignment="Top">
+                    <TextBlock x:Name="CompressDescText" Text="PDF dosyasını yeniden kodlayarak ve gereksiz nesneleri temizleyerek boyutunu küçültür." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                    <CheckBox x:Name="RemoveUnusedCheckBox" Content="Kullanılmayan nesneleri temizle" IsChecked="True" Foreground="#FFFFFF" Margin="0,0,0,8"/>
+                    <CheckBox x:Name="RecompressStreamsCheckBox" Content="Veri akışlarını yeniden sıkıştır (FlateDecode)" IsChecked="True" Foreground="#FFFFFF" Margin="0,0,0,8"/>
+                    <CheckBox x:Name="StripMetadataCheckBox" Content="Meta verileri kaldır (/Info ve XMP)" IsChecked="False" Foreground="#FFFFFF" Margin="0,0,0,16"/>
+
+                    <Button x:Name="CompressButton" Content="⚡ Belgeyi Sıkıştır ve Optimize Et" Click="OnCompressClicked" Padding="12,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,0,0,14"/>
+                    <Border x:Name="CompressResultBorder" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Visibility="Collapsed">
+                        <TextBlock x:Name="CompressResultText" Foreground="#4EC9B0" TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Tab 2: Watermark -->
+            <TabItem x:Name="WatermarkTabHeader" Header="💧 Filigran">
+                <StackPanel Margin="16" VerticalAlignment="Top">
+                    <TextBlock x:Name="WatermarkDescText" Text="Tüm sayfalara yarı saydam metin filigranı uygular." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                    <TextBlock x:Name="WatermarkTextLabel" Text="Filigran Metni:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                    <TextBox x:Name="WatermarkTextBox" Text="GİZLİ / CONFIDENTIAL" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4" Margin="0,0,0,12"/>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock x:Name="WatermarkFontSizeLabel" Text="Yazı Boyutu (pt):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="WatermarkFontSizeBox" Text="48" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                            <TextBlock x:Name="WatermarkRotationLabel" Text="Döndürme Açısı (°):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="WatermarkRotationBox" Text="45" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="6,0,0,0">
+                            <TextBlock x:Name="WatermarkOpacityLabel" Text="Opaklık (0.1 - 1.0):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="WatermarkOpacityBox" Text="0.25" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <CheckBox x:Name="WatermarkOnTopCheckBox" Content="İçeriğin üzerinde göster" IsChecked="True" Foreground="#FFFFFF" Margin="0,0,0,16"/>
+                    <Button x:Name="WatermarkButton" Content="💧 Filigranı Uygula" Click="OnWatermarkClicked" Padding="12,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Tab 3: Page Numbers -->
+            <TabItem x:Name="PageNumbersTabHeader" Header="🔢 Sayfa No">
+                <StackPanel Margin="16" VerticalAlignment="Top">
+                    <TextBlock x:Name="PageNumbersDescText" Text="Belge sayfalarına dinamik numaralandırma ekler." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                    <TextBlock x:Name="PageNumTemplateLabel" Text="Şablon (Örn: 'Sayfa {page} / {total}'):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                    <TextBox x:Name="PageNumTemplateBox" Text="Sayfa {page} / {total}" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4" Margin="0,0,0,12"/>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock x:Name="PageNumPositionLabel" Text="Konum:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="PageNumPositionCombo" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4">
+                                <ComboBoxItem Content="Sol Üst" Tag="0"/>
+                                <ComboBoxItem Content="Orta Üst" Tag="1"/>
+                                <ComboBoxItem Content="Sağ Üst" Tag="2"/>
+                                <ComboBoxItem Content="Sol Alt" Tag="3"/>
+                                <ComboBoxItem Content="Orta Alt" Tag="4" IsSelected="True"/>
+                                <ComboBoxItem Content="Sağ Alt" Tag="5"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                            <TextBlock x:Name="PageNumFontSizeLabel" Text="Yazı Boyutu (pt):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="PageNumFontSizeBox" Text="10" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="6,0,0,0">
+                            <TextBlock x:Name="PageNumMarginLabel" Text="Kenar Boşluğu (pt):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="PageNumMarginBox" Text="36" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Button x:Name="PageNumbersButton" Content="🔢 Sayfa Numaralarını Ekle" Click="OnPageNumbersClicked" Padding="12,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Tab 4: Bates Stamp -->
+            <TabItem x:Name="BatesTabHeader" Header="🏷 Bates Damgası">
+                <StackPanel Margin="16" VerticalAlignment="Top">
+                    <TextBlock x:Name="BatesDescText" Text="Hukuki belgeler için ardışık Bates numaralandırması uygular." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock x:Name="BatesPrefixLabel" Text="Ön Ek (Örn: 'RBD-'):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="BatesPrefixBox" Text="RBD-" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                            <TextBlock x:Name="BatesSuffixLabel" Text="Son Ek (Opsiyonel):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="BatesSuffixBox" Text="" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock x:Name="BatesStartLabel" Text="Başlangıç No:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="BatesStartBox" Text="1" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                            <TextBlock x:Name="BatesDigitsLabel" Text="Basamak Sayısı:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <TextBox x:Name="BatesDigitsBox" Text="6" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="6,0,0,0">
+                            <TextBlock x:Name="BatesPositionLabel" Text="Konum:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="BatesPositionCombo" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4">
+                                <ComboBoxItem Content="Sol Üst" Tag="0"/>
+                                <ComboBoxItem Content="Orta Üst" Tag="1"/>
+                                <ComboBoxItem Content="Sağ Üst" Tag="2"/>
+                                <ComboBoxItem Content="Sol Alt" Tag="3"/>
+                                <ComboBoxItem Content="Orta Alt" Tag="4"/>
+                                <ComboBoxItem Content="Sağ Alt" Tag="5" IsSelected="True"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <Button x:Name="BatesButton" Content="🏷 Bates Damgasını Uygula" Click="OnBatesClicked" Padding="12,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Tab 5: Form Fields -->
+            <TabItem x:Name="FormFieldsTabHeader" Header="📝 Form Alanları">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock x:Name="FormFieldsDescText" Grid.Row="0" Text="Belgedeki etkileşimli AcroForm alanlarını görüntüler ve düzenler." Foreground="#CCCCCC" Margin="0,0,0,8"/>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="FormFieldsContainer"/>
+                    </ScrollViewer>
+
+                    <DockPanel Grid.Row="2" Margin="0,10,0,0" LastChildFill="False">
+                        <CheckBox x:Name="FlattenFormCheckBox" Content="Formu Düzleştir (Salt Okunur Yap)" IsChecked="False" Foreground="#FFFFFF" VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                        <Button x:Name="SaveFormFieldsButton" Content="💾 Formu Kaydet" Click="OnSaveFormFieldsClicked" Padding="12,6" Background="#107C41" Foreground="#FFFFFF" FontWeight="SemiBold" DockPanel.Dock="Right"/>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom Bar -->
+        <DockPanel Grid.Row="2" Margin="0,12,0,0" LastChildFill="False">
+            <Button x:Name="CloseDialogButton" Content="Kapat" Click="OnCloseDialogClicked" DockPanel.Dock="Right" Padding="16,6" Background="#3E3E42" Foreground="#FFFFFF"/>
+        </DockPanel>
+    </Grid>
+</Window>
