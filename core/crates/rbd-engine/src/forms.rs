@@ -3,11 +3,12 @@
 use crate::error::EngineError;
 use lopdf::content::{Content, Operation};
 use lopdf::{Dictionary, Document, Object, ObjectId, Stream};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
 /// High-level type of an interactive AcroForm field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FormFieldType {
     /// Single-line or multi-line text input field (/Tx).
     Text,
@@ -20,7 +21,7 @@ pub enum FormFieldType {
 }
 
 /// Metadata and state for an AcroForm field.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FormFieldInfo {
     /// Fully qualified or partial field name (/T).
     pub name: String,

@@ -3,11 +3,12 @@
 use crate::error::EngineError;
 use lopdf::content::{Content, Operation};
 use lopdf::{Dictionary, Document, Object, ObjectId, Stream};
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 use std::path::Path;
 
 /// Spatial alignment for stamps and numbering on a page.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StampPosition {
     TopLeft,
     TopCenter,
@@ -18,7 +19,7 @@ pub enum StampPosition {
 }
 
 /// Configuration options for document watermarks.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatermarkOptions {
     /// Watermark text string.
     pub text: String,
@@ -48,7 +49,7 @@ impl Default for WatermarkOptions {
 }
 
 /// Configuration options for dynamic page numbering.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageNumberOptions {
     /// Template string with `{page}` and `{total}` placeholders (e.g. `"Sayfa {page} / {total}"`).
     pub template: String,
@@ -78,7 +79,7 @@ impl Default for PageNumberOptions {
 }
 
 /// Configuration options for legal Bates stamping.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatesOptions {
     /// Prefix text before the sequential number (e.g. `"RBD-"`).
     pub prefix: String,

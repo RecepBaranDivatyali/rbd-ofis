@@ -2,10 +2,11 @@
 
 use crate::error::EngineError;
 use lopdf::Document;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Options controlling PDF compression and size optimization.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompressionOptions {
     /// Prune unreferenced objects and compact the xref table.
     pub remove_unused_objects: bool,
@@ -42,7 +43,7 @@ impl CompressionOptions {
 }
 
 /// Statistics detailing the outcome of a compression operation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CompressionResult {
     /// Size of input file in bytes.
     pub original_size: u64,

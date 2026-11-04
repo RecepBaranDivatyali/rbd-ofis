@@ -15,7 +15,9 @@ use crate::{
     rbd_document_search_json, rbd_document_undo, rbd_engine_free, rbd_engine_init, rbd_free_string,
     rbd_page_op_crop, rbd_page_op_decrypt, rbd_page_op_delete_pages, rbd_page_op_insert_blank,
     rbd_page_op_merge, rbd_page_op_reorder, rbd_page_op_rotate, rbd_page_op_split,
-    rbd_render_tile_into_buffer,
+    rbd_pro_apply_bates_stamp, rbd_pro_apply_page_numbers, rbd_pro_apply_watermark,
+    rbd_pro_compress_document, rbd_pro_fill_form_fields, rbd_pro_read_form_fields,
+    rbd_pro_redact_document, rbd_render_tile_into_buffer,
 };
 use jni::JNIEnv;
 use jni::objects::{JByteArray, JByteBuffer, JClass, JString};
@@ -808,6 +810,313 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativePageOpD
     })
 }
 
+// ---------------------------------------------------------------------------
+// Professional PDF Tools JNI Entrypoints (Phase 4 Track 4B)
+// ---------------------------------------------------------------------------
+
+/// Apply permanent redactions to a PDF document via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeRedactDocument(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_path: jstring,
+    redactions_json: jstring,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if in_path.is_null() || out_path.is_null() || redactions_json.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let red_c = match unsafe { jstring_to_cstring(&mut env, redactions_json) } {
+            Some(r) => r,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe { rbd_pro_redact_document(in_c.as_ptr(), out_c.as_ptr(), red_c.as_ptr()) }
+    })
+}
+
+/// Compress a PDF document via JNI and return savings statistics as a JSON string (or null on failure).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeCompressDocument(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_path: jstring,
+    remove_unused: jboolean,
+    recompress: jboolean,
+    strip_meta: jboolean,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if in_path.is_null() || out_path.is_null() {
+            return ptr::null_mut();
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+
+        let mut buffer = vec![0u8; 1024];
+        let status = unsafe {
+            rbd_pro_compress_document(
+                in_c.as_ptr(),
+                out_c.as_ptr(),
+                if remove_unused != JNI_FALSE { 1 } else { 0 },
+                if recompress != JNI_FALSE { 1 } else { 0 },
+                if strip_meta != JNI_FALSE { 1 } else { 0 },
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("{}");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Apply a watermark to all pages in a PDF document via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeApplyWatermark(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_path: jstring,
+    text: jstring,
+    font_size: jfloat,
+    rotation_deg: jfloat,
+    opacity: jfloat,
+    r: jint,
+    g: jint,
+    b: jint,
+    on_top: jboolean,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if in_path.is_null() || out_path.is_null() || text.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let text_c = match unsafe { jstring_to_cstring(&mut env, text) } {
+            Some(t) => t,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe {
+            rbd_pro_apply_watermark(
+                in_c.as_ptr(),
+                out_c.as_ptr(),
+                text_c.as_ptr(),
+                font_size,
+                rotation_deg,
+                opacity,
+                r.clamp(0, 255) as u8,
+                g.clamp(0, 255) as u8,
+                b.clamp(0, 255) as u8,
+                if on_top != JNI_FALSE { 1 } else { 0 },
+            )
+        }
+    })
+}
+
+/// Apply dynamic page numbers to pages via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeApplyPageNumbers(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_path: jstring,
+    pattern: jstring,
+    position: jint,
+    font_size: jfloat,
+    margin: jfloat,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if in_path.is_null() || out_path.is_null() || pattern.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let pattern_c = match unsafe { jstring_to_cstring(&mut env, pattern) } {
+            Some(pat) => pat,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe {
+            rbd_pro_apply_page_numbers(
+                in_c.as_ptr(),
+                out_c.as_ptr(),
+                pattern_c.as_ptr(),
+                position,
+                font_size,
+                margin,
+            )
+        }
+    })
+}
+
+/// Apply sequential legal Bates stamp numbers via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeApplyBatesStamp(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_path: jstring,
+    prefix: jstring,
+    start_number: jint,
+    padding_digits: jint,
+    suffix: jstring,
+    position: jint,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if in_path.is_null() || out_path.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let prefix_c = match unsafe { jstring_to_cstring(&mut env, prefix) } {
+            Some(p) => p,
+            None => CString::new("").unwrap(),
+        };
+        let suffix_c = match unsafe { jstring_to_cstring(&mut env, suffix) } {
+            Some(s) => s,
+            None => CString::new("").unwrap(),
+        };
+
+        unsafe {
+            rbd_pro_apply_bates_stamp(
+                in_c.as_ptr(),
+                out_c.as_ptr(),
+                prefix_c.as_ptr(),
+                start_number.max(0) as u32,
+                padding_digits.max(0) as u32,
+                suffix_c.as_ptr(),
+                position,
+            )
+        }
+    })
+}
+
+/// Read all interactive form fields as a JSON string via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReadFormFields(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if in_path.is_null() {
+            return ptr::null_mut();
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+
+        let mut buffer = vec![0u8; 65536];
+        let status = unsafe {
+            rbd_pro_read_form_fields(
+                in_c.as_ptr(),
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("[]");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Fill interactive form fields and optionally flatten them via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeFillFormFields(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_path: jstring,
+    field_values_json: jstring,
+    flatten: jboolean,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if in_path.is_null() || out_path.is_null() || field_values_json.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let fv_c = match unsafe { jstring_to_cstring(&mut env, field_values_json) } {
+            Some(v) => v,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe {
+            rbd_pro_fill_form_fields(
+                in_c.as_ptr(),
+                out_c.as_ptr(),
+                fv_c.as_ptr(),
+                if flatten != JNI_FALSE { 1 } else { 0 },
+            )
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -994,5 +1303,103 @@ mod tests {
             panic!("Simulated critical panic inside JNI boundary!");
         });
         assert_eq!(res, default_val, "Panic must be contained by jni_boundary");
+    }
+
+    #[test]
+    fn test_jni_pro_tools() {
+        unsafe {
+            // Null pointer safety checks
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeRedactDocument(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeCompressDocument(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    JNI_TRUE,
+                    JNI_TRUE,
+                    JNI_FALSE,
+                )
+                .is_null()
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeApplyWatermark(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    36.0,
+                    45.0,
+                    0.5,
+                    0,
+                    0,
+                    0,
+                    JNI_TRUE,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeApplyPageNumbers(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    4,
+                    10.0,
+                    36.0,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeApplyBatesStamp(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    1,
+                    6,
+                    ptr::null_mut(),
+                    5,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeReadFormFields(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                )
+                .is_null()
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeFillFormFields(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    JNI_TRUE,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+        }
     }
 }

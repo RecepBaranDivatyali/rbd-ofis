@@ -4,10 +4,11 @@ use crate::error::EngineError;
 use crate::search::PdfRect;
 use lopdf::content::{Content, Operation};
 use lopdf::{Document, Object};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Redaction specification for a single page.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PageRedaction {
     /// 0-based page index.
     pub page_index: u32,

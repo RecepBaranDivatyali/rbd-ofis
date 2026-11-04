@@ -1100,6 +1100,386 @@ pub unsafe extern "C" fn rbd_page_op_decrypt(
 }
 
 // ---------------------------------------------------------------------------
+// Professional PDF Tools C-ABI Entrypoints (Phase 4 Track 4B)
+// ---------------------------------------------------------------------------
+
+fn copy_str_to_caller_buffer(s: &str, out_buf: *mut c_char, max_len: usize) -> Result<(), i32> {
+    if out_buf.is_null() || max_len == 0 {
+        set_last_error("Null or zero-sized destination buffer");
+        return Err(RBD_ERR_BUFFER_TOO_SMALL);
+    }
+    let bytes = s.as_bytes();
+    if bytes.len() + 1 > max_len {
+        set_last_error("Caller destination buffer too small for string");
+        return Err(RBD_ERR_BUFFER_TOO_SMALL);
+    }
+    unsafe {
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf as *mut u8, bytes.len());
+        *out_buf.add(bytes.len()) = 0;
+    }
+    Ok(())
+}
+
+fn map_stamp_position(pos: i32, default_pos: rbd_core::StampPosition) -> rbd_core::StampPosition {
+    match pos {
+        0 => rbd_core::StampPosition::TopLeft,
+        1 => rbd_core::StampPosition::TopCenter,
+        2 => rbd_core::StampPosition::TopRight,
+        3 => rbd_core::StampPosition::BottomLeft,
+        4 => rbd_core::StampPosition::BottomCenter,
+        5 => rbd_core::StampPosition::BottomRight,
+        _ => default_pos,
+    }
+}
+
+/// Apply permanent redactions to a PDF document, purging text and drawing blackout boxes.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_redact_document(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    redactions_json: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() || redactions_json.is_null() {
+            set_last_error("Null pointer passed to rbd_pro_redact_document");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let json_str = unsafe { CStr::from_ptr(redactions_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in redactions_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let redactions: Vec<rbd_core::PageRedaction> =
+            serde_json::from_str(json_str).map_err(|e| {
+                set_last_error(&format!("Failed to parse redactions JSON: {e}"));
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        rbd_core::redact_document(Path::new(in_str), &redactions, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Compress a PDF document and optionally output compression statistics as JSON.
+///
+/// # Safety
+/// `in_path` and `out_path` must be valid null-terminated UTF-8 strings.
+/// `out_savings_json` may be null if stats are not requested; if non-null, `max_savings_len` must reflect buffer size.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_compress_document(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    remove_unused: i32,
+    recompress: i32,
+    strip_meta: i32,
+    out_savings_json: *mut c_char,
+    max_savings_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_pro_compress_document");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let options = rbd_core::CompressionOptions {
+            remove_unused_objects: remove_unused != 0,
+            recompress_streams: recompress != 0,
+            strip_metadata: strip_meta != 0,
+        };
+
+        let result = rbd_core::compress_document(Path::new(in_str), &options, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        if !out_savings_json.is_null() && max_savings_len > 0 {
+            let json = serde_json::to_string(&result).map_err(|e| {
+                set_last_error(&format!("Failed to serialize compression result: {e}"));
+                RBD_ERR_ENGINE_FAILURE
+            })?;
+            copy_str_to_caller_buffer(&json, out_savings_json, max_savings_len)?;
+        }
+
+        Ok(())
+    }))
+}
+
+/// Apply a watermark to all pages in a PDF document.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_apply_watermark(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    text: *const c_char,
+    font_size: f32,
+    rotation_deg: f32,
+    opacity: f32,
+    r: u8,
+    g: u8,
+    b: u8,
+    on_top: i32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() || text.is_null() {
+            set_last_error("Null pointer passed to rbd_pro_apply_watermark");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let text_str = unsafe { CStr::from_ptr(text) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in text");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let options = rbd_core::WatermarkOptions {
+            text: text_str.to_string(),
+            font_size: if font_size > 0.0 { font_size } else { 48.0 },
+            rotation_degrees: rotation_deg,
+            opacity: opacity.clamp(0.0, 1.0),
+            color_rgb: (r, g, b),
+            on_top: on_top != 0,
+        };
+
+        rbd_core::apply_watermark(Path::new(in_str), &options, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Apply dynamic page numbers to pages using template pattern (e.g. "Page {page} of {total}").
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_apply_page_numbers(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    pattern: *const c_char,
+    position: i32,
+    font_size: f32,
+    margin: f32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() || pattern.is_null() {
+            set_last_error("Null pointer passed to rbd_pro_apply_page_numbers");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let pattern_str = unsafe { CStr::from_ptr(pattern) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in pattern");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let pos = map_stamp_position(position, rbd_core::StampPosition::BottomCenter);
+        let options = rbd_core::PageNumberOptions {
+            template: pattern_str.to_string(),
+            position: pos,
+            font_size: if font_size > 0.0 { font_size } else { 10.0 },
+            margin: if margin > 0.0 { margin } else { 36.0 },
+            color_rgb: (80, 80, 80),
+            start_page: 1,
+        };
+
+        rbd_core::apply_page_numbers(Path::new(in_str), &options, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Apply sequential legal Bates stamp numbers across pages.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings (prefix and suffix can be null).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_apply_bates_stamp(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    prefix: *const c_char,
+    start_number: u32,
+    padding_digits: u32,
+    suffix: *const c_char,
+    position: i32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_pro_apply_bates_stamp");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let prefix_str = if !prefix.is_null() {
+            unsafe { CStr::from_ptr(prefix) }.to_str().map_err(|_| {
+                set_last_error("Invalid UTF-8 in prefix");
+                RBD_ERR_INVALID_PARAM
+            })?
+        } else {
+            ""
+        };
+
+        let suffix_str = if !suffix.is_null() {
+            unsafe { CStr::from_ptr(suffix) }.to_str().map_err(|_| {
+                set_last_error("Invalid UTF-8 in suffix");
+                RBD_ERR_INVALID_PARAM
+            })?
+        } else {
+            ""
+        };
+
+        let pos = map_stamp_position(position, rbd_core::StampPosition::BottomRight);
+        let options = rbd_core::BatesOptions {
+            prefix: prefix_str.to_string(),
+            start_number,
+            padding: padding_digits as usize,
+            suffix: suffix_str.to_string(),
+            position: pos,
+            margin: 36.0,
+            color_rgb: (0, 0, 0),
+        };
+
+        rbd_core::apply_bates_stamp(Path::new(in_str), &options, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Read all interactive form fields from a PDF file as a JSON array.
+///
+/// # Safety
+/// `in_path` must be a valid null-terminated UTF-8 string.
+/// `out_json` must be a writable buffer of at least `max_json_len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_read_form_fields(
+    in_path: *const c_char,
+    out_json: *mut c_char,
+    max_json_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_json.is_null() || max_json_len == 0 {
+            set_last_error("Null pointer or zero buffer length passed to rbd_pro_read_form_fields");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let fields =
+            rbd_core::read_form_fields(Path::new(in_str)).map_err(|e| map_engine_error(&e))?;
+
+        let json = serde_json::to_string(&fields).map_err(|e| {
+            set_last_error(&format!("Failed to serialize form fields: {e}"));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        copy_str_to_caller_buffer(&json, out_json, max_json_len)?;
+
+        Ok(())
+    }))
+}
+
+/// Fill interactive form fields in a PDF document and optionally flatten them.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_pro_fill_form_fields(
+    in_path: *const c_char,
+    out_path: *const c_char,
+    field_values_json: *const c_char,
+    flatten: i32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_path.is_null() || field_values_json.is_null() {
+            set_last_error("Null pointer passed to rbd_pro_fill_form_fields");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let json_str = unsafe { CStr::from_ptr(field_values_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in field_values_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let field_values: std::collections::HashMap<String, String> =
+            serde_json::from_str(json_str).map_err(|e| {
+                set_last_error(&format!("Failed to parse field_values_json: {e}"));
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        rbd_core::fill_form_fields(
+            Path::new(in_str),
+            &field_values,
+            flatten != 0,
+            Path::new(out_str),
+        )
+        .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Existing Legacy RbdSession Entrypoints (retained for backward compatibility)
 // ---------------------------------------------------------------------------
 
@@ -1751,6 +2131,215 @@ mod tests {
             let _ = std::fs::remove_file(out_del);
             let _ = std::fs::remove_file(out_reord);
             let _ = std::fs::remove_file(out_split);
+        }
+    }
+
+    #[test]
+    fn test_ffi_pro_tools() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sample_pdf =
+            manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        let form_pdf = manifest_dir.join("../../../corpus/files/pdf-forms/pdfium-text-form.pdf");
+        assert!(sample_pdf.exists());
+        assert!(form_pdf.exists());
+
+        let pid = std::process::id();
+        let in_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+        let form_c = CString::new(form_pdf.to_str().unwrap()).unwrap();
+
+        unsafe {
+            // Null pointer checks
+            assert_eq!(
+                rbd_pro_redact_document(std::ptr::null(), std::ptr::null(), std::ptr::null()),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_pro_compress_document(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    0,
+                    0,
+                    std::ptr::null_mut(),
+                    0,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_pro_apply_watermark(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0.0,
+                    0.0,
+                    0.0,
+                    0,
+                    0,
+                    0,
+                    0,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_pro_apply_page_numbers(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    0.0,
+                    0.0,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_pro_apply_bates_stamp(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    0,
+                    std::ptr::null(),
+                    0,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_pro_read_form_fields(std::ptr::null(), std::ptr::null_mut(), 0),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_pro_fill_form_fields(std::ptr::null(), std::ptr::null(), std::ptr::null(), 0),
+                RBD_ERR_NULL_PTR
+            );
+
+            // 1. Redaction
+            let out_red = std::env::temp_dir().join(format!("rbd_ffi_test_red_{pid}.pdf"));
+            let out_red_c = CString::new(out_red.to_str().unwrap()).unwrap();
+            let red_json = CString::new(
+                r#"[{"page_index":0,"rects":[{"x0":50.0,"y0":650.0,"x1":300.0,"y1":750.0}],"fill_color":[0,0,0]}]"#,
+            )
+            .unwrap();
+            assert_eq!(
+                rbd_pro_redact_document(in_c.as_ptr(), out_red_c.as_ptr(), red_json.as_ptr()),
+                RBD_OK
+            );
+            assert!(out_red.exists());
+
+            // 2. Compression
+            let out_comp = std::env::temp_dir().join(format!("rbd_ffi_test_comp_{pid}.pdf"));
+            let out_comp_c = CString::new(out_comp.to_str().unwrap()).unwrap();
+            let mut savings_buf = vec![0u8; 512];
+            assert_eq!(
+                rbd_pro_compress_document(
+                    in_c.as_ptr(),
+                    out_comp_c.as_ptr(),
+                    1,
+                    1,
+                    0,
+                    savings_buf.as_mut_ptr() as *mut c_char,
+                    savings_buf.len(),
+                ),
+                RBD_OK
+            );
+            assert!(out_comp.exists());
+            let stats_str = CStr::from_ptr(savings_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(stats_str.contains("original_size"));
+
+            // 3. Watermark
+            let out_wm = std::env::temp_dir().join(format!("rbd_ffi_test_wm_{pid}.pdf"));
+            let out_wm_c = CString::new(out_wm.to_str().unwrap()).unwrap();
+            let wm_text = CString::new("FFI WATERMARK").unwrap();
+            assert_eq!(
+                rbd_pro_apply_watermark(
+                    in_c.as_ptr(),
+                    out_wm_c.as_ptr(),
+                    wm_text.as_ptr(),
+                    36.0,
+                    45.0,
+                    0.3,
+                    200,
+                    200,
+                    200,
+                    1,
+                ),
+                RBD_OK
+            );
+            assert!(out_wm.exists());
+
+            // 4. Page numbers
+            let out_num = std::env::temp_dir().join(format!("rbd_ffi_test_num_{pid}.pdf"));
+            let out_num_c = CString::new(out_num.to_str().unwrap()).unwrap();
+            let pat = CString::new("Sayfa {page} / {total}").unwrap();
+            assert_eq!(
+                rbd_pro_apply_page_numbers(
+                    in_c.as_ptr(),
+                    out_num_c.as_ptr(),
+                    pat.as_ptr(),
+                    4, // BottomCenter
+                    10.0,
+                    36.0,
+                ),
+                RBD_OK
+            );
+            assert!(out_num.exists());
+
+            // 5. Bates stamp
+            let out_bates = std::env::temp_dir().join(format!("rbd_ffi_test_bates_{pid}.pdf"));
+            let out_bates_c = CString::new(out_bates.to_str().unwrap()).unwrap();
+            let pfx = CString::new("FFI-").unwrap();
+            let sfx = CString::new("").unwrap();
+            assert_eq!(
+                rbd_pro_apply_bates_stamp(
+                    in_c.as_ptr(),
+                    out_bates_c.as_ptr(),
+                    pfx.as_ptr(),
+                    10,
+                    6,
+                    sfx.as_ptr(),
+                    5, // BottomRight
+                ),
+                RBD_OK
+            );
+            assert!(out_bates.exists());
+
+            // 6. Read form fields
+            let mut fields_buf = vec![0u8; 16384];
+            assert_eq!(
+                rbd_pro_read_form_fields(
+                    form_c.as_ptr(),
+                    fields_buf.as_mut_ptr() as *mut c_char,
+                    fields_buf.len(),
+                ),
+                RBD_OK
+            );
+            let fields_json = CStr::from_ptr(fields_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(fields_json.contains("name"));
+
+            // 7. Fill form fields
+            let out_form = std::env::temp_dir().join(format!("rbd_ffi_test_form_{pid}.pdf"));
+            let out_form_c = CString::new(out_form.to_str().unwrap()).unwrap();
+            let val_json = CString::new(r#"{"text_field": "FFI Form Test"}"#).unwrap();
+            assert_eq!(
+                rbd_pro_fill_form_fields(
+                    form_c.as_ptr(),
+                    out_form_c.as_ptr(),
+                    val_json.as_ptr(),
+                    1,
+                ),
+                RBD_OK
+            );
+            assert!(out_form.exists());
+
+            let _ = std::fs::remove_file(out_red);
+            let _ = std::fs::remove_file(out_comp);
+            let _ = std::fs::remove_file(out_wm);
+            let _ = std::fs::remove_file(out_num);
+            let _ = std::fs::remove_file(out_bates);
+            let _ = std::fs::remove_file(out_form);
         }
     }
 }
