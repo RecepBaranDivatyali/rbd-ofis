@@ -28,6 +28,40 @@
     <string name="action_add_annotation">Add Note / Drawing</string>
     <string name="action_scan_document">Scan Document</string>
 
+    <!-- Pen and Drawing Tools (Track 3C) -->
+    <string name="tool_pan">Pan</string>
+    <string name="tool_pen">Ink Pen</string>
+    <string name="tool_highlighter">Highlighter</string>
+    <string name="tool_eraser">Eraser</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_redo">Redo</string>
+    <string name="action_clear_canvas">Clear Canvas</string>
+    <string name="action_toggle_ink">Ink Drawing</string>
+    <string name="color_black">Black</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_red">Red</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_green">Green</string>
+    <string name="color_pink">Pink</string>
+    <string name="stroke_width">Stroke Width</string>
+
+    <!-- Document Scanner Actions and Filters (Track 3D) -->
+    <string name="action_capture">Capture</string>
+    <string name="action_torch_on">Turn Flash On</string>
+    <string name="action_torch_off">Turn Flash Off</string>
+    <string name="action_retake">Retake</string>
+    <string name="action_save_pdf">Save as PDF</string>
+    <string name="action_append_to_doc">Append to Document</string>
+    <string name="action_open_scanned_pdf">Open Scanned PDF</string>
+    <string name="filter_original">Original</string>
+    <string name="filter_grayscale">Grayscale</string>
+    <string name="filter_binarized">Black &amp; White Document</string>
+    <string name="scanner_hint">Align document within the frame</string>
+    <string name="status_processing_image">Processing image…</string>
+    <string name="status_generating_pdf">Generating PDF…</string>
+    <string name="error_camera_unavailable">Failed to initialize camera.</string>
+    <string name="error_scan_failed">Document scanning failed.</string>
+
     <!-- Status and Indicators -->
     <string name="page_indicator">Page %1$d of %2$d</string>
     <string name="zoom_indicator">%1$d%%</string>
@@ -38,6 +72,8 @@
     <string name="status_no_document">No document open</string>
     <string name="status_search_results">%1$d results found</string>
     <string name="status_no_search_results">No matches found</string>
+    <string name="status_saved">Document saved successfully.</string>
+    <string name="status_save_failed">Failed to save document.</string>
 
     <!-- Dialogs -->
     <string name="dialog_delete_page_title">Delete Page</string>
@@ -54,7 +90,5 @@
     <string name="error_save_document">Failed to save document.</string>
     <string name="error_page_not_found">Requested page was not found.</string>
     <string name="error_native_core_unavailable">Native core library unavailable. Switched to simulation mode.</string>
-    <string name="status_saved">Document saved successfully.</string>
-    <string name="status_save_failed">Failed to save document.</string>
     <string name="privacy_assurance">RBD OFIS is 100% offline. No data ever leaves your device.</string>
 </resources>

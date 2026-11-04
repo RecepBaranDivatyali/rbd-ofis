@@ -64,7 +64,8 @@ sealed class PdfAnnotation {
         override val bounds: PageRect,
         val points: List<Pair<Float, Float>>,
         val strokeWidth: Float = 2.0f,
-        val colorRgba: Long = 0xFF000000L
+        val colorRgba: Long = 0xFF000000L,
+        val isHighlighter: Boolean = false
     ) : PdfAnnotation()
 
     data class TextNote(
@@ -240,6 +241,8 @@ class RbdNativeBridge private constructor() {
         val page = doc.pages.getOrNull(pageIndex) ?: return false
         page.rotation = (page.rotation + degrees) % 360
         if (page.rotation < 0) page.rotation += 360
+        doc.undoStack.push(DocumentAction.RotatePage(pageIndex, degrees))
+        doc.redoStack.clear()
         return true
     }
 
@@ -370,12 +373,109 @@ class RbdNativeBridge private constructor() {
 
     fun addAnnotation(docHandle: Long, pageIndex: Int, annotation: PdfAnnotation): Boolean {
         if (isNativeAvailable()) {
-            val json = "{\"type\":\"highlight\",\"pageIndex\":$pageIndex}"
+            val json = "{\"type\":\"annotation\",\"pageIndex\":$pageIndex,\"id\":\"${annotation.id}\"}"
             return nativeDocumentAddAnnotationJson(docHandle, pageIndex, json) == 0
         }
         val doc = mockDocuments[docHandle] ?: return false
         val page = doc.pages.getOrNull(pageIndex) ?: return false
         page.annotations.add(annotation)
+        doc.undoStack.push(DocumentAction.AddAnnotation(pageIndex, annotation))
+        doc.redoStack.clear()
+        return true
+    }
+
+    fun removeAnnotation(docHandle: Long, pageIndex: Int, id: String): Boolean {
+        if (isNativeAvailable()) {
+            return nativeDocumentRemoveAnnotation(docHandle, pageIndex, id) == 0
+        }
+        val doc = mockDocuments[docHandle] ?: return false
+        val page = doc.pages.getOrNull(pageIndex) ?: return false
+        val index = page.annotations.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val removed = page.annotations.removeAt(index)
+            doc.undoStack.push(DocumentAction.RemoveAnnotation(pageIndex, removed))
+            doc.redoStack.clear()
+            return true
+        }
+        return false
+    }
+
+    fun clearAnnotations(docHandle: Long, pageIndex: Int): Boolean {
+        val doc = mockDocuments[docHandle] ?: return false
+        val page = doc.pages.getOrNull(pageIndex) ?: return false
+        if (page.annotations.isEmpty()) return true
+        val previous = ArrayList(page.annotations)
+        page.annotations.clear()
+        doc.undoStack.push(DocumentAction.ClearAnnotations(pageIndex, previous))
+        doc.redoStack.clear()
+        return true
+    }
+
+    fun canUndo(docHandle: Long): Boolean {
+        val doc = mockDocuments[docHandle] ?: return false
+        return doc.undoStack.isNotEmpty()
+    }
+
+    fun canRedo(docHandle: Long): Boolean {
+        val doc = mockDocuments[docHandle] ?: return false
+        return doc.redoStack.isNotEmpty()
+    }
+
+    fun undo(docHandle: Long): Boolean {
+        if (isNativeAvailable()) {
+            return nativeDocumentUndo(docHandle) == 0
+        }
+        val doc = mockDocuments[docHandle] ?: return false
+        if (doc.undoStack.isEmpty()) return false
+        val action = doc.undoStack.pop()
+        when (action) {
+            is DocumentAction.AddAnnotation -> {
+                doc.pages.getOrNull(action.pageIndex)?.annotations?.removeAll { it.id == action.annotation.id }
+            }
+            is DocumentAction.RemoveAnnotation -> {
+                doc.pages.getOrNull(action.pageIndex)?.annotations?.add(action.annotation)
+            }
+            is DocumentAction.ClearAnnotations -> {
+                doc.pages.getOrNull(action.pageIndex)?.annotations?.addAll(action.previousAnnotations)
+            }
+            is DocumentAction.RotatePage -> {
+                val page = doc.pages.getOrNull(action.pageIndex)
+                if (page != null) {
+                    page.rotation = (page.rotation - action.degrees) % 360
+                    if (page.rotation < 0) page.rotation += 360
+                }
+            }
+        }
+        doc.redoStack.push(action)
+        return true
+    }
+
+    fun redo(docHandle: Long): Boolean {
+        if (isNativeAvailable()) {
+            return nativeDocumentRedo(docHandle) == 0
+        }
+        val doc = mockDocuments[docHandle] ?: return false
+        if (doc.redoStack.isEmpty()) return false
+        val action = doc.redoStack.pop()
+        when (action) {
+            is DocumentAction.AddAnnotation -> {
+                doc.pages.getOrNull(action.pageIndex)?.annotations?.add(action.annotation)
+            }
+            is DocumentAction.RemoveAnnotation -> {
+                doc.pages.getOrNull(action.pageIndex)?.annotations?.removeAll { it.id == action.annotation.id }
+            }
+            is DocumentAction.ClearAnnotations -> {
+                doc.pages.getOrNull(action.pageIndex)?.annotations?.clear()
+            }
+            is DocumentAction.RotatePage -> {
+                val page = doc.pages.getOrNull(action.pageIndex)
+                if (page != null) {
+                    page.rotation = (page.rotation + action.degrees) % 360
+                    if (page.rotation < 0) page.rotation += 360
+                }
+            }
+        }
+        doc.undoStack.push(action)
         return true
     }
 
@@ -416,6 +516,8 @@ class RbdNativeBridge private constructor() {
     private external fun nativeDocumentSearchJson(docHandle: Long, query: String): String?
     private external fun nativeDocumentAddAnnotationJson(docHandle: Long, pageIndex: Int, json: String): Int
     private external fun nativeDocumentRemoveAnnotation(docHandle: Long, pageIndex: Int, id: String): Int
+    private external fun nativeDocumentUndo(docHandle: Long): Int
+    private external fun nativeDocumentRedo(docHandle: Long): Int
     private external fun nativeDocumentGetAnnotationsJson(docHandle: Long, pageIndex: Int): String?
     private external fun nativeDocumentSaveAnnotations(docHandle: Long): Int
     private external fun nativePageOpRotate(docHandle: Long, pageIndex: Int, degrees: Int): Int
@@ -425,6 +527,13 @@ class RbdNativeBridge private constructor() {
     // =========================================================================
     // In-memory Mock Data Structures
     // =========================================================================
+
+    private sealed class DocumentAction {
+        data class AddAnnotation(val pageIndex: Int, val annotation: PdfAnnotation) : DocumentAction()
+        data class RemoveAnnotation(val pageIndex: Int, val annotation: PdfAnnotation) : DocumentAction()
+        data class ClearAnnotations(val pageIndex: Int, val previousAnnotations: List<PdfAnnotation>) : DocumentAction()
+        data class RotatePage(val pageIndex: Int, val degrees: Int) : DocumentAction()
+    }
 
     private data class MockPage(
         val originalIndex: Int,
@@ -437,6 +546,8 @@ class RbdNativeBridge private constructor() {
     private data class MockDocument(
         val filePath: String,
         val initialPageCount: Int = 6,
-        val pages: MutableList<MockPage> = MutableList(initialPageCount) { MockPage(originalIndex = it) }
+        val pages: MutableList<MockPage> = MutableList(initialPageCount) { MockPage(originalIndex = it) },
+        val undoStack: java.util.ArrayDeque<DocumentAction> = java.util.ArrayDeque(),
+        val redoStack: java.util.ArrayDeque<DocumentAction> = java.util.ArrayDeque()
     )
 }

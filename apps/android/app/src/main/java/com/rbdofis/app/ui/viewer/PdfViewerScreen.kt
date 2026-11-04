@@ -1,6 +1,9 @@
 package com.rbdofis.app.ui.viewer
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
@@ -82,27 +86,53 @@ fun PdfViewerScreen(
                         )
                     },
                     actions = {
+                        // Drawing / Stylus Toggle
                         IconButton(
-                            onClick = { viewModel.toggleSearch(!uiState.isSearchOpen) }
+                            onClick = { viewModel.toggleInkMode() },
+                            enabled = docState.isOpen
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Draw,
+                                contentDescription = stringResource(R.string.action_toggle_ink),
+                                tint = if (uiState.isInkModeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        // Search
+                        IconButton(
+                            onClick = { viewModel.toggleSearch(!uiState.isSearchOpen) },
+                            enabled = docState.isOpen
                         ) {
                             Icon(
                                 imageVector = if (uiState.isSearchOpen) Icons.Default.Close else Icons.Default.Search,
                                 contentDescription = stringResource(R.string.action_search)
                             )
                         }
-                        IconButton(onClick = onNavigateToOrganizer) {
+
+                        // Page Organizer
+                        IconButton(
+                            onClick = onNavigateToOrganizer,
+                            enabled = docState.isOpen
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.GridView,
                                 contentDescription = stringResource(R.string.action_organizer)
                             )
                         }
+
+                        // Document Camera Scanner
                         IconButton(onClick = onScanDocumentRequested) {
                             Icon(
                                 imageVector = Icons.Default.DocumentScanner,
                                 contentDescription = stringResource(R.string.action_scan_document)
                             )
                         }
-                        IconButton(onClick = onShareRequested) {
+
+                        // Share
+                        IconButton(
+                            onClick = onShareRequested,
+                            enabled = docState.isOpen
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = stringResource(R.string.action_share)
@@ -260,16 +290,10 @@ fun PdfViewerScreen(
                     }
                 }
                 else -> {
-                    // PDF Page Render Surface with pinch-to-zoom and pan gestures
+                    // PDF Page Render Surface with synchronized Ink Canvas
                     val bitmap: Bitmap? = uiState.currentBitmap
                     if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = stringResource(
-                                R.string.page_indicator,
-                                docState.currentPageIndex + 1,
-                                docState.pageCount
-                            ),
+                        Box(
                             modifier = Modifier
                                 .graphicsLayer(
                                     scaleX = uiState.zoomScale,
@@ -277,18 +301,63 @@ fun PdfViewerScreen(
                                     translationX = uiState.panOffset.x,
                                     translationY = uiState.panOffset.y
                                 )
-                                .pointerInput(Unit) {
-                                    detectTransformGestures { centroid, pan, zoom, _ ->
-                                        viewModel.onTransform(centroid, pan, zoom)
+                                .pointerInput(uiState.isInkModeActive, uiState.activeInkTool) {
+                                    if (!uiState.isInkModeActive || uiState.activeInkTool == InkTool.PAN) {
+                                        detectTransformGestures { centroid, pan, zoom, _ ->
+                                            viewModel.onTransform(centroid, pan, zoom)
+                                        }
                                     }
                                 }
                                 .shadow(6.dp, RoundedCornerShape(2.dp))
                                 .clip(RoundedCornerShape(2.dp))
-                        )
+                        ) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = stringResource(
+                                    R.string.page_indicator,
+                                    docState.currentPageIndex + 1,
+                                    docState.pageCount
+                                )
+                            )
+
+                            // Ink Drawing Overlay
+                            InkAnnotationCanvas(
+                                pageIndex = docState.currentPageIndex,
+                                annotations = uiState.annotations,
+                                activeTool = if (uiState.isInkModeActive) uiState.activeInkTool else InkTool.PAN,
+                                penColor = uiState.activeInkColor,
+                                strokeWidthPx = uiState.strokeWidthPx,
+                                onAnnotationAdded = { stroke -> viewModel.addInkStroke(stroke) },
+                                onAnnotationRemoved = { id -> viewModel.removeAnnotation(id) },
+                                modifier = Modifier.matchParentSize()
+                            )
+                        }
                     } else {
                         CircularProgressIndicator(modifier = Modifier.size(36.dp))
                     }
                 }
+            }
+
+            // Floating Ink Toolbar at bottom when Ink Mode is active
+            AnimatedVisibility(
+                visible = uiState.isInkModeActive && docState.isOpen,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                InkToolBar(
+                    activeTool = uiState.activeInkTool,
+                    onToolSelected = { viewModel.selectInkTool(it) },
+                    activeColor = uiState.activeInkColor,
+                    onColorSelected = { viewModel.selectInkColor(it) },
+                    strokeWidthPx = uiState.strokeWidthPx,
+                    onStrokeWidthSelected = { viewModel.selectStrokeWidth(it) },
+                    canUndo = uiState.canUndo,
+                    onUndo = { viewModel.undo() },
+                    canRedo = uiState.canRedo,
+                    onRedo = { viewModel.redo() },
+                    onClearAll = { viewModel.clearAllAnnotationsOnPage() }
+                )
             }
         }
     }

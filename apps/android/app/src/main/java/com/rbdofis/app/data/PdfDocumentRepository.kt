@@ -296,6 +296,82 @@ class PdfDocumentRepository(
     }
 
     /**
+     * Removes an annotation by ID.
+     */
+    suspend fun removeAnnotation(pageIndex: Int, annotationId: String): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L) return@withContext false
+        val success = nativeBridge.removeAnnotation(currentDocHandle, pageIndex, annotationId)
+        if (success) {
+            clearPageCache(pageIndex)
+            _documentState.value = _documentState.value.copy(isModified = true)
+        }
+        success
+    }
+
+    /**
+     * Clears all annotations from the specified page.
+     */
+    suspend fun clearAnnotations(pageIndex: Int): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L) return@withContext false
+        val success = nativeBridge.clearAnnotations(currentDocHandle, pageIndex)
+        if (success) {
+            clearPageCache(pageIndex)
+            _documentState.value = _documentState.value.copy(isModified = true)
+        }
+        success
+    }
+
+    /**
+     * Gets all annotations for the given page.
+     */
+    suspend fun getAnnotations(pageIndex: Int): List<PdfAnnotation> = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L) return@withContext emptyList()
+        nativeBridge.getAnnotations(currentDocHandle, pageIndex)
+    }
+
+    /**
+     * Undoes the last annotation or page operation.
+     */
+    suspend fun undo(): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L) return@withContext false
+        val success = nativeBridge.undo(currentDocHandle)
+        if (success) {
+            tileCache.clear()
+            _documentState.value = _documentState.value.copy(isModified = true)
+        }
+        success
+    }
+
+    /**
+     * Redoes the previously undone operation.
+     */
+    suspend fun redo(): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L) return@withContext false
+        val success = nativeBridge.redo(currentDocHandle)
+        if (success) {
+            tileCache.clear()
+            _documentState.value = _documentState.value.copy(isModified = true)
+        }
+        success
+    }
+
+    /**
+     * Returns true if an undo action is available.
+     */
+    fun canUndo(): Boolean {
+        if (currentDocHandle == 0L) return false
+        return nativeBridge.canUndo(currentDocHandle)
+    }
+
+    /**
+     * Returns true if a redo action is available.
+     */
+    fun canRedo(): Boolean {
+        if (currentDocHandle == 0L) return false
+        return nativeBridge.canRedo(currentDocHandle)
+    }
+
+    /**
      * Sets the active page index in the viewer.
      */
     fun setCurrentPageIndex(index: Int) {

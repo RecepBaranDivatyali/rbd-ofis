@@ -21,6 +21,8 @@ import androidx.lifecycle.lifecycleScope
 import com.rbdofis.app.data.PdfDocumentRepository
 import com.rbdofis.app.ui.organizer.PageOrganizerScreen
 import com.rbdofis.app.ui.organizer.PageOrganizerViewModel
+import com.rbdofis.app.ui.scanner.DocumentScannerScreen
+import com.rbdofis.app.ui.scanner.DocumentScannerViewModel
 import com.rbdofis.app.ui.theme.RbdOfisTheme
 import com.rbdofis.app.ui.viewer.PdfViewerScreen
 import com.rbdofis.app.ui.viewer.PdfViewerViewModel
@@ -32,7 +34,8 @@ import java.io.FileOutputStream
 
 enum class AppScreen {
     VIEWER,
-    ORGANIZER
+    ORGANIZER,
+    SCANNER
 }
 
 class MainActivity : ComponentActivity() {
@@ -40,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: PdfDocumentRepository
     private lateinit var viewerViewModel: PdfViewerViewModel
     private lateinit var organizerViewModel: PageOrganizerViewModel
+    private lateinit var scannerViewModel: DocumentScannerViewModel
 
     // File picker launcher
     private val openDocumentLauncher = registerForActivityResult(
@@ -56,6 +60,7 @@ class MainActivity : ComponentActivity() {
         repository = PdfDocumentRepository()
         viewerViewModel = PdfViewerViewModel(repository)
         organizerViewModel = PageOrganizerViewModel(repository)
+        scannerViewModel = DocumentScannerViewModel()
 
         // Process incoming intent (e.g. from file manager or other apps)
         handleIntent(intent)
@@ -174,9 +179,7 @@ class MainActivity : ComponentActivity() {
                 PdfViewerScreen(
                     viewModel = viewerViewModel,
                     onNavigateToOrganizer = { currentScreen = AppScreen.ORGANIZER },
-                    onScanDocumentRequested = {
-                        openDocumentLauncher.launch(arrayOf("application/pdf"))
-                    },
+                    onScanDocumentRequested = { currentScreen = AppScreen.SCANNER },
                     onShareRequested = { shareCurrentDocument() },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -185,6 +188,19 @@ class MainActivity : ComponentActivity() {
                 PageOrganizerScreen(
                     viewModel = organizerViewModel,
                     onNavigateBack = { currentScreen = AppScreen.VIEWER },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            AppScreen.SCANNER -> {
+                DocumentScannerScreen(
+                    viewModel = scannerViewModel,
+                    onNavigateBack = { currentScreen = AppScreen.VIEWER },
+                    onScanComplete = { scannedPdfPath ->
+                        lifecycleScope.launch {
+                            repository.openDocument(scannedPdfPath)
+                            currentScreen = AppScreen.VIEWER
+                        }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
