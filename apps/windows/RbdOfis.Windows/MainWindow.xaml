@@ -32,8 +32,9 @@
         <!-- Row 0: Top Header & Global App Menu -->
         <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
             <DockPanel LastChildFill="True">
-                <!-- Right Side: Theme & Language Controls -->
+                <!-- Right Side: Association, Theme & Language Controls -->
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <Button x:Name="AssociatePdfButton" Content="🔗 PDF ile İlişkilendir" Click="OnAssociatePdfClicked" Margin="0,0,10,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
                     <Button x:Name="ThemeToggleButton" Content="🌙 Koyu Tema" Click="OnThemeToggleClicked" Margin="0,0,10,0" Padding="8,3" Background="{DynamicResource ControlBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource BorderBrush}"/>
                     <TextBlock x:Name="LanguageLabelText" Text="Dil / Language:" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12"/>
                     <ComboBox x:Name="LanguageComboBox" Width="110" SelectionChanged="OnLanguageSelectionChanged">

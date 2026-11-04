@@ -105,7 +105,10 @@ public class LocalizationTests
             "SplitPdfTitle",
             "ThemeDark",
             "ThemeLight",
-            "DiagnosticsFormat"
+            "DiagnosticsFormat",
+            "AssociatePdf",
+            "PdfAssociatedSuccess",
+            "PdfAssociatedFailed"
         ];
 
         var turkish = LocalizationManager.GetCatalogForCulture("tr-TR");

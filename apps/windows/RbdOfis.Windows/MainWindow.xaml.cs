@@ -16,6 +16,7 @@ using RbdOfis.Interop.Localization;
 using RbdOfis.Interop.Models;
 using RbdOfis.Interop.Native;
 using RbdOfis.Interop.Security;
+using RbdOfis.Interop.Services;
 using RbdOfis.Interop.Viewport;
 
 namespace RbdOfis.Windows;
@@ -75,9 +76,15 @@ public partial class MainWindow : Window
     private FrameworkElement? _tempPreviewElement;
 
     private WriteableBitmap? _writeableBitmap;
+    private readonly string? _initialPdfPath;
 
-    public MainWindow()
+    public MainWindow() : this(null)
     {
+    }
+
+    public MainWindow(string? initialPdfPath)
+    {
+        _initialPdfPath = initialPdfPath;
         InitializeComponent();
 
         try
@@ -148,7 +155,12 @@ public partial class MainWindow : Window
         UpdateLocalizedUi();
 
         // Open initial default demo document tab
-        string? samplePdf = FindCorpusSamplePdf();
+        string? samplePdf = _initialPdfPath;
+        if (string.IsNullOrWhiteSpace(samplePdf) || !File.Exists(samplePdf))
+        {
+            samplePdf = FindCorpusSamplePdf();
+        }
+
         RbdDocument defaultDoc;
         string defaultTitle;
         if (samplePdf != null && File.Exists(samplePdf))
@@ -198,6 +210,7 @@ public partial class MainWindow : Window
         PageOrganizerButton.Content = $"📑 {lm["PageOrganizerTitle"]}";
         SidebarTitleText.Text = lm["ThumbnailsTitle"];
         ThemeToggleButton.Content = _isDarkTheme ? $"🌙 {lm["ThemeDark"]}" : $"☀️ {lm["ThemeLight"]}";
+        AssociatePdfButton.Content = $"🔗 {lm["AssociatePdf"]}";
 
         // Annotation Ribbon
         ToolSelectRadio.Content = $"✋ {lm["ToolSelect"]}";
@@ -1032,6 +1045,21 @@ public partial class MainWindow : Window
                 var lm = LocalizationManager.Instance;
                 MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+    }
+
+    private void OnAssociatePdfClicked(object sender, RoutedEventArgs e)
+    {
+        var lm = LocalizationManager.Instance;
+        string exePath = Environment.ProcessPath ?? Environment.GetCommandLineArgs()[0];
+        bool success = FileAssociationService.RegisterPdfAssociation(exePath);
+        if (success)
+        {
+            MessageBox.Show(lm["PdfAssociatedSuccess"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show(lm["PdfAssociatedFailed"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

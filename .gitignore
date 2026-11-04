@@ -9,6 +9,7 @@ target/
 *.user
 .vs/
 AppPackages/
+dist/
 
 # Android
 .gradle/

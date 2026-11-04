@@ -146,7 +146,10 @@ internal static class StringCatalogs
         ["PageLayoutUpdated"] = "Sayfa düzeni başarıyla güncellendi.",
         ["CropAction"] = "Seçili Sayfayı Kırp",
         ["CropMarginsPrompt"] = "Kırpma Sınırları (Sol, Alt, Sağ, Üst pt):",
-        ["NativeEngineInitFailed"] = "Yerel PDF motoru yüklenemedi; simülasyon motoruna geçildi."
+        ["NativeEngineInitFailed"] = "Yerel PDF motoru yüklenemedi; simülasyon motoruna geçildi.",
+        ["AssociatePdf"] = "PDF Dosyalarıyla İlişkilendir",
+        ["PdfAssociatedSuccess"] = "RBD OFİS varsayılan PDF görüntüleyicisi olarak başarıyla kaydedildi.",
+        ["PdfAssociatedFailed"] = "PDF dosya ilişkilendirmesi başarısız oldu."
     };
 
     public static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
@@ -287,6 +290,9 @@ internal static class StringCatalogs
         ["PageLayoutUpdated"] = "Page layout updated successfully.",
         ["CropAction"] = "Crop Selected Page",
         ["CropMarginsPrompt"] = "Crop Box (Left, Bottom, Right, Top pt):",
-        ["NativeEngineInitFailed"] = "Failed to load native PDF engine; switched to simulation engine."
+        ["NativeEngineInitFailed"] = "Failed to load native PDF engine; switched to simulation engine.",
+        ["AssociatePdf"] = "Associate with PDF Files",
+        ["PdfAssociatedSuccess"] = "RBD OFIS has been successfully registered as the default PDF viewer.",
+        ["PdfAssociatedFailed"] = "Failed to associate PDF file extension."
     };
 }

@@ -14,6 +14,24 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Condition="Exists('..\..\..\core\target\release\rbd_ffi.dll')" Include="..\..\..\core\target\release\rbd_ffi.dll">
+      <Link>rbd_ffi.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Condition="!Exists('..\..\..\core\target\release\rbd_ffi.dll') and Exists('..\..\..\core\target\debug\rbd_ffi.dll')" Include="..\..\..\core\target\debug\rbd_ffi.dll">
+      <Link>rbd_ffi.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Condition="Exists('..\..\..\core\vendor\pdfium\bin\pdfium.dll')" Include="..\..\..\core\vendor\pdfium\bin\pdfium.dll">
+      <Link>pdfium.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
