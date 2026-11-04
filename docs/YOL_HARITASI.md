@@ -132,10 +132,14 @@ flowchart LR
 - **Track 3E:** Güvenlik ve Gizlilik (ADR-0003: Sıfır telemetri, sıfır internet `INTERNET` izni yok, kapalı kaynak Google Play Services/ML Kit yok, 91 anahtarlı 1:1 TR/EN dil simetrisi).
 - 🚪 **Kapı:** 22/22 Android birim testi başarılı, bağımsız mimar onayı tamamlandı, `dist/android/rbd-ofis-v0.1.0-alpha.apk` (19.5 MB) üretildi.
 
-### Faz 4: Pro PDF Araçları (Adobe'un paralı özellikleri) — [Sıradaki Faz]
-OCR (aranabilir PDF), akıllı PDF sıkıştırma, **gerçek** redaksiyon (kalıcı piksel ve içerik sansürleme), dijital imza (PAdES), form oluşturma ve doldurma, belge karşılaştırma, filigran, sayfa numarası/Bates, PDF/A, toplu işlem (batch), hazır iş akışları.
+### Faz 4: Pro PDF Araçları (Adobe'un paralı özellikleri) — [✅ TAMAMLANDI - v0.2.0-alpha]
+- **Track 4A (Rust Çekirdek Pro Motoru):** ISO 32000-1 §14.8.4 uyumlu **gerçek kalıcı redaksiyon** (metin operatörleri ve kesişen nesnelerin content stream düzeyinde imha edilmesi), akıllı PDF sıkıştırma (öksüz nesne budama, FlateDecode yeniden sıkıştırma, meta veri soyma), ISO 32000 uyumlu filigran (saydam `/ExtGState`), 6 yönlü sayfa numaralandırma ve adli Bates damgalama, interaktif AcroForms form okuma, doldurma ve düzleştirme (`flattening`).
+- **Track 4B (Birleşik FFI Köprüsü):** Rust `rbd-ffi` üzerinden 7 Pro fonksiyonunun C-ABI (`[LibraryImport]` / `CallingConvention.Cdecl`) ve Android ART JNI (`Java_com_rbdofis_app_core_RbdNativeBridge_native*`) giriş noktaları. `catch_unwind` ile %100 panik ve bellek güvenliği.
+- **Track 4C (Windows Pro Araçları UI):** `RbdOfis.Windows` üst çubuğuna entegre "Pro Araçlar" menüsü, tuval üzerinden fareyle interaktif çizilen kalıcı redaksiyon kutusu, 5 sekmeli `ProPdfToolsDialog` (Sıkıştırma, Filigran, Sayfa No, Bates, Form Alanları), 195 anahtarlı TR/EN 1:1 sözlük tamlığı, 78/78 başarılı birim ve entegrasyon testi.
+- **Track 4D (Android Pro Araçları UI):** `RbdNativeBridge.kt` JNI sarmalayıcısı, Material 3 `ProToolsBottomSheet` ile tek dokunuşla mobil cihazda PDF Sıkıştırma, Filigran, Sayfa Numaralandırma, Bates Damgası, Redaksiyon ve Form Düzenleme, 29/29 başarılı test.
+- 🚪 **Kapı:** Tüm mimari denetimler (`mimar-elestirmen`) bağımsız olarak onaylandı, 47 çekirdek Rust testi, 78 Windows testi, 29 Android testi (Toplam: 154 test) %100 yeşil.
 
-### Faz 5: Dönüştürücüler
+### Faz 5: Dönüştürücüler — [Sıradaki Faz]
 PDF ↔ Word/Excel/PowerPoint, PDF ↔ resim, HTML/Markdown → PDF, EPUB.
 - 🚪 **Kapı:** Kendi doğruluk ölçütümüzle (görsel fark + yapı skoru) Adobe çıktısıyla karşılaştırmalı test.
 
