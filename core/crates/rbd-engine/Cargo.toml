@@ -1,0 +1,16 @@
+[package]
+name = "rbd-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror = "2.0"
+pdfium-render = { version = "0.9.5", default-features = true }
+lopdf = { version = "0.47.0", default-features = true }
+hayro = { version = "0.9.0", default-features = true }
+bytemuck = "1.25"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[dev-dependencies]

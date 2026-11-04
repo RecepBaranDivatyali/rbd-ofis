@@ -1,0 +1,128 @@
+<Window x:Class="RbdOfis.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        mc:Ignorable="d"
+        Title="RBD OFİS" Height="760" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Menu / Header Bar -->
+        <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="12,8">
+            <DockPanel LastChildFill="True">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <TextBlock x:Name="LanguageLabelText" Text="Dil / Language:" Foreground="#CCCCCC" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                    <ComboBox x:Name="LanguageComboBox" Width="110" SelectionChanged="OnLanguageSelectionChanged">
+                        <ComboBoxItem Content="Türkçe (TR)" Tag="tr-TR" IsSelected="True"/>
+                        <ComboBoxItem Content="English (EN)" Tag="en-US"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="AppTitleText" Text="RBD OFİS" Foreground="#FFFFFF" FontWeight="Bold" FontSize="16" Margin="0,0,12,0"/>
+                    <TextBlock x:Name="AppSubtitleText" Text="Açık Kaynak, Offline Ofis ve PDF Paketi" Foreground="#888888" VerticalAlignment="Center" FontSize="12"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Toolbar -->
+        <Border Grid.Row="1" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,6">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="OpenButton" Content="Dosya Aç..." Click="OnOpenFileClicked" Margin="0,0,8,0" Padding="10,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
+                
+                <Separator Margin="4,0,8,0"/>
+
+                <!-- Page Navigation -->
+                <Button x:Name="PrevPageButton" Content="◀ Önceki" Click="OnPrevPageClicked" Margin="0,0,4,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
+                <TextBlock x:Name="PageStatusText" Text="Sayfa 1 / 2000" Foreground="#E0E0E0" VerticalAlignment="Center" Margin="6,0" FontWeight="SemiBold"/>
+                <Button x:Name="NextPageButton" Content="Sonraki ▶" Click="OnNextPageClicked" Margin="4,0,8,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
+
+                <Separator Margin="4,0,8,0"/>
+
+                <!-- Zoom Controls -->
+                <Button x:Name="ZoomOutButton" Content="−" Click="OnZoomOutClicked" Width="30" Margin="0,0,4,0" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555" ToolTip="Uzaklaştır"/>
+                <TextBlock x:Name="ZoomText" Text="100%" Foreground="#E0E0E0" VerticalAlignment="Center" Width="45" TextAlignment="Center"/>
+                <Button x:Name="ZoomInButton" Content="+" Click="OnZoomInClicked" Width="30" Margin="4,0,8,0" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555" ToolTip="Yakınlaştır"/>
+                <Button x:Name="ZoomFitWidthButton" Content="Genişliğe Sığdır" Click="OnZoomFitWidthClicked" Margin="0,0,8,0" Padding="8,4" Background="#3E3E42" Foreground="#FFFFFF" BorderBrush="#555555"/>
+
+                <Separator Margin="4,0,8,0"/>
+
+                <!-- Smoke test runner button -->
+                <Button x:Name="SmokeTestButton" Content="FFI Sıfır-Kopya Testi" Click="OnRunSmokeTestClicked" Margin="0,0,8,0" Padding="10,4" Background="#0E639C" Foreground="#FFFFFF" BorderBrush="#1177BB"/>
+            </WrapPanel>
+        </Border>
+
+        <!-- Tabbed Workspace -->
+        <TabControl x:Name="MainTabControl" Grid.Row="2" Background="#1E1E1E" BorderBrush="#3E3E42">
+            
+            <!-- Tab 1: PDF Viewer with Direct2D/WriteableBitmap Canvas -->
+            <TabItem x:Name="PdfTabHeader" Header="PDF Görüntüleyici" Background="#252526" Foreground="#FFFFFF">
+                <Grid Background="#181818">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Render Metrics & Zero-Copy Status Bar -->
+                    <Border Grid.Row="0" Background="#1E1E1E" BorderBrush="#2D2D30" BorderThickness="0,0,0,1" Padding="10,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="StatsZeroCopyText" Text="Sıfır-Kopya Doğrudan Çizim: Aktif (Direct2D BackBuffer)" Foreground="#4EC9B0" FontSize="11" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="StatsTileCountText" Text="Görünür Karo Sayısı: 0" Foreground="#9CDCFE" FontSize="11" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="StatsRenderTimeText" Text="Karo Çizim Süresi: 0.00 ms" Foreground="#CE9178" FontSize="11" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="StatsDocHeightText" Text="Sanal Döküman Yüksekliği: 0 px" Foreground="#DCDCAA" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Scrollable Tiled Viewport -->
+                    <ScrollViewer x:Name="PdfScrollViewer" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ScrollChanged="OnPdfScrollChanged">
+                        <Grid x:Name="VirtualDocumentCanvas" Background="#252526" HorizontalAlignment="Center">
+                            <!-- Image backing the unmanaged WriteableBitmap backbuffer -->
+                            <Image x:Name="CanvasImage" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 2: ONLYOFFICE Offline Editor Host per ADR-0004 -->
+            <TabItem x:Name="OfficeTabHeader" Header="ONLYOFFICE Düzenleyici" Background="#252526" Foreground="#FFFFFF">
+                <Grid Background="#1E1E1E">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Offline Security Testing Ribbon -->
+                    <Border Grid.Row="0" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,6">
+                        <DockPanel LastChildFill="True">
+                            <Button x:Name="TestUrlButton" Content="Adrese Git / Test Et" DockPanel.Dock="Right" Click="OnTestNavigateClicked" Margin="8,0,0,0" Padding="8,2" Background="#3E3E42" Foreground="#FFFFFF"/>
+                            <TextBlock x:Name="OfflineFilterLabelText" Text="Offline Güvenlik Filtresi Testi:" Foreground="#CCCCCC" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                            <TextBox x:Name="UrlTestTextBox" Text="https://rbd-office.local/index.html" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,2"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- WebView2 Offline Host Container -->
+                    <wv2:WebView2 x:Name="OfficeWebView" Grid.Row="1"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Bottom Application Status Bar -->
+        <StatusBar Grid.Row="3" Background="#007ACC" Foreground="#FFFFFF">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusMessageText" Text="Hazır • Offline Mod Aktif (Sıfır Ağ Erişimi)" Foreground="#FFFFFF" FontSize="12"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="SecuritySandboxText" Text="🔒 Yalıtım Alanı Aktif • https://rbd-office.local/" Foreground="#FFFFFF" FontSize="12" Margin="0,0,10,0"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

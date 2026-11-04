@@ -1,0 +1,13 @@
+[package]
+name = "rbd-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rbd-core = { path = "../rbd-core" }
+rbd-engine = { path = "../rbd-engine" }

@@ -1,0 +1,1612 @@
+[
+  {
+    "id": "pdfium-about-blank",
+    "category": "pdf-basic",
+    "filename": "pdfium-about-blank.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/about_blank.pdf",
+    "sha256": "1bc7df117548f2557345722a5df24dfc0143cac5200662aed805bf2621b66d63",
+    "license": "BSD-3-Clause",
+    "size_bytes": 735,
+    "notes": "Minimal blank PDF page"
+  },
+  {
+    "id": "pdfium-black",
+    "category": "pdf-basic",
+    "filename": "pdfium-black.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/black.pdf",
+    "sha256": "41974886a825bb43056bc121a96780577b4f537c7776e705e485c55a1230bf4d",
+    "license": "BSD-3-Clause",
+    "size_bytes": 923,
+    "notes": "Solid black single page rendering"
+  },
+  {
+    "id": "pdfium-bookmarks",
+    "category": "pdf-basic",
+    "filename": "pdfium-bookmarks.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bookmarks.pdf",
+    "sha256": "209e12a35d2282091216f76993543b22f851343188d6570c1488b34f1ba4aa5e",
+    "license": "BSD-3-Clause",
+    "size_bytes": 2239,
+    "notes": "Document outline and bookmark navigation tree"
+  },
+  {
+    "id": "pdfium-rectangles",
+    "category": "pdf-basic",
+    "filename": "pdfium-rectangles.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/rectangles.pdf",
+    "sha256": "378e3db9327ee7606ea3dd62e45486e83e369e422bfe48b98c3042127ec9d1ad",
+    "license": "BSD-3-Clause",
+    "size_bytes": 633,
+    "notes": "Vector graphic rectangle fills and stroke paths"
+  },
+  {
+    "id": "pdfium-hello-world",
+    "category": "pdf-basic",
+    "filename": "pdfium-hello-world.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/hello_world.pdf",
+    "sha256": "1e06a6e12329f0c3760680a70baea126e040e66e0bf34d3b14a71863096ee1e3",
+    "license": "BSD-3-Clause",
+    "size_bytes": 840,
+    "notes": "Standard Hello World text document"
+  },
+  {
+    "id": "pdfium-hello-world-2-pages",
+    "category": "pdf-basic",
+    "filename": "pdfium-hello-world-2-pages.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/hello_world_2_pages.pdf",
+    "sha256": "67431cbec27df7cc86a57da5ff11b5151628fa93f661da79b9d272ec85bcdb03",
+    "license": "BSD-3-Clause",
+    "size_bytes": 962,
+    "notes": "Two-page Hello World document"
+  },
+  {
+    "id": "pdfium-bigtable-mini",
+    "category": "pdf-basic",
+    "filename": "pdfium-bigtable-mini.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bigtable_mini.pdf",
+    "sha256": "1b99b3a7f841e08e8177a97ca379a6b556355cd2616679534fbe8ff6e9f6ddf6",
+    "license": "BSD-3-Clause",
+    "size_bytes": 2233,
+    "notes": "Table layout structure and border lines"
+  },
+  {
+    "id": "pdfium-named-dests",
+    "category": "pdf-basic",
+    "filename": "pdfium-named-dests.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/named_dests.pdf",
+    "sha256": "817f8b5cd3071c5f3c8dc26a186ca4939ec0f954a877a4755f0083fa88d98856",
+    "license": "BSD-3-Clause",
+    "size_bytes": 2010,
+    "notes": "Named destination targets for cross-document links"
+  },
+  {
+    "id": "pdfium-page-labels",
+    "category": "pdf-basic",
+    "filename": "pdfium-page-labels.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/page_labels.pdf",
+    "sha256": "162a1d7f1a545d0d2f29edaf2a7f011c4495ac5e478bab64e9b9b84719045bdb",
+    "license": "BSD-3-Clause",
+    "size_bytes": 10080,
+    "notes": "Custom Roman and decimal page label numbering"
+  },
+  {
+    "id": "pdfium-rectangles-multi",
+    "category": "pdf-basic",
+    "filename": "pdfium-rectangles-multi.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/rectangles_multi_pages.pdf",
+    "sha256": "1cf52ea072189d359b16470561400327b5b33e74b1de7a01250dae752cd6844d",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1382,
+    "notes": "Multi-page vector drawing test"
+  },
+  {
+    "id": "pdfium-weblinks",
+    "category": "pdf-basic",
+    "filename": "pdfium-weblinks.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/weblinks.pdf",
+    "sha256": "158f3335cb1f0b56b0b0873168267c89bf55c2b9a4f7ff1b6f1229b9859dc402",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1172,
+    "notes": "External web hyperlinks and URL annotations"
+  },
+  {
+    "id": "pdfjs-tracemonkey",
+    "category": "pdf-basic",
+    "filename": "pdfjs-tracemonkey.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/tracemonkey.pdf",
+    "sha256": "3662ff519e485810520552bf301d8c3b2b917fd2f83303f4965d7abed367e113",
+    "license": "Apache-2.0",
+    "size_bytes": 1016315,
+    "notes": "Academic paper with 14 pages, figures, two-column layout"
+  },
+  {
+    "id": "pdfjs-hello-world-rotated",
+    "category": "pdf-basic",
+    "filename": "pdfjs-hello-world-rotated.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/hello_world_rotated.pdf",
+    "sha256": "ab0cb700cd5e5338fd676dfca25becae800acd2be03a4e57856485b8cfd2d28b",
+    "license": "Apache-2.0",
+    "size_bytes": 1324,
+    "notes": "Rotated text rendering with standard font"
+  },
+  {
+    "id": "pdfjs-basicapi",
+    "category": "pdf-basic",
+    "filename": "pdfjs-basicapi.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/basicapi.pdf",
+    "sha256": "925853d98d67d5dae7473c635f932958e1695ce1029d23b2ecd2531cb65f1f14",
+    "license": "Apache-2.0",
+    "size_bytes": 105779,
+    "notes": "Basic API reference test document"
+  },
+  {
+    "id": "pdfjs-pages-tree-refs",
+    "category": "pdf-basic",
+    "filename": "pdfjs-pages-tree-refs.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/Pages-tree-refs.pdf",
+    "sha256": "77c8817ea016296ea59e0991ea1a6d1440ef2480cdcd9acb59106938b649233f",
+    "license": "Apache-2.0",
+    "size_bytes": 1098,
+    "notes": "Hierarchical page tree references"
+  },
+  {
+    "id": "large-911-report",
+    "category": "pdf-large",
+    "filename": "large-911-report.pdf",
+    "url": "https://www.govinfo.gov/content/pkg/GPO-911REPORT/pdf/GPO-911REPORT.pdf",
+    "sha256": "657d41475eb3a9a5e3e87a6c7c51ac1dfbe1af7566d1abff7bf7286e7e1c0e1b",
+    "license": "Public Domain",
+    "size_bytes": 2475163,
+    "notes": "9/11 Commission Report, 585 pages, US Government official publication"
+  },
+  {
+    "id": "large-fcic-report",
+    "category": "pdf-large",
+    "filename": "large-fcic-report.pdf",
+    "url": "https://www.govinfo.gov/content/pkg/GPO-FCIC/pdf/GPO-FCIC.pdf",
+    "sha256": "4ff588a66237fda69da2e08b162003716a08bce95be2e2fad0ee8c2d2825ae7c",
+    "license": "Public Domain",
+    "size_bytes": 5595383,
+    "notes": "Financial Crisis Inquiry Report, 663 pages, US Government official publication"
+  },
+  {
+    "id": "large-cfr-title12",
+    "category": "pdf-large",
+    "filename": "large-cfr-title12.pdf",
+    "url": "https://www.govinfo.gov/content/pkg/CFR-2024-title12-vol1/pdf/CFR-2024-title12-vol1.pdf",
+    "sha256": "07c4609b90deeeac5406c23801f4cc0c9449c8d497e15fb5e782b1dadd9465ab",
+    "license": "Public Domain",
+    "size_bytes": 5729499,
+    "notes": "Code of Federal Regulations Title 12 (Banks and Banking), 1,192 pages, US Government publication"
+  },
+  {
+    "id": "large-cfr-title26",
+    "category": "pdf-large",
+    "filename": "large-cfr-title26.pdf",
+    "url": "https://www.govinfo.gov/content/pkg/CFR-2024-title26-vol1/pdf/CFR-2024-title26-vol1.pdf",
+    "sha256": "b0f98b461bc735bda60acb836aa5b2e2c2650ee7735d86f84976614ec7eb7e3a",
+    "license": "Public Domain",
+    "size_bytes": 3108170,
+    "notes": "Code of Federal Regulations Title 26 (Internal Revenue), 780 pages, US Government publication"
+  },
+  {
+    "id": "large-generated-2000-page",
+    "category": "pdf-large",
+    "filename": "large-generated-2000-page.pdf",
+    "url": "synthetic://corpus/generate.py/large-generated-2000-page.pdf",
+    "sha256": "e176e59584148082cd7a2b5d7abe2fc2f6972c1d25d0c446cd13eeba6757480f",
+    "license": "AGPL-3.0-or-later",
+    "size_bytes": 314385,
+    "notes": "Synthetically generated 2000-page valid PDF to test large document handling"
+  },
+  {
+    "id": "pdfium-encrypted",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted.pdf",
+    "sha256": "cbbead7185d9cd46daecaf60165a9aa7b9f2daceb3623218c328cb015ae862d5",
+    "license": "BSD-3-Clause",
+    "size_bytes": 10564,
+    "notes": "Standard 40-bit RC4 password encryption"
+  },
+  {
+    "id": "pdfium-encrypted-hello-r2",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted-hello-r2.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted_hello_world_r2.pdf",
+    "sha256": "267945749086981b8727c4931cfc8a24973c3aa5819ea8a392fa8bd0d637ee84",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1021,
+    "notes": "Standard revision 2 RC4 40-bit encryption"
+  },
+  {
+    "id": "pdfium-encrypted-hello-r2-bad-okey",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted-hello-r2-bad-okey.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted_hello_world_r2_bad_okey.pdf",
+    "sha256": "7c6c1bb4dd62bc30e2396640cab1d988876f7c9ceb54794475c370af168fe01e",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1020,
+    "notes": "Revision 2 with invalid owner password key"
+  },
+  {
+    "id": "pdfium-encrypted-hello-r3",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted-hello-r3.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted_hello_world_r3.pdf",
+    "sha256": "cdbfd4f6728786dc70c7514bd5c669a38b03bba38be3e91ec46ccb02168b9ad3",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1033,
+    "notes": "Standard revision 3 RC4 128-bit encryption"
+  },
+  {
+    "id": "pdfium-encrypted-hello-r3-bad-okey",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted-hello-r3-bad-okey.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted_hello_world_r3_bad_okey.pdf",
+    "sha256": "bfe206c8f79ec27886dc64ac6894834c7f2830bed5ae5ef5223ed83e2e8c7634",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1032,
+    "notes": "Revision 3 with invalid owner password key"
+  },
+  {
+    "id": "pdfium-encrypted-hello-r5",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted-hello-r5.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted_hello_world_r5.pdf",
+    "sha256": "9f2bdfbbd675fcaa40e89240f4f66be81621afa33114d24e8f568fb727ad37d9",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1496,
+    "notes": "Standard revision 5 AES-256 encryption"
+  },
+  {
+    "id": "pdfium-encrypted-hello-r6",
+    "category": "pdf-encrypted",
+    "filename": "pdfium-encrypted-hello-r6.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/encrypted_hello_world_r6.pdf",
+    "sha256": "a5bcee67d2731547d8e6956cbb0d41eddeef4ca80c378c9dba8bc97961ece064",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1496,
+    "notes": "Standard revision 6 AES-256 encryption"
+  },
+  {
+    "id": "qpdf-enc1",
+    "category": "pdf-encrypted",
+    "filename": "qpdf-enc1.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/compare-for-test/qtest/compare/enc1.pdf",
+    "sha256": "ca2b06f4f7a78da93e8572438c8d5da03d470d32b8a7085b22634a8f9ca3b2a6",
+    "license": "Apache-2.0",
+    "size_bytes": 1503,
+    "notes": "Standard encryption revision 2 test file"
+  },
+  {
+    "id": "qpdf-enc2",
+    "category": "pdf-encrypted",
+    "filename": "qpdf-enc2.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/compare-for-test/qtest/compare/enc2.pdf",
+    "sha256": "a2e9678dc1b2a192741f7c9da2c567bba61418a637a25bb88456d709138ac338",
+    "license": "Apache-2.0",
+    "size_bytes": 1519,
+    "notes": "Standard encryption revision 3 test file"
+  },
+  {
+    "id": "qpdf-diff-data-enc",
+    "category": "pdf-encrypted",
+    "filename": "qpdf-diff-data-enc.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/compare-for-test/qtest/compare/diff-data-enc.pdf",
+    "sha256": "287224ca68b74751cfbaa15aa43aa012d97d85d308f33dc7472e7992e05462b0",
+    "license": "Apache-2.0",
+    "size_bytes": 1519,
+    "notes": "Encrypted stream data verification"
+  },
+  {
+    "id": "qpdf-bad-enc-len",
+    "category": "pdf-encrypted",
+    "filename": "qpdf-bad-enc-len.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/qpdf/qtest/qpdf/bad-encryption-length.pdf",
+    "sha256": "cdf252a288f2b54189a0be156180972c563a48aa747e1eaa6abac150c5e40576",
+    "license": "Apache-2.0",
+    "size_bytes": 1041,
+    "notes": "Invalid encryption key length edge case"
+  },
+  {
+    "id": "qpdf-enc-r2-v1-o-master",
+    "category": "pdf-encrypted",
+    "filename": "qpdf-enc-r2-v1-o-master.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/qpdf/qtest/qpdf/enc-R2,V1,O=master.pdf",
+    "sha256": "4560d44658aca5b2b610f2c6631eb9db590fa43324c02890003dee6a8dec3b29",
+    "license": "Apache-2.0",
+    "size_bytes": 17146,
+    "notes": "R2 V1 master password verification"
+  },
+  {
+    "id": "pdfjs-encrypted-attachment",
+    "category": "pdf-encrypted",
+    "filename": "pdfjs-encrypted-attachment.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/encrypted-attachment.pdf",
+    "sha256": "0f44da5152adf8cafcd7b0057d840310d78e17d033ee5414da0881b6dcd130ab",
+    "license": "Apache-2.0",
+    "size_bytes": 2719,
+    "notes": "Encrypted PDF with embedded encrypted file attachment"
+  },
+  {
+    "id": "pdfium-bad-annots",
+    "category": "pdf-corrupt",
+    "filename": "pdfium-bad-annots.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bad_annots_entry.pdf",
+    "sha256": "d7459617570e58458275d88622ec3b5afbb0623de2b8c54bfc5b026791ceb2bd",
+    "license": "BSD-3-Clause",
+    "size_bytes": 826,
+    "notes": "Malformed annotation array entry in page dict"
+  },
+  {
+    "id": "pdfium-bad-dict-keys",
+    "category": "pdf-corrupt",
+    "filename": "pdfium-bad-dict-keys.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bad_dict_keys.pdf",
+    "sha256": "07f17d7ef9d53545c8ede782f701a297abc74d2b5912b8e9c922f7e44395ceea",
+    "license": "BSD-3-Clause",
+    "size_bytes": 367,
+    "notes": "Corrupt dictionary key syntax and types"
+  },
+  {
+    "id": "pdfium-bad-page-type",
+    "category": "pdf-corrupt",
+    "filename": "pdfium-bad-page-type.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bad_page_type.pdf",
+    "sha256": "f19583f988d4eb941e8f8178305cd40a3ad918d1d232a0e62fe4505204116466",
+    "license": "BSD-3-Clause",
+    "size_bytes": 740,
+    "notes": "Invalid page object /Type attribute"
+  },
+  {
+    "id": "pdfium-bug-1029",
+    "category": "pdf-corrupt",
+    "filename": "pdfium-bug-1029.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bug_1029.pdf",
+    "sha256": "9c227f598edba2311fb7ec91d3573ab2c73f8c1d256cd73877adce63214a7fa5",
+    "license": "BSD-3-Clause",
+    "size_bytes": 54666,
+    "notes": "Corrupt font descriptor and stream"
+  },
+  {
+    "id": "pdfium-bug-113",
+    "category": "pdf-corrupt",
+    "filename": "pdfium-bug-113.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bug_113.pdf",
+    "sha256": "6984103e0e8fdd1ec4e603a0ae81ac2baf591046de768306d39f59af3ad9c0a3",
+    "license": "BSD-3-Clause",
+    "size_bytes": 469,
+    "notes": "Parser crash regression test case"
+  },
+  {
+    "id": "pdfium-bug-1206",
+    "category": "pdf-corrupt",
+    "filename": "pdfium-bug-1206.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/bug_1206.pdf",
+    "sha256": "7691ac6a1a8a24d46b5a6526a86d87f0f79da8aa31cc34786e8eced8f425759b",
+    "license": "BSD-3-Clause",
+    "size_bytes": 988,
+    "notes": "Damaged indirect object reference"
+  },
+  {
+    "id": "pdfjs-pdfbox-3148-2-fuzzed",
+    "category": "pdf-corrupt",
+    "filename": "pdfjs-pdfbox-3148-2-fuzzed.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/PDFBOX-3148-2-fuzzed.pdf",
+    "sha256": "1c780335b494ac52eae9fa4d05f1bba88c18ca6b24e6e302b9f271de05e256aa",
+    "license": "Apache-2.0",
+    "size_bytes": 244351,
+    "notes": "Fuzzed PDF from Apache PDFBox test suite"
+  },
+  {
+    "id": "pdfjs-ghostscript-698804-1-fuzzed",
+    "category": "pdf-corrupt",
+    "filename": "pdfjs-ghostscript-698804-1-fuzzed.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/GHOSTSCRIPT-698804-1-fuzzed.pdf",
+    "sha256": "62e518ca7894e8b8b8ed9927da3007cdc5e9ccc5b111bbb22d6101d4a8d7490e",
+    "license": "Apache-2.0",
+    "size_bytes": 627,
+    "notes": "Fuzzed Ghostscript regression sample"
+  },
+  {
+    "id": "pdfjs-scan-bad",
+    "category": "pdf-corrupt",
+    "filename": "pdfjs-scan-bad.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/scan-bad.pdf",
+    "sha256": "d40f31f182cf254ab134826d379875acacb1f7b48bf1a57bce2e30b38d16628e",
+    "license": "Apache-2.0",
+    "size_bytes": 29832,
+    "notes": "Corrupted scanned image stream"
+  },
+  {
+    "id": "pdfjs-helloworld-bad",
+    "category": "pdf-corrupt",
+    "filename": "pdfjs-helloworld-bad.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/helloworld-bad.pdf",
+    "sha256": "c3e22ea5d7e6f5b7218d76abce4284728889df516a93c1b74a82c4fd69aa1639",
+    "license": "Apache-2.0",
+    "size_bytes": 745,
+    "notes": "Malformed hello world stream dictionary"
+  },
+  {
+    "id": "pdfjs-poppler-395-0-fuzzed",
+    "category": "pdf-corrupt",
+    "filename": "pdfjs-poppler-395-0-fuzzed.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/poppler-395-0-fuzzed.pdf",
+    "sha256": "e2ec919e787c0069948598f9c9d7a39787acde602aacd2bb263298a85e2e0c64",
+    "license": "Apache-2.0",
+    "size_bytes": 23068,
+    "notes": "Fuzzed poppler parser test case"
+  },
+  {
+    "id": "qpdf-bad-content",
+    "category": "pdf-corrupt",
+    "filename": "qpdf-bad-content.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/qpdf/qtest/qpdf/bad-content.pdf",
+    "sha256": "e1a6ebaadd386a0b1e638e3b50c8557da74ebeb1ebb31292fb6b221892a979e0",
+    "license": "Apache-2.0",
+    "size_bytes": 135172,
+    "notes": "Invalid operator sequence in page content stream"
+  },
+  {
+    "id": "qpdf-append-damaged",
+    "category": "pdf-corrupt",
+    "filename": "qpdf-append-damaged.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/qpdf/qtest/qpdf/append-page-content-damaged.pdf",
+    "sha256": "53ee40fa62175f0f7bf721497832ebaadf39b2551559ec28abdace73196f4e28",
+    "license": "Apache-2.0",
+    "size_bytes": 17369,
+    "notes": "Damaged page content stream during append"
+  },
+  {
+    "id": "qpdf-bad-xref",
+    "category": "pdf-corrupt",
+    "filename": "qpdf-bad-xref.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/qpdf/qtest/qpdf/bad-xref.pdf",
+    "sha256": "5895dfedf978f600b12e29643617dbb111869b60526d957878e349571e1467d1",
+    "license": "Apache-2.0",
+    "size_bytes": 819,
+    "notes": "Malformed cross-reference table"
+  },
+  {
+    "id": "qpdf-bad-xref-entry",
+    "category": "pdf-corrupt",
+    "filename": "qpdf-bad-xref-entry.pdf",
+    "url": "https://raw.githubusercontent.com/qpdf/qpdf/main/qpdf/qtest/qpdf/bad-xref-entry.pdf",
+    "sha256": "1d3b6ed9362c92c3f24f6ee7650e1768387204b1bbb66327a4eba226ce801bb4",
+    "license": "Apache-2.0",
+    "size_bytes": 1113,
+    "notes": "Invalid xref entry format and offset"
+  },
+  {
+    "id": "corrupt-generated-truncated",
+    "category": "pdf-corrupt",
+    "filename": "corrupt-generated-truncated.pdf",
+    "url": "synthetic://corpus/generate.py/corrupt-generated-truncated.pdf",
+    "sha256": "eb4e7839fcb52294b3466dda02380b9b80dceeb7e41796aae435172f2cd1a180",
+    "license": "AGPL-3.0-or-later",
+    "size_bytes": 393,
+    "notes": "Synthetically generated truncated PDF (cut off mid-stream, no trailer or EOF)"
+  },
+  {
+    "id": "corrupt-generated-broken-xref",
+    "category": "pdf-corrupt",
+    "filename": "corrupt-generated-broken-xref.pdf",
+    "url": "synthetic://corpus/generate.py/corrupt-generated-broken-xref.pdf",
+    "sha256": "956e54e6b7e363a1318556a233b5be5a6229560da232537c5a6279496b4c8b3f",
+    "license": "AGPL-3.0-or-later",
+    "size_bytes": 619,
+    "notes": "Synthetically generated PDF with corrupted xref table and bogus startxref offset"
+  },
+  {
+    "id": "pdfium-combobox-form",
+    "category": "pdf-forms",
+    "filename": "pdfium-combobox-form.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/combobox_form.pdf",
+    "sha256": "e96064f079baf65b1ebd23b152c2037eba68345a48e7b845a3c0bc3620cd7d26",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1738,
+    "notes": "AcroForm combobox / dropdown selector"
+  },
+  {
+    "id": "pdfium-click-form",
+    "category": "pdf-forms",
+    "filename": "pdfium-click-form.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/click_form.pdf",
+    "sha256": "afbd6e340f4f8c35e97baad6f4459cae8a55aec109c5f242827974158dbbd417",
+    "license": "BSD-3-Clause",
+    "size_bytes": 16250,
+    "notes": "Interactive pushbutton and click action"
+  },
+  {
+    "id": "pdfium-text-form",
+    "category": "pdf-forms",
+    "filename": "pdfium-text-form.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/text_form.pdf",
+    "sha256": "62fab6a70e762c832152132b84ee0d1fff0d63a5e2c99f2ae8e7cbe6aad9876f",
+    "license": "BSD-3-Clause",
+    "size_bytes": 927,
+    "notes": "Single-line interactive text field"
+  },
+  {
+    "id": "pdfium-text-form-multiline",
+    "category": "pdf-forms",
+    "filename": "pdfium-text-form-multiline.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/text_form_multiline.pdf",
+    "sha256": "414dfebc2d5541659daaf65197e3bb02d4741487eba7680c184a7bbdffcf9814",
+    "license": "BSD-3-Clause",
+    "size_bytes": 955,
+    "notes": "Multiline interactive text field"
+  },
+  {
+    "id": "pdfium-listbox-form",
+    "category": "pdf-forms",
+    "filename": "pdfium-listbox-form.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/listbox_form.pdf",
+    "sha256": "4dd3b8b958eb56cb49afbb6b60b14b6d6ecba788181e088aa68be459fed10b49",
+    "license": "BSD-3-Clause",
+    "size_bytes": 3012,
+    "notes": "AcroForm listbox with scrolling options"
+  },
+  {
+    "id": "pdfium-multiple-form-types",
+    "category": "pdf-forms",
+    "filename": "pdfium-multiple-form-types.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/multiple_form_types.pdf",
+    "sha256": "cdff8afa99ed38cf602f13877d5be8d5aa4c9ed56b85e799349fece2bfeda129",
+    "license": "BSD-3-Clause",
+    "size_bytes": 2138,
+    "notes": "Mixed form fields: checkboxes, radios, text"
+  },
+  {
+    "id": "pdfium-form-object",
+    "category": "pdf-forms",
+    "filename": "pdfium-form-object.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/form_object.pdf",
+    "sha256": "79f2428856af7770beba42d1fd7d8a8991b6bc2350a09511c855435287d30c90",
+    "license": "BSD-3-Clause",
+    "size_bytes": 930,
+    "notes": "Form XObject rendering and hierarchy"
+  },
+  {
+    "id": "pdfium-simple-xfa",
+    "category": "pdf-forms",
+    "filename": "pdfium-simple-xfa.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/simple_xfa.pdf",
+    "sha256": "82e0af732b472b023b3c50940cac0d76b6a84c25dab2b4a8de79fd0a6b7cdb89",
+    "license": "BSD-3-Clause",
+    "size_bytes": 5801,
+    "notes": "XML Forms Architecture (XFA) dynamic form"
+  },
+  {
+    "id": "pdfium-rectangles-multi-xfa",
+    "category": "pdf-forms",
+    "filename": "pdfium-rectangles-multi-xfa.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/rectangles_multi_page_xfa.pdf",
+    "sha256": "2e573d4f706eca0ad79208375f862386deec5df71acecc34af33fab689d6df06",
+    "license": "BSD-3-Clause",
+    "size_bytes": 2516,
+    "notes": "Multi-page XFA dynamic form"
+  },
+  {
+    "id": "pdfjs-prefilled-f1040",
+    "category": "pdf-forms",
+    "filename": "pdfjs-prefilled-f1040.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/prefilled_f1040.pdf",
+    "sha256": "899edb271684d2451337e225268003324a583a7d3429e23efd69f1654adf9bf9",
+    "license": "Apache-2.0",
+    "size_bytes": 306416,
+    "notes": "IRS Form 1040 federal tax form prefilled with AcroForm data"
+  },
+  {
+    "id": "pdfjs-form-two-pages",
+    "category": "pdf-forms",
+    "filename": "pdfjs-form-two-pages.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/form_two_pages.pdf",
+    "sha256": "6d7c608d0102fa1e1b3cbc2c3b0a989783e90f84ff1a7fe7cbdb6dc2a1b60fbd",
+    "license": "Apache-2.0",
+    "size_bytes": 23136,
+    "notes": "Two-page interactive AcroForm with various widgets"
+  },
+  {
+    "id": "pdfjs-acroform-calc-order",
+    "category": "pdf-forms",
+    "filename": "pdfjs-acroform-calc-order.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/acroform_calculation_order.pdf",
+    "sha256": "9081aad78cb6bb1871eb5c51addbe75ce73e4617a3e1fa15aa3da21232b6b755",
+    "license": "Apache-2.0",
+    "size_bytes": 1041,
+    "notes": "Form fields with calculation order (CO) dependencies"
+  },
+  {
+    "id": "pdfjs-resetform",
+    "category": "pdf-forms",
+    "filename": "pdfjs-resetform.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/resetform.pdf",
+    "sha256": "bb8443ede056964948657153c44ce5e82a9fe231ad3aa2abf6849c956e82da27",
+    "license": "Apache-2.0",
+    "size_bytes": 20907,
+    "notes": "ResetForm action button functionality"
+  },
+  {
+    "id": "pdfjs-xfa-filled-imm1344e",
+    "category": "pdf-forms",
+    "filename": "pdfjs-xfa-filled-imm1344e.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/xfa_filled_imm1344e.pdf",
+    "sha256": "8313c52ea97b49908137fd744e85fc37584b502210fcc0a73d6c272cca9d7889",
+    "license": "Apache-2.0",
+    "size_bytes": 3023968,
+    "notes": "Canadian immigration official dynamic XFA form"
+  },
+  {
+    "id": "pdfium-annots",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annots.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/annots.pdf",
+    "sha256": "e5e11af7437553924363d1a499b7671e1eb9cd72c13a41b9c9c8e40a931c2aa4",
+    "license": "BSD-3-Clause",
+    "size_bytes": 5745,
+    "notes": "Comprehensive annotation collection"
+  },
+  {
+    "id": "pdfium-annot-highlight-long",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-highlight-long.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/annotation_highlight_long_content.pdf",
+    "sha256": "715d8a4fcb7de3fec3cbb34999ec431b0ea02ab1c1e2d2dca562e8aab21637c2",
+    "license": "BSD-3-Clause",
+    "size_bytes": 38455,
+    "notes": "Highlight annotation across multiple lines of text"
+  },
+  {
+    "id": "pdfium-annot-highlight-square",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-highlight-square.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/annotation_highlight_square_with_ap.pdf",
+    "sha256": "e553d46b65227646d6f2103cd380cc8355226d4b8f6a9c4a181ee0455e8b3217",
+    "license": "BSD-3-Clause",
+    "size_bytes": 14249,
+    "notes": "Highlight annotation with custom Appearance Stream (AP)"
+  },
+  {
+    "id": "pdfium-annot-ink-multiple",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-ink-multiple.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/annotation_ink_multiple.pdf",
+    "sha256": "f163a27eb8718a96a4c3c4e0f5c4e75664f29d373a5bac8eb401dd1bc2ff461c",
+    "license": "BSD-3-Clause",
+    "size_bytes": 52263,
+    "notes": "Freehand ink annotation with multiple strokes"
+  },
+  {
+    "id": "pdfium-annot-stamp",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-stamp.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/annotation_stamp_with_ap.pdf",
+    "sha256": "b3952e8ed5fac840f178b38fb08676ce59bc903bacdec14b868eacafdeca1a07",
+    "license": "BSD-3-Clause",
+    "size_bytes": 101719,
+    "notes": "Stamp annotation with custom appearance stream"
+  },
+  {
+    "id": "pdfium-annot-fileattachment",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-fileattachment.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/annotation_fileattachment.pdf",
+    "sha256": "d34f64d0f745d8c497d4fa1a1990f6c89b5a3c0f02f140665e08d8bbaa6863a5",
+    "license": "BSD-3-Clause",
+    "size_bytes": 3385,
+    "notes": "Embedded file attachment annotation"
+  },
+  {
+    "id": "pdfium-annot-line",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-line.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/line_annot.pdf",
+    "sha256": "a2b67936008e582a21bb942fa998a4f1bef91305f058699e18abfc943050e3bd",
+    "license": "BSD-3-Clause",
+    "size_bytes": 789,
+    "notes": "Line markup annotation with arrow endpoints"
+  },
+  {
+    "id": "pdfium-annot-ink",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-ink.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/ink_annot.pdf",
+    "sha256": "4295fb9a1f72274deadef94d85b84a5d96350a977b88d302bbd4ea9569d4d0e6",
+    "license": "BSD-3-Clause",
+    "size_bytes": 780,
+    "notes": "Basic ink stroke annotation"
+  },
+  {
+    "id": "pdfium-annot-freetext-no-da",
+    "category": "pdf-annotations",
+    "filename": "pdfium-annot-freetext-no-da.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/freetext_annotation_without_da.pdf",
+    "sha256": "10e900c97abe3350ec0ca577f500ad0652396e1ed335522ac080d563cd9a0313",
+    "license": "BSD-3-Clause",
+    "size_bytes": 636,
+    "notes": "FreeText annotation lacking default appearance (DA) string"
+  },
+  {
+    "id": "pdfjs-annot-highlight",
+    "category": "pdf-annotations",
+    "filename": "pdfjs-annot-highlight.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/annotation-highlight.pdf",
+    "sha256": "72b6387356ccfdfb95a0a5eff5e1ceb9b7667019807d7b04abaf64dad7ea143a",
+    "license": "Apache-2.0",
+    "size_bytes": 92397,
+    "notes": "Standard text highlight annotation"
+  },
+  {
+    "id": "pdfjs-annot-freetext",
+    "category": "pdf-annotations",
+    "filename": "pdfjs-annot-freetext.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/annotation-freetext.pdf",
+    "sha256": "318ed4bead93fa6ff023571b17ddca41e82fe2347b497ea24903a11e1892fb71",
+    "license": "Apache-2.0",
+    "size_bytes": 86024,
+    "notes": "FreeText typewriter note annotation"
+  },
+  {
+    "id": "pdfjs-annot-caret-ink",
+    "category": "pdf-annotations",
+    "filename": "pdfjs-annot-caret-ink.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/annotation-caret-ink.pdf",
+    "sha256": "afdc6fb72e8dcb8f0796a48388fc011e9db212e18d1d7b8cf95b327e88cf6ce9",
+    "license": "Apache-2.0",
+    "size_bytes": 93680,
+    "notes": "Caret insertion indicator and ink drawing"
+  },
+  {
+    "id": "pdfjs-annot-border-styles",
+    "category": "pdf-annotations",
+    "filename": "pdfjs-annot-border-styles.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/annotation-border-styles.pdf",
+    "sha256": "ba3a3c67030f9be2ad2c1989b78ec302501f71cecb4e5ebf193f6ce9ca51ff56",
+    "license": "Apache-2.0",
+    "size_bytes": 89833,
+    "notes": "Solid, dashed, and beveled annotation border styles"
+  },
+  {
+    "id": "pdfjs-annot-button-widget",
+    "category": "pdf-annotations",
+    "filename": "pdfjs-annot-button-widget.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/annotation-button-widget.pdf",
+    "sha256": "f7b1c9c7b2ecb909f6b168cc1b137230076533f977a205472b212b7f0d3a78d7",
+    "license": "Apache-2.0",
+    "size_bytes": 23785,
+    "notes": "Widget annotation for interactive buttons"
+  },
+  {
+    "id": "scan-tr-rg-2741",
+    "category": "pdf-scanned",
+    "filename": "scan-tr-rg-2741.pdf",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/7/7e/RG_-_2741.pdf",
+    "sha256": "4eff3503d231fd7f8c8f8430235ba6f8257233e05351fb612f0c79bf36a4839e",
+    "license": "Public Domain",
+    "size_bytes": 460857,
+    "notes": "Authentic Turkish historical scanned document: T.C. Resmî Gazete sayı 2741 (1934)"
+  },
+  {
+    "id": "scan-tr-rg-2865",
+    "category": "pdf-scanned",
+    "filename": "scan-tr-rg-2865.pdf",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/d/d8/RG-_2865.pdf",
+    "sha256": "f4742ec0881506a5335ed12c6632fb430785db3436ebd591ad4670b3049e226d",
+    "license": "Public Domain",
+    "size_bytes": 424647,
+    "notes": "Authentic Turkish historical scanned document: T.C. Resmî Gazete sayı 2865 (1934)"
+  },
+  {
+    "id": "scan-tr-rg-2888",
+    "category": "pdf-scanned",
+    "filename": "scan-tr-rg-2888.pdf",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/RG_-_2888.pdf",
+    "sha256": "deee6a79909e22c161308c4028500fc9f3e96b100e7ebec739cbc0e5abc859e5",
+    "license": "Public Domain",
+    "size_bytes": 2152413,
+    "notes": "Authentic Turkish historical scanned document: T.C. Resmî Gazete sayı 2888 (1934, multi-page)"
+  },
+  {
+    "id": "pdfium-embedded-images",
+    "category": "pdf-scanned",
+    "filename": "pdfium-embedded-images.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/embedded_images.pdf",
+    "sha256": "13e3286f1fa7af8e762eaf013ef3f7ab4822776062fcec9a12c3f34aeb8982c2",
+    "license": "BSD-3-Clause",
+    "size_bytes": 34279,
+    "notes": "Embedded image streams across multiple pages representing scanned document pages"
+  },
+  {
+    "id": "pdfium-rotated-image",
+    "category": "pdf-scanned",
+    "filename": "pdfium-rotated-image.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/rotated_image.pdf",
+    "sha256": "f6075428fdfb0335e267299c755ff4c00cc5133cb062a90432fa4215dca11b0b",
+    "license": "BSD-3-Clause",
+    "size_bytes": 831,
+    "notes": "Scanned document page with 90-degree rotated image matrix"
+  },
+  {
+    "id": "pdfium-form-image",
+    "category": "pdf-scanned",
+    "filename": "pdfium-form-image.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/form_object_with_image.pdf",
+    "sha256": "41cf50e2b40a6d6a82dd32d908f8a0562ea0c77e34f494f2921c0e6394ce7eaa",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1039,
+    "notes": "Scanned form document with embedded bitmap image object"
+  },
+  {
+    "id": "pdfium-xfa-image",
+    "category": "pdf-scanned",
+    "filename": "pdfium-xfa-image.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/xfa/xfa_image_edit.pdf",
+    "sha256": "6681a3d92706e04a61cde53557005cba292388b1da056b7aec939d6725159e50",
+    "license": "BSD-3-Clause",
+    "size_bytes": 14267,
+    "notes": "Scanned image element embedded in dynamic form layout"
+  },
+  {
+    "id": "pdfjs-perf-images-jpeg",
+    "category": "pdf-scanned",
+    "filename": "pdfjs-perf-images-jpeg.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/perf_images_jpeg_large.pdf",
+    "sha256": "d525f5852cff16a1003f644bc9558e07e0002e0e7cddddc6503ca5033316c60a",
+    "license": "Apache-2.0",
+    "size_bytes": 1431555,
+    "notes": "High-resolution scanned image page document"
+  },
+  {
+    "id": "verapdf-1a-unicode-pass-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1a-unicode-pass-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1a/6.3%20Fonts/6.3.8%20Unicode%20character%20maps/veraPDF%20test%20suite%206-3-8-t01-pass-a.pdf",
+    "sha256": "42df79430e88e6ce0e8fbe8f5c81111502d3b28dcb4b3959e76ba6ee3ab4fdc1",
+    "license": "MPL-2.0",
+    "size_bytes": 10433,
+    "notes": "PDF/A-1a Unicode character map valid conformance"
+  },
+  {
+    "id": "verapdf-1a-unicode-pass-b",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1a-unicode-pass-b.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1a/6.3%20Fonts/6.3.8%20Unicode%20character%20maps/veraPDF%20test%20suite%206-3-8-t01-pass-b.pdf",
+    "sha256": "1836d5c246a184f23347c0dbff2ebf1e835b0105cd3fd814228455191e5702ce",
+    "license": "MPL-2.0",
+    "size_bytes": 9611,
+    "notes": "PDF/A-1a Unicode character map valid conformance (variant B)"
+  },
+  {
+    "id": "verapdf-1a-unicode-fail-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1a-unicode-fail-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1a/6.3%20Fonts/6.3.8%20Unicode%20character%20maps/veraPDF%20test%20suite%206-3-8-t01-fail-a.pdf",
+    "sha256": "3177f85287fa16d0a3a5060895498b69f535e3e7a51969effeb3ac45dadc0662",
+    "license": "MPL-2.0",
+    "size_bytes": 19279,
+    "notes": "PDF/A-1a Unicode character map invalid conformance test"
+  },
+  {
+    "id": "verapdf-1a-unicode-fail-b",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1a-unicode-fail-b.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1a/6.3%20Fonts/6.3.8%20Unicode%20character%20maps/veraPDF%20test%20suite%206-3-8-t01-fail-b.pdf",
+    "sha256": "ba69bb60c9c5aff3f5bf3c694bd0c015b2620484eefc46933198ac2ccd841826",
+    "license": "MPL-2.0",
+    "size_bytes": 12254,
+    "notes": "PDF/A-1a Unicode character map invalid conformance test (variant B)"
+  },
+  {
+    "id": "verapdf-1b-header-pass-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1b-header-pass-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1b/6.1%20File%20structure/6.1.2%20File%20header/veraPDF%20test%20suite%206-1-2-t01-pass-a.pdf",
+    "sha256": "66077f449d472a048e3bbf7192aa6d2b0b0ebd6b6d8a6f878f776f69424b6deb",
+    "license": "MPL-2.0",
+    "size_bytes": 4048,
+    "notes": "PDF/A-1b File header valid conformance test"
+  },
+  {
+    "id": "verapdf-1b-header-fail-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1b-header-fail-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1b/6.1%20File%20structure/6.1.2%20File%20header/veraPDF%20test%20suite%206-1-2-t01-fail-a.pdf",
+    "sha256": "058e72e93dae4cec3004b3dcfb1f9aebcd084538bb04cb57a5cd1375d4936920",
+    "license": "MPL-2.0",
+    "size_bytes": 9393,
+    "notes": "PDF/A-1b File header invalid conformance test"
+  },
+  {
+    "id": "verapdf-1b-trailer-pass-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1b-trailer-pass-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1b/6.1%20File%20structure/6.1.3%20File%20trailer/veraPDF%20test%20suite%206-1-3-t01-pass-a.pdf",
+    "sha256": "36892ae1bc41bb215893a678d0a9fb6db39daa7edda23867cee1760110aa9d89",
+    "license": "MPL-2.0",
+    "size_bytes": 5923,
+    "notes": "PDF/A-1b File trailer dictionary valid conformance test"
+  },
+  {
+    "id": "verapdf-1b-trailer-fail-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-1b-trailer-fail-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-1b/6.1%20File%20structure/6.1.3%20File%20trailer/veraPDF%20test%20suite%206-1-3-t01-fail-a.pdf",
+    "sha256": "92f4748a7a630daf67718422bd66d699805eacd4ae88cfe9ba15cc508303d7cd",
+    "license": "MPL-2.0",
+    "size_bytes": 5670,
+    "notes": "PDF/A-1b File trailer dictionary invalid conformance test"
+  },
+  {
+    "id": "verapdf-2b-transparency-pass-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-2b-transparency-pass-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-2b/6.2%20Graphics/6.2.10%20Transparency/veraPDF%20test%20suite%206-2-10-t01-pass-a.pdf",
+    "sha256": "673b222fd20310f325adf5fe17f594a8d9645d7c407553985169cbc9ddd7738e",
+    "license": "MPL-2.0",
+    "size_bytes": 3852,
+    "notes": "PDF/A-2b Graphics transparency valid conformance test"
+  },
+  {
+    "id": "verapdf-2b-transparency-fail-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-2b-transparency-fail-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-2b/6.2%20Graphics/6.2.10%20Transparency/veraPDF%20test%20suite%206-2-10-t01-fail-a.pdf",
+    "sha256": "c8420626d9da4ff8abf01626846193d0e401212c2b94e169eacbcfe553aa7c75",
+    "license": "MPL-2.0",
+    "size_bytes": 3156,
+    "notes": "PDF/A-2b Graphics transparency invalid conformance test"
+  },
+  {
+    "id": "verapdf-3b-embedded-pass-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-3b-embedded-pass-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-3b/6.8%20Embedded%20files/veraPDF%20test%20suite%206-8-t02-pass-a.pdf",
+    "sha256": "5b8fdee7090f0a0fb7266d10dd0f6f1f8a37d286e3c06b1aa82e01d6d4f0a8a4",
+    "license": "MPL-2.0",
+    "size_bytes": 4976,
+    "notes": "PDF/A-3b Embedded files specification valid conformance"
+  },
+  {
+    "id": "verapdf-3b-embedded-fail-a",
+    "category": "pdf-pdfa",
+    "filename": "verapdf-3b-embedded-fail-a.pdf",
+    "url": "https://raw.githubusercontent.com/veraPDF/veraPDF-corpus/master/PDF_A-3b/6.8%20Embedded%20files/veraPDF%20test%20suite%206-8-t01-fail-a.pdf",
+    "sha256": "a9d78484a1e494528b43848e08e99dabd50b04dcc1cfee4a81107bb51cef848d",
+    "license": "MPL-2.0",
+    "size_bytes": 4945,
+    "notes": "PDF/A-3b Embedded files specification invalid conformance"
+  },
+  {
+    "id": "pdfium-sig-no-subfilter",
+    "category": "pdf-signed",
+    "filename": "pdfium-sig-no-subfilter.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/signature_no_sub_filter.pdf",
+    "sha256": "56c320f6c080a464225c9093e93503717763d3f98287253b69f0004b3c7b6c72",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1701,
+    "notes": "Digital signature dictionary lacking /SubFilter entry"
+  },
+  {
+    "id": "pdfium-sig-reason",
+    "category": "pdf-signed",
+    "filename": "pdfium-sig-reason.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/signature_reason.pdf",
+    "sha256": "b22caeb7446eecffa019cd6514968be2091a1fe63baa685b381770757483d71c",
+    "license": "BSD-3-Clause",
+    "size_bytes": 1764,
+    "notes": "Digital signature containing Reason and Location strings"
+  },
+  {
+    "id": "pdfium-sig-two",
+    "category": "pdf-signed",
+    "filename": "pdfium-sig-two.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/two_signatures.pdf",
+    "sha256": "47b9aa0d893f1f70a675a9d703fc072b0a435ad566ac789ff15b167e15443119",
+    "license": "BSD-3-Clause",
+    "size_bytes": 2781,
+    "notes": "Document containing two distinct digital signature fields"
+  },
+  {
+    "id": "pdfjs-sig-verified",
+    "category": "pdf-signed",
+    "filename": "pdfjs-sig-verified.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/signed_verified.pdf",
+    "sha256": "1fe9051d9ac1f39828988040db471916251dc2953c1a32efd6596e4975da848c",
+    "license": "Apache-2.0",
+    "size_bytes": 10252,
+    "notes": "Cryptographically signed PDF with PKCS#7 detached signature"
+  },
+  {
+    "id": "pdfjs-sig-cff-unsigned-bbox",
+    "category": "pdf-signed",
+    "filename": "pdfjs-sig-cff-unsigned-bbox.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/issue_cff_unsigned_bbox.pdf",
+    "sha256": "f91dc7dc6d4d9488f8c3d0dd37bc97b3eb0c5cccc28aa179df4ba486147994af",
+    "license": "Apache-2.0",
+    "size_bytes": 2796,
+    "notes": "Signed document containing CFF font unsigned bounding box edge case"
+  },
+  {
+    "id": "pyhanko-certified-indirect",
+    "category": "pdf-signed",
+    "filename": "pyhanko-certified-indirect.pdf",
+    "url": "https://raw.githubusercontent.com/MatthiasValvekens/pyHanko/master/internal/common-test-utils/src/pyhanko_testing_commons/test_data/data/pdf/certified-with-indirect-refs-in-dir.pdf",
+    "sha256": "c7f4845990b1a4a796a2e043378b68440dafe3e825b132dfe7a73cee19e4f10b",
+    "license": "MIT",
+    "size_bytes": 13211,
+    "notes": "Certified PDF with DocMDP permissions dictionary and indirect object references"
+  },
+  {
+    "id": "pyhanko-sig-twice",
+    "category": "pdf-signed",
+    "filename": "pyhanko-sig-twice.pdf",
+    "url": "https://raw.githubusercontent.com/MatthiasValvekens/pyHanko/master/internal/common-test-utils/src/pyhanko_testing_commons/test_data/data/pdf/minimal-signed-twice-both-created.pdf",
+    "sha256": "2ef1b801c4d168d0deb5904f5d272e64e2f080c9273e92d8803272fd9d1721c9",
+    "license": "MIT",
+    "size_bytes": 107981,
+    "notes": "Incremental updates with two consecutive digital signatures"
+  },
+  {
+    "id": "pyhanko-sig-two-fields",
+    "category": "pdf-signed",
+    "filename": "pyhanko-sig-two-fields.pdf",
+    "url": "https://raw.githubusercontent.com/MatthiasValvekens/pyHanko/master/internal/common-test-utils/src/pyhanko_testing_commons/test_data/data/pdf/minimal-two-fields-signed-twice.pdf",
+    "sha256": "9aad3553e8ffdf0674eef661a9418089093cb98aa0fd1940bde87bf09a1a36af",
+    "license": "MIT",
+    "size_bytes": 50827,
+    "notes": "Dual signature fields with incremental update signed twice"
+  },
+  {
+    "id": "pyhanko-sig-gap-too-big",
+    "category": "pdf-signed",
+    "filename": "pyhanko-sig-gap-too-big.pdf",
+    "url": "https://raw.githubusercontent.com/MatthiasValvekens/pyHanko/master/internal/common-test-utils/src/pyhanko_testing_commons/test_data/data/pdf/coverage-anomalies/signature-gap-too-big.pdf",
+    "sha256": "73dc0c19842d8932340407fc745bdf5a4d3864eac246db46cd96c843695a3069",
+    "license": "MIT",
+    "size_bytes": 7486,
+    "notes": "Signature byte range gap anomaly boundary test case"
+  },
+  {
+    "id": "cjk-simfang-variant",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "cjk-simfang-variant.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/SimFang-variant.pdf",
+    "sha256": "e6c6e3fb472f06a3d812bef23afc026e90b33497408122b61d577e0f7df49418",
+    "license": "Apache-2.0",
+    "size_bytes": 4108,
+    "notes": "Simplified Chinese text rendering with FangSong font"
+  },
+  {
+    "id": "cjk-90ms-rksj",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "cjk-90ms-rksj.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/90ms_rksj_h_sample.pdf",
+    "sha256": "d50ad3b93685e9d6061f5cc9957c49ca232a0dd0771aad71e4a615f87f2674be",
+    "license": "Apache-2.0",
+    "size_bytes": 1039,
+    "notes": "Japanese Shift-JIS 90ms-RKSJ-H CIDFont sample"
+  },
+  {
+    "id": "cjk-perf-text",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "cjk-perf-text.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/perf_text_cjk_nonembedded.pdf",
+    "sha256": "347456be3aceb9131bceaec25ef8eef9565c32335bdc1f50f22d53b9aeaa2775",
+    "license": "Apache-2.0",
+    "size_bytes": 7521,
+    "notes": "CJK text rendering performance with non-embedded fonts"
+  },
+  {
+    "id": "rtl-arabic-cid-truetype",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "rtl-arabic-cid-truetype.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/ArabicCIDTrueType.pdf",
+    "sha256": "1cad1de912ba29f89a6d8b08bc5b0f84382874ffedab2c8f9e05ef608c265bb1",
+    "license": "Apache-2.0",
+    "size_bytes": 39370,
+    "notes": "Arabic right-to-left (RTL) CID TrueType text rendering"
+  },
+  {
+    "id": "cjk-arial-unicode-ab",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "cjk-arial-unicode-ab.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/arial_unicode_ab_cidfont.pdf",
+    "sha256": "049a4330710d8470896061acf7ee486735e94cef2769f6cc13fec3cb13bb65aa",
+    "license": "Apache-2.0",
+    "size_bytes": 13110,
+    "notes": "Arial Unicode CIDFont subset character layout"
+  },
+  {
+    "id": "cjk-arial-unicode-en",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "cjk-arial-unicode-en.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/arial_unicode_en_cidfont.pdf",
+    "sha256": "1c4a08108d8074f543c04e9b2ea2b93a842e2b29eb05ee9d99766f430fd365ab",
+    "license": "Apache-2.0",
+    "size_bytes": 15779,
+    "notes": "Arial Unicode Latin and CJK CIDFont subset character layout"
+  },
+  {
+    "id": "font-pdfium-utf8",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "font-pdfium-utf8.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/utf-8.pdf",
+    "sha256": "a5750bf3f309affeb24d78e56a1f0af8bfe4e74209857d23652937d646e3cd9e",
+    "license": "BSD-3-Clause",
+    "size_bytes": 747,
+    "notes": "UTF-8 encoded Unicode text rendering test"
+  },
+  {
+    "id": "font-pdfium-text-font",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "font-pdfium-text-font.pdf",
+    "url": "https://raw.githubusercontent.com/chromium/pdfium/main/testing/resources/text_font.pdf",
+    "sha256": "c1172a65b37236853eaeb638e4b5f97cfea34f23af62778399c99eab146d79d4",
+    "license": "BSD-3-Clause",
+    "size_bytes": 10576,
+    "notes": "Font matrix transformations and character layout"
+  },
+  {
+    "id": "tr-vikipedi-kutuphane",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "tr-vikipedi-kutuphane.pdf",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Vikipedi_K%C3%BCt%C3%BCphanesi_Bilgilendirme.pdf",
+    "sha256": "8f5b7efe0c527069c595633dd1fd7f15bda805c6279fc42ec2670fe09075eac7",
+    "license": "CC-BY-SA-4.0",
+    "size_bytes": 454736,
+    "notes": "Authentic Turkish text document: Vikipedi Kütüphanesi Bilgilendirme rehberi (modern Turkish typography)"
+  },
+  {
+    "id": "tr-vikipedi-maddesi",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "tr-vikipedi-maddesi.pdf",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Vikipedi_Maddesi_Olu%C5%9Fturuyorum.pdf",
+    "sha256": "b93e2e733bf45df4f937d4c67a7b79ed9278542b168a7dbb275003d8f0159833",
+    "license": "CC-BY-SA-4.0",
+    "size_bytes": 1067391,
+    "notes": "Authentic Turkish text document: Vikipedi Maddesi Oluşturuyorum kılavuzu (Turkish headings, lists, callouts)"
+  },
+  {
+    "id": "tr-vikipedi-psikoloji",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "tr-vikipedi-psikoloji.pdf",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Vikipedi_psikoloji_maddeleri_yazmak.pdf",
+    "sha256": "6b2f7fccb452f11f889f7cf89ab0b5b89397f2b88111a53bbdcc5b4ddd9c838a",
+    "license": "CC-BY-SA-4.0",
+    "size_bytes": 2732093,
+    "notes": "Authentic Turkish text document: Vikipedi psikoloji maddeleri yazmak rehberi (multi-page article typography)"
+  },
+  {
+    "id": "tr-generated-standard-fonts",
+    "category": "pdf-cjk-rtl-turkish",
+    "filename": "tr-generated-standard-fonts.pdf",
+    "url": "synthetic://corpus/generate.py/tr-generated-standard-fonts.pdf",
+    "sha256": "62d5e633eef9a22d24f4280f336eff7bb38de120a43fb65fd8a0ddd6b0154201",
+    "license": "AGPL-3.0-or-later",
+    "size_bytes": 2111,
+    "notes": "Synthetically generated PDF with Turkish characters (İıŞşĞğÇçÖöÜü) using standard Type 1 font Differences array and /ToUnicode CMap"
+  },
+  {
+    "id": "poi-docx-word-crash067",
+    "category": "docx",
+    "filename": "poi-docx-word-crash067.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/51921-Word-Crash067.docx",
+    "sha256": "422e62dfe18243e8bfbb4504be91075cde9318c11d479b70132972aebbb3b107",
+    "license": "Apache-2.0",
+    "size_bytes": 20006,
+    "notes": "Word crash regression document"
+  },
+  {
+    "id": "poi-docx-52288",
+    "category": "docx",
+    "filename": "poi-docx-52288.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/52288.docx",
+    "sha256": "8ab0f0afddd11ab43bd2dcfe4e5b51f8a4dfcc948fe3f327b338bcc2c3733bee",
+    "license": "Apache-2.0",
+    "size_bytes": 12788,
+    "notes": "Paragraph formatting and text runs"
+  },
+  {
+    "id": "poi-docx-52449",
+    "category": "docx",
+    "filename": "poi-docx-52449.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/52449.docx",
+    "sha256": "f48139d1b019b5e5e0d4396fb6b10ed21dd30116926646bbd5598d807580ae2b",
+    "license": "Apache-2.0",
+    "size_bytes": 18854,
+    "notes": "Section breaks and page layout margins"
+  },
+  {
+    "id": "poi-docx-55733",
+    "category": "docx",
+    "filename": "poi-docx-55733.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/55733.docx",
+    "sha256": "b5c30080ffe667ef27414302ffd3ccd01ef1c85d4a5a459761b9c82c3421a4e0",
+    "license": "Apache-2.0",
+    "size_bytes": 3045,
+    "notes": "Complex character styling and formatting"
+  },
+  {
+    "id": "poi-docx-55966",
+    "category": "docx",
+    "filename": "poi-docx-55966.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/55966.docx",
+    "sha256": "4409a5e95d229c5ab94fb24aac1a53ee47d0d66c9e75b7f39d80f10c218abedb",
+    "license": "Apache-2.0",
+    "size_bytes": 20757,
+    "notes": "Numbered and bulleted list hierarchies"
+  },
+  {
+    "id": "poi-docx-56392",
+    "category": "docx",
+    "filename": "poi-docx-56392.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/56392.docx",
+    "sha256": "bdff4457ccfbe7482f8230e2e1085e8becdda5bc869237923a4e70977d3b6678",
+    "license": "Apache-2.0",
+    "size_bytes": 11211,
+    "notes": "Header and footer references and layouts"
+  },
+  {
+    "id": "poi-docx-57312",
+    "category": "docx",
+    "filename": "poi-docx-57312.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/57312.docx",
+    "sha256": "f80b3c4f3885e0284d8017fec93818b4ec5366f9486ad97b8ddd47ab68a330c5",
+    "license": "Apache-2.0",
+    "size_bytes": 21702,
+    "notes": "Table grid cells, borders, and background shading"
+  },
+  {
+    "id": "poi-docx-58067",
+    "category": "docx",
+    "filename": "poi-docx-58067.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/58067.docx",
+    "sha256": "719b5076b736e6208be4b10fd268e9e3b7e0029c819d485d53ca14700fc98fc5",
+    "license": "Apache-2.0",
+    "size_bytes": 28709,
+    "notes": "Embedded drawings and shape anchors"
+  },
+  {
+    "id": "poi-docx-58618",
+    "category": "docx",
+    "filename": "poi-docx-58618.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/58618.docx",
+    "sha256": "393ac2f66113a3a8a35e3cacf806cbcaf080dbdb62d1c8345183e6a338f35295",
+    "license": "Apache-2.0",
+    "size_bytes": 10045,
+    "notes": "Hyperlinks and document bookmarks"
+  },
+  {
+    "id": "poi-docx-59030",
+    "category": "docx",
+    "filename": "poi-docx-59030.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/59030.docx",
+    "sha256": "2968d4a5d5de21dce1cbeae3235e545cdf4bfd7ae508fe0eed3a9b032773ce17",
+    "license": "Apache-2.0",
+    "size_bytes": 11712,
+    "notes": "Footnotes and endnotes structures"
+  },
+  {
+    "id": "poi-docx-59378",
+    "category": "docx",
+    "filename": "poi-docx-59378.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/59378.docx",
+    "sha256": "9829d202db7fc9d86399552ea7e92fbb415444c9242303c8142026b73034776a",
+    "license": "Apache-2.0",
+    "size_bytes": 26063,
+    "notes": "Multi-column text layout"
+  },
+  {
+    "id": "poi-docx-60293",
+    "category": "docx",
+    "filename": "poi-docx-60293.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/60293.docx",
+    "sha256": "a534742296b8a3817f94ded5110ab79e3995bb53184c2741207fbc70e475e5f5",
+    "license": "Apache-2.0",
+    "size_bytes": 15634,
+    "notes": "Comments and tracked revisions"
+  },
+  {
+    "id": "poi-docx-60316",
+    "category": "docx",
+    "filename": "poi-docx-60316.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/60316.docx",
+    "sha256": "0bfd17f6ccbf1d410278fcd9141c6007b521ebb0cba53276eddb52bdd16c4769",
+    "license": "Apache-2.0",
+    "size_bytes": 48142,
+    "notes": "Document properties and metadata"
+  },
+  {
+    "id": "poi-docx-60329",
+    "category": "docx",
+    "filename": "poi-docx-60329.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/document/60329.docx",
+    "sha256": "e5b4e66038f92ef589e12ea870b24cc7a3e0005cd7a53817abff1307404f7aa3",
+    "license": "Apache-2.0",
+    "size_bytes": 31124,
+    "notes": "Table column width calculations"
+  },
+  {
+    "id": "poi-docx-bar-chart-template",
+    "category": "docx",
+    "filename": "poi-docx-bar-chart-template.docx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/poi-examples/src/main/java/org/apache/poi/examples/xwpf/usermodel/bar-chart-template.docx",
+    "sha256": "7a1161696454cc801d16faf17ba46e8ffc27e7afcb8793ca715efb9a3254d518",
+    "license": "Apache-2.0",
+    "size_bytes": 37656,
+    "notes": "Embedded chart object and diagram template"
+  },
+  {
+    "id": "poi-xlsx-50154",
+    "category": "xlsx",
+    "filename": "poi-xlsx-50154.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/50154.xlsx",
+    "sha256": "7c3f5f0907f198561933d05eb7c4fea1a8298e39fa7855b16e10d0e83ee1c399",
+    "license": "Apache-2.0",
+    "size_bytes": 13583,
+    "notes": "Standard worksheet structure and shared strings"
+  },
+  {
+    "id": "poi-xlsx-51444",
+    "category": "xlsx",
+    "filename": "poi-xlsx-51444.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/51444.xlsx",
+    "sha256": "a3a522e7e3ae63bc21eec1e56c2eb1ae21a55a03ba61252358c4c8fad210c98f",
+    "license": "Apache-2.0",
+    "size_bytes": 4598,
+    "notes": "Worksheet numeric formulas and calculation engine"
+  },
+  {
+    "id": "poi-xlsx-53282",
+    "category": "xlsx",
+    "filename": "poi-xlsx-53282.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/53282.xlsx",
+    "sha256": "110ea3a6dd7b7c0224901fe0fff46db6f6e6f55854257207ad5a7783afc2ea0c",
+    "license": "Apache-2.0",
+    "size_bytes": 11032,
+    "notes": "Cached formula results and recalculation flags"
+  },
+  {
+    "id": "poi-xlsx-hyperlinks",
+    "category": "xlsx",
+    "filename": "poi-xlsx-hyperlinks.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/ExcelWithHyperlinks.xlsx",
+    "sha256": "9cf5ac25bbe59ee30d954983e7803a854909be6d53e184933d4c47e8f6b248bb",
+    "license": "Apache-2.0",
+    "size_bytes": 11409,
+    "notes": "Cell hyperlinks and external references"
+  },
+  {
+    "id": "poi-xlsx-sample",
+    "category": "xlsx",
+    "filename": "poi-xlsx-sample.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/sample.xlsx",
+    "sha256": "7c2c5d2593f93945f26b826d6a2c3a6d1eaafe57ecb6e8b4813df72f909996b0",
+    "license": "Apache-2.0",
+    "size_bytes": 12050,
+    "notes": "Multi-sheet workbook structure and styles"
+  },
+  {
+    "id": "poi-xlsx-stress002",
+    "category": "xlsx",
+    "filename": "poi-xlsx-stress002.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/integration/stress002.xlsx",
+    "sha256": "eb94a2e12821f8876d506b907f9f0230e3af1d6dfffe6e3af9748fd73fd4a838",
+    "license": "Apache-2.0",
+    "size_bytes": 374843,
+    "notes": "Large worksheet grid dimensions stress test"
+  },
+  {
+    "id": "poi-xlsx-stress020",
+    "category": "xlsx",
+    "filename": "poi-xlsx-stress020.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/integration/stress020.xlsx",
+    "sha256": "3961ddaa65c378dad8e0ea3bc51afcf6f65038f0213655ccf14663a073b870fe",
+    "license": "Apache-2.0",
+    "size_bytes": 17289,
+    "notes": "Shared strings table volume stress test"
+  },
+  {
+    "id": "poi-xlsx-stress024",
+    "category": "xlsx",
+    "filename": "poi-xlsx-stress024.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/integration/stress024.xlsx",
+    "sha256": "1426b310329954a89df61a05668d25911c4b0e438974cb99e2a08818eb25b3a4",
+    "license": "Apache-2.0",
+    "size_bytes": 773960,
+    "notes": "Complex cell formatting and number styles stress test"
+  },
+  {
+    "id": "poi-xlsx-opc-compliance",
+    "category": "xlsx",
+    "filename": "poi-xlsx-opc-compliance.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/OPCCompliance_NoCoreProperties.xlsx",
+    "sha256": "ef6f55efd603dab8e762dcd35c695854ff4acce3ca1cf94e4dc6687617b81a5e",
+    "license": "Apache-2.0",
+    "size_bytes": 11483,
+    "notes": "OPC package compliance without core properties"
+  },
+  {
+    "id": "poi-xlsx-64473",
+    "category": "xlsx",
+    "filename": "poi-xlsx-64473.xlsx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/openxml4j/64473.xlsx",
+    "sha256": "03f4f012c8d140cf66fb056be8356c618e25eb02edf69cb0160249343335b1fb",
+    "license": "Apache-2.0",
+    "size_bytes": 12044,
+    "notes": "OpenXML4J issue 64473 workbook parts test"
+  },
+  {
+    "id": "tr-ibb-kamulastirma-maliyeti",
+    "category": "xlsx",
+    "filename": "tr-ibb-kamulastirma-maliyeti.xlsx",
+    "url": "https://data.ibb.gov.tr/dataset/c738353c-abcd-419d-bf9f-6083175c5dd6/resource/ad54340a-9a17-454d-a047-f0e3aaa6fd0c/download/yllara-gore-kamulatrma-maliyeti.xlsx",
+    "sha256": "77ef8b4032802182cc27b1c3971af2f63753d46b51a488f71b5800b041cf74c0",
+    "license": "CC-BY-4.0",
+    "size_bytes": 10707,
+    "notes": "Authentic Turkish open data spreadsheet: Yıllara Göre Kamulaştırma Maliyeti (tables, currency, Turkish headers)"
+  },
+  {
+    "id": "tr-ibb-kamulastirilan-alan",
+    "category": "xlsx",
+    "filename": "tr-ibb-kamulastirilan-alan.xlsx",
+    "url": "https://data.ibb.gov.tr/dataset/a0533a25-ed05-407e-9fad-882f635aa4f3/resource/d248ec2d-eeeb-4910-9162-c21a3ab53aea/download/2022-yl-proje-amacna-gore-kamulatrlan-alan-miktar.xlsx",
+    "sha256": "2364c58fd76738d3a2fb5d2196071b42d621348fdb2eaa1eb9478f99ad002a77",
+    "license": "CC-BY-4.0",
+    "size_bytes": 9595,
+    "notes": "Authentic Turkish open data spreadsheet: Proje Amacına Göre Kamulaştırılan Alan (multi-column tables, Turkish characters)"
+  },
+  {
+    "id": "tr-ibb-hane-halki",
+    "category": "xlsx",
+    "filename": "tr-ibb-hane-halki.xlsx",
+    "url": "https://data.ibb.gov.tr/dataset/2f8889dd-4e5d-46c6-ad75-922a6cd36a84/resource/a148a770-d20f-4e44-a4ef-894e0d4cdae4/download/ilce-bazl-ortalama-hane-halk-buyukluu_2008_2024.xlsx",
+    "sha256": "5c1486a9f6e1c0aac40403d0615bb01ce01112796bfe1a4326b844352edd6261",
+    "license": "CC-BY-4.0",
+    "size_bytes": 27078,
+    "notes": "Authentic Turkish open data spreadsheet: İlçe Bazlı Ortalama Hane Halkı Büyüklüğü 2008-2024 (demographic time-series tables)"
+  },
+  {
+    "id": "poi-pptx-bar-chart",
+    "category": "pptx",
+    "filename": "poi-pptx-bar-chart.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/poi-examples/src/main/java/org/apache/poi/examples/xslf/bar-chart-template.pptx",
+    "sha256": "79e1d218bfb2903e8dc8425a6b1997d9c1976f5a5f025bada85b0c47b5777969",
+    "license": "Apache-2.0",
+    "size_bytes": 44410,
+    "notes": "Bar chart presentation template and data bindings"
+  },
+  {
+    "id": "poi-pptx-pie-chart",
+    "category": "pptx",
+    "filename": "poi-pptx-pie-chart.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/poi-examples/src/main/java/org/apache/poi/examples/xslf/pie-chart-template.pptx",
+    "sha256": "3b6404b59b24cb79fbb91fc2e92bd8b80cdc340aeed71a1ec1e267db0d8ad444",
+    "license": "Apache-2.0",
+    "size_bytes": 55297,
+    "notes": "Pie chart presentation template and data series"
+  },
+  {
+    "id": "poi-pptx-empty",
+    "category": "pptx",
+    "filename": "poi-pptx-empty.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/poi-ooxml/src/main/resources/org/apache/poi/xslf/usermodel/empty.pptx",
+    "sha256": "052246818ec04d9234a7fbdca73fba053a1d7d5a52510cac47efc8f9844790c5",
+    "license": "Apache-2.0",
+    "size_bytes": 24151,
+    "notes": "Minimal blank default slide master and presentation"
+  },
+  {
+    "id": "poi-pptx-stress013",
+    "category": "pptx",
+    "filename": "poi-pptx-stress013.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/integration/stress013.pptx",
+    "sha256": "1b794eee93373a81593465aeb7cd83b78d5a58185434aef44373278c794ece86",
+    "license": "Apache-2.0",
+    "size_bytes": 170655,
+    "notes": "Multi-slide presentation layout stress test"
+  },
+  {
+    "id": "poi-pptx-stress021",
+    "category": "pptx",
+    "filename": "poi-pptx-stress021.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/integration/stress021.pptx",
+    "sha256": "443016bb8dfe45d080cce2db36f21f8727c86477f72698aa4086c32a41a16160",
+    "license": "Apache-2.0",
+    "size_bytes": 596690,
+    "notes": "Complex drawing shapes and visual hierarchy stress test"
+  },
+  {
+    "id": "poi-pptx-stress022",
+    "category": "pptx",
+    "filename": "poi-pptx-stress022.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/integration/stress022.pptx",
+    "sha256": "0bd000a429c378fe2ac933665527407f9b5d2155e3bf110911c8985f20e32c36",
+    "license": "Apache-2.0",
+    "size_bytes": 866381,
+    "notes": "Rich text formatting runs and styling stress test"
+  },
+  {
+    "id": "poi-pptx-perf-up",
+    "category": "pptx",
+    "filename": "poi-pptx-perf-up.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/2411-Performance_Up.pptx",
+    "sha256": "a387861a0066ad11ba85aba9572830c1ec1ab9a24380728ead34d2b5b26662c0",
+    "license": "Apache-2.0",
+    "size_bytes": 648274,
+    "notes": "Slide presentation deck with gradient fills and vectors"
+  },
+  {
+    "id": "poi-pptx-footer",
+    "category": "pptx",
+    "filename": "poi-pptx-footer.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/45541_Footer.pptx",
+    "sha256": "5e81b8c682c0b9b574d8dae72a0f1822f20a70436e251d981e295c98076b059a",
+    "license": "Apache-2.0",
+    "size_bytes": 307913,
+    "notes": "Master slide footer placeholders and formatting"
+  },
+  {
+    "id": "poi-pptx-header",
+    "category": "pptx",
+    "filename": "poi-pptx-header.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/45541_Header.pptx",
+    "sha256": "fda10ff5e22a0222a40a69ddd6d00b29dc8081eff499ccf2b5df0579395a0df2",
+    "license": "Apache-2.0",
+    "size_bytes": 308041,
+    "notes": "Master slide header placeholders and formatting"
+  },
+  {
+    "id": "poi-pptx-comment",
+    "category": "pptx",
+    "filename": "poi-pptx-comment.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/45545_Comment.pptx",
+    "sha256": "0295a51f63150e3ee680154d07dab88062ba2306030b790561f85436f3ded7c8",
+    "license": "Apache-2.0",
+    "size_bytes": 308394,
+    "notes": "Slide author comments and threaded notes"
+  },
+  {
+    "id": "poi-pptx-null-dates",
+    "category": "pptx",
+    "filename": "poi-pptx-null-dates.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/49386-null_dates.pptx",
+    "sha256": "64ef06e6d3869a8eea90ea28ddf35f20ff59578d09d04611343f32aa56ac196e",
+    "license": "Apache-2.0",
+    "size_bytes": 17124,
+    "notes": "Date placeholders and null date handling in slides"
+  },
+  {
+    "id": "poi-pptx-51187",
+    "category": "pptx",
+    "filename": "poi-pptx-51187.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/51187.pptx",
+    "sha256": "a1728e7e6c4cf6470fd2d5cf044b6db008ddb75f512c390ab5bc71bbcf37a909",
+    "license": "Apache-2.0",
+    "size_bytes": 45681,
+    "notes": "Group shape collections and line connectors"
+  },
+  {
+    "id": "poi-pptx-cropped-bitmap",
+    "category": "pptx",
+    "filename": "poi-pptx-cropped-bitmap.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/54542_cropped_bitmap.pptx",
+    "sha256": "fa219615dae3cd01f62e8449f7b477bebadd53d3cfba3348ada6377098d8c65e",
+    "license": "Apache-2.0",
+    "size_bytes": 100030,
+    "notes": "Cropped bitmap images and picture effects on slides"
+  },
+  {
+    "id": "poi-pptx-56812",
+    "category": "pptx",
+    "filename": "poi-pptx-56812.pptx",
+    "url": "https://raw.githubusercontent.com/apache/poi/trunk/test-data/slideshow/56812.pptx",
+    "sha256": "36545b1502bc7149de9ec537ae2a7e83e6c8baf24c7f72e9944d863c41072b65",
+    "license": "Apache-2.0",
+    "size_bytes": 58308,
+    "notes": "Native table shapes on presentation slides"
+  }
+]

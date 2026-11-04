@@ -1,0 +1,77 @@
+name: RBD OFIS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  compliance:
+    name: License & Privacy Compliance (ADR-0003)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required governance documents
+        run: |
+          test -f LICENSE
+          test -f AGENTS.md
+          test -f THIRD_PARTY.md
+          test -f docs/adr/0003-yayin-uyumlulugu.md
+      - name: Scan for forbidden telemetry / proprietary SDKs
+        run: |
+          if grep -RInE "(com\.google\.firebase|com\.google\.mlkit|com\.google\.android\.gms\.ads|applicationinsights|sentry\.io)" core/ apps/ 2>/dev/null; then
+            echo "ERROR: Forbidden telemetry or proprietary SDK reference detected!"
+            exit 1
+          fi
+
+  rust-core:
+    name: Rust Core (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Generate synthetic test corpus
+        run: python corpus/generate.py
+      - name: Check formatting
+        working-directory: core
+        run: cargo fmt --all -- --check
+      - name: Run Clippy
+        working-directory: core
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Run Rust Core Tests
+        working-directory: core
+        run: cargo test --all-targets
+
+  windows-app:
+    name: Windows App (.NET 9)
+    runs-on: windows-latest
+    needs: rust-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Build Windows Solution
+        working-directory: apps/windows
+        run: dotnet build RbdOfis.sln --configuration Release
+      - name: Run Windows Unit Tests
+        working-directory: apps/windows
+        run: dotnet test RbdOfis.sln --configuration Release --no-build --verbosity normal

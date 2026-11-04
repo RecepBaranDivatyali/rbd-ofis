@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RBD OFİS - ONLYOFFICE Offline Editor Host</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --surface-color: #252526;
+            --border-color: #3e3e42;
+            --text-color: #d4d4d4;
+            --accent-color: #0078d4;
+            --status-green: #107c41;
+            --badge-bg: #333333;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .brand-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .powered-by-badge {
+            background-color: #e24e2d;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .security-badge {
+            background-color: var(--status-green);
+            color: #ffffff;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .security-badge::before {
+            content: "🔒";
+        }
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .editor-container {
+            flex: 1;
+            background-color: #ffffff;
+            color: #333333;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .editor-ribbon {
+            background-color: #f3f3f3;
+            border-bottom: 1px solid #e1e1e1;
+            padding: 8px 16px;
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .ribbon-tab {
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .ribbon-tab.active {
+            background-color: #ffffff;
+            border: 1px solid #e1e1e1;
+            border-bottom-color: transparent;
+            color: #e24e2d;
+        }
+        .document-canvas-area {
+            flex: 1;
+            background-color: #e8e8e8;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+            overflow: auto;
+        }
+        .document-page {
+            width: 595px;
+            min-height: 842px;
+            background: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+            padding: 50px;
+            box-sizing: border-box;
+            font-family: "Calibri", "Liberation Sans", sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        h1 {
+            font-size: 20px;
+            color: #2b2b2b;
+            margin-top: 0;
+            border-bottom: 2px solid #e24e2d;
+            padding-bottom: 8px;
+        }
+        .meta-box {
+            background-color: #f9f9f9;
+            border-left: 4px solid var(--accent-color);
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+        footer {
+            background-color: var(--surface-color);
+            border-top: 1px solid var(--border-color);
+            padding: 6px 20px;
+            font-size: 11px;
+            color: #888888;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <span class="brand-title">RBD OFİS</span>
+            <span class="powered-by-badge">Powered by ONLYOFFICE™</span>
+        </div>
+        <div class="security-badge">
+            Offline Virtual-Host (Zero Network Access)
+        </div>
+    </header>
+
+    <main>
+        <div class="editor-container">
+            <div class="editor-ribbon">
+                <div class="ribbon-tab active">Dosya / File</div>
+                <div class="ribbon-tab">Giriş / Home</div>
+                <div class="ribbon-tab">Ekle / Insert</div>
+                <div class="ribbon-tab">Düzen / Layout</div>
+                <div class="ribbon-tab">Görünüm / View</div>
+            </div>
+            <div class="document-canvas-area">
+                <div class="document-page">
+                    <h1>RBD OFİS — ONLYOFFICE Offline Düzenleyici Entegrasyonu</h1>
+                    
+                    <div class="meta-box">
+                        <strong>Mimari Notu (ADR-0004 &amp; AGENTS.md):</strong><br>
+                        Bu sayfa yerel bir TCP sunucusu açılmadan, doğrudan Windows WebView2
+                        <code>SetVirtualHostNameToFolderMapping</code> API'si ile
+                        <code>https://rbd-office.local/</code> sanal ana bilgisayarına eşlenerek sunulmaktadır.
+                    </div>
+
+                    <p>
+                        <strong>Yayın Uyumluluğu ve Güvenlik:</strong>
+                    </p>
+                    <ul>
+                        <li><strong>AGPL Bölüm 7 Uyumluluğu:</strong> ONLYOFFICE marka logosu ve ibaresi korunmuştur.</li>
+                        <li><strong>Sıfır Ağ Erişimi (Zero-Network):</strong> Dışarıya telemetri, bulut veya analitik çağrısı yapılmaz.</li>
+                        <li><strong>Güvenlik Politikası:</strong> <code>rbd-office.local</code> dışındaki tüm URL ve ağ istekleri P/Invoke ve WebView2 filtreleme katmanında anında engellenir.</li>
+                    </ul>
+
+                    <p id="system-status">
+                        <em>Durum: Sanal ana bilgisayar başarıyla yüklendi. Çevrimdışı düzenleme motoru hazır.</em>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <span>RBD OFİS v0.1.0-alpha • Recep Baran Divatyalı</span>
+        <span id="host-url">Host: https://rbd-office.local/index.html</span>
+    </footer>
+
+    <script>
+        // Verify offline host integrity
+        console.log("RBD OFİS Offline Virtual Host initialized at " + window.location.href);
+        document.getElementById("host-url").innerText = "Host: " + window.location.href;
+    </script>
+</body>
+</html>

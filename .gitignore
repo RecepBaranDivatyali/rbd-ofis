@@ -1,0 +1,36 @@
+# Rust
+target/
+**/*.rs.bk
+
+# .NET / WinUI
+[Bb]in/
+!core/vendor/pdfium/bin/
+[Oo]bj/
+*.user
+.vs/
+AppPackages/
+
+# Android
+.gradle/
+build/
+local.properties
+*.keystore
+*.jks
+.idea/
+captures/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test corpus (large files are fetched by script)
+corpus/files/
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
+*.log
+.xwin-cache/
+
