@@ -3,6 +3,8 @@ package com.rbdofis.app.data
 import android.graphics.Bitmap
 import com.rbdofis.app.core.CompressionStats
 import com.rbdofis.app.core.FormFieldInfo
+import com.rbdofis.app.core.ImageExportFormat
+import com.rbdofis.app.core.ImageToPdfPageSize
 import com.rbdofis.app.core.PageDimensions
 import com.rbdofis.app.core.PdfAnnotation
 import com.rbdofis.app.core.RbdNativeBridge
@@ -474,6 +476,43 @@ class PdfDocumentRepository(
         val success = nativeBridge.fillFormFields(inputPath, outputPath, fieldValuesJson, flatten)
         if (success) Result.success(Unit)
         else Result.failure(IllegalStateException("Failed to fill form fields"))
+    }
+
+    // =========================================================================
+    // Document Converter Tools (Phase 5 Track 5D)
+    // =========================================================================
+
+    suspend fun convertPdfToImages(
+        outDir: String,
+        dpi: Int = 150,
+        format: ImageExportFormat = ImageExportFormat.PNG,
+        pageRange: List<Int>? = null
+    ): Result<List<String>> = withContext(ioDispatcher) {
+        val inputPath = _documentState.value.filePath
+        if (inputPath.isBlank()) return@withContext Result.failure(IllegalStateException("No document currently open"))
+        val paths = nativeBridge.pdfToImages(inputPath, outDir, dpi, format, pageRange)
+        if (paths != null) Result.success(paths)
+        else Result.failure(IllegalStateException("Failed to convert PDF pages to images"))
+    }
+
+    suspend fun convertImagesToPdf(
+        imagePaths: List<String>,
+        pageSize: ImageToPdfPageSize = ImageToPdfPageSize.A4,
+        marginPt: Float = 10f,
+        outPath: String
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val success = nativeBridge.imagesToPdf(imagePaths, pageSize, marginPt, outPath)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Failed to convert images to PDF"))
+    }
+
+    suspend fun convertMarkdownToPdf(
+        markdownText: String,
+        outPath: String
+    ): Result<Unit> = withContext(ioDispatcher) {
+        val success = nativeBridge.markdownToPdf(markdownText, outPath)
+        if (success) Result.success(Unit)
+        else Result.failure(IllegalStateException("Failed to convert markdown to PDF"))
     }
 
     private fun clearPageCache(pageIndex: Int) {

@@ -1,0 +1,190 @@
+<Window x:Class="RbdOfis.Windows.DocumentConverterDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Belge Dönüştürücü — RBD OFİS" Height="580" Width="720"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="#FFFFFF"
+        ResizeMode="NoResize">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock x:Name="DialogTitleText" Grid.Row="0" Text="🔄 Belge Dönüştürücü Sihirbazı" FontSize="16" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,12"/>
+
+        <!-- Tabs -->
+        <TabControl x:Name="ConverterTabControl" Grid.Row="1" Background="#252526" BorderBrush="#3E3E42" Foreground="#FFFFFF">
+            <!-- Tab 1: PDF -> Images -->
+            <TabItem x:Name="PdfToImagesTabHeader" Header="🖼 PDF ➔ Resim">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16" VerticalAlignment="Top">
+                        <TextBlock x:Name="PdfToImagesDescText" Text="PDF sayfalarını yüksek kaliteli PNG veya JPEG görsellerine dönüştürür." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                        <!-- Input PDF -->
+                        <TextBlock x:Name="InputPdfLabel" Text="Girdi PDF Dosyası:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="InputPdfTextBox" Grid.Column="0" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                            <Button x:Name="BrowsePdfButton" Grid.Column="1" Content="Gözat..." Click="OnBrowsePdfClicked" Padding="12,4" Margin="6,0,0,0" Background="#3E3E42" Foreground="#FFFFFF"/>
+                        </Grid>
+
+                        <!-- Output Directory -->
+                        <TextBlock x:Name="OutputDirLabel" Text="Çıktı Klasörü:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="OutputDirTextBox" Grid.Column="0" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                            <Button x:Name="BrowseOutputDirButton" Grid.Column="1" Content="Gözat..." Click="OnBrowseOutputDirClicked" Padding="12,4" Margin="6,0,0,0" Background="#3E3E42" Foreground="#FFFFFF"/>
+                        </Grid>
+
+                        <!-- Options: DPI, Format, Page Range -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock x:Name="DpiLabel" Text="Çözünürlük (DPI):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="DpiComboBox" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4">
+                                    <ComboBoxItem Content="72 DPI (Web)" Tag="72"/>
+                                    <ComboBoxItem Content="150 DPI (Standart)" Tag="150" IsSelected="True"/>
+                                    <ComboBoxItem Content="300 DPI (Baskı Kalitesi)" Tag="300"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock x:Name="FormatLabel" Text="Görsel Formatı:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="FormatComboBox" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4">
+                                    <ComboBoxItem Content="PNG (Kayıpsız)" Tag="0" IsSelected="True"/>
+                                    <ComboBoxItem Content="JPEG (Sıkıştırılmış)" Tag="1"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Page Range -->
+                        <TextBlock x:Name="PageRangeLabel" Text="Sayfa Aralığı (Örn: 1, 3, 5-8):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                        <TextBox x:Name="PageRangeTextBox" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="PageRangeHint" Text="Boş bırakılırsa tüm sayfalar dönüştürülür." FontSize="11" Foreground="#888888" Margin="0,0,0,14"/>
+
+                        <!-- Action Button -->
+                        <Button x:Name="ConvertPdfToImagesButton" Content="🔄 Dönüştür" Click="OnConvertPdfToImagesClicked" Padding="14,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+
+                        <!-- Result message -->
+                        <Border x:Name="PdfToImagesResultBorder" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Visibility="Collapsed">
+                            <TextBlock x:Name="PdfToImagesResultText" Foreground="#4EC9B0" TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Images -> PDF -->
+            <TabItem x:Name="ImagesToPdfTabHeader" Header="📄 Resimler ➔ PDF">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16" VerticalAlignment="Top">
+                        <TextBlock x:Name="ImagesToPdfDescText" Text="Birden fazla görseli tek bir sayfalara bölünmüş PDF belgesi halinde birleştirir." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                        <!-- Image List & Controls -->
+                        <TextBlock x:Name="SelectImagesLabel" Text="Görseller:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                        <ListBox x:Name="ImagesListBox" Height="110" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Margin="0,0,0,6"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button x:Name="AddImagesButton" Content="➕ Görsel Ekle..." Click="OnAddImagesClicked" Padding="10,4" Background="#3E3E42" Foreground="#FFFFFF" Margin="0,0,6,0"/>
+                            <Button x:Name="RemoveImageButton" Content="➖ Seçileni Kaldır" Click="OnRemoveImageClicked" Padding="10,4" Background="#3E3E42" Foreground="#FFFFFF" Margin="0,0,6,0"/>
+                            <Button x:Name="ClearImagesButton" Content="🗑 Listeyi Temizle" Click="OnClearImagesClicked" Padding="10,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                        </StackPanel>
+
+                        <!-- Page Size & Margin -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock x:Name="PageSizeLabel" Text="Sayfa Boyutu:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="PageSizeComboBox" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4">
+                                    <ComboBoxItem x:Name="PageSizeA4Item" Content="A4 (Standart)" Tag="0" IsSelected="True"/>
+                                    <ComboBoxItem x:Name="PageSizeLetterItem" Content="Letter (Mektup)" Tag="1"/>
+                                    <ComboBoxItem x:Name="PageSizeFitItem" Content="Görsele Göre Sığdır (Fit)" Tag="2"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock x:Name="MarginPtLabel" Text="Kenar Boşluğu (pt):" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                                <TextBox x:Name="MarginPtTextBox" Text="20" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Output PDF -->
+                        <TextBlock x:Name="ImagesOutputPdfLabel" Text="Çıktı PDF Dosyası:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ImagesOutputPdfTextBox" Grid.Column="0" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                            <Button x:Name="BrowseImagesOutputPdfButton" Grid.Column="1" Content="Gözat..." Click="OnBrowseImagesOutputPdfClicked" Padding="12,4" Margin="6,0,0,0" Background="#3E3E42" Foreground="#FFFFFF"/>
+                        </Grid>
+
+                        <!-- Action Button -->
+                        <Button x:Name="ConvertImagesToPdfButton" Content="🔄 PDF Üret" Click="OnConvertImagesToPdfClicked" Padding="14,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+
+                        <!-- Result message -->
+                        <Border x:Name="ImagesToPdfResultBorder" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Visibility="Collapsed">
+                            <TextBlock x:Name="ImagesToPdfResultText" Foreground="#4EC9B0" TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 3: Markdown -> PDF -->
+            <TabItem x:Name="MarkdownToPdfTabHeader" Header="📝 Markdown ➔ PDF">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="16" VerticalAlignment="Top">
+                        <TextBlock x:Name="MarkdownToPdfDescText" Text="Markdown metinlerini veya .md dosyalarını sayfalı PDF belgesi olarak derler." Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock x:Name="MarkdownInputLabel" Text="Markdown Metni:" Foreground="#CCCCCC" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <Button x:Name="LoadMdFileButton" Content="📂 .md Dosyasından Yükle..." Click="OnLoadMdFileClicked" Padding="10,4" Background="#3E3E42" Foreground="#FFFFFF"/>
+                        </StackPanel>
+
+                        <TextBox x:Name="MarkdownTextBox" Height="120" FontFamily="Consolas" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4" Margin="0,0,0,12" Text="# Örnek RBD OFİS Başlığı&#x0a;&#x0a;Bu belge **RBD OFİS** çevrimdışı Markdown motoru tarafından oluşturulmuştur.&#x0a;&#x0a;- Madde 1&#x0a;- Madde 2&#x0a;- Madde 3"/>
+
+                        <!-- Output PDF -->
+                        <TextBlock x:Name="MarkdownOutputPdfLabel" Text="Çıktı PDF Dosyası:" Foreground="#CCCCCC" Margin="0,0,0,4"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="MarkdownOutputPdfTextBox" Grid.Column="0" Background="#1E1E1E" Foreground="#FFFFFF" BorderBrush="#3E3E42" Padding="6,4"/>
+                            <Button x:Name="BrowseMarkdownOutputPdfButton" Grid.Column="1" Content="Gözat..." Click="OnBrowseMarkdownOutputPdfClicked" Padding="12,4" Margin="6,0,0,0" Background="#3E3E42" Foreground="#FFFFFF"/>
+                        </Grid>
+
+                        <!-- Action Button -->
+                        <Button x:Name="ConvertMarkdownToPdfButton" Content="🔄 PDF Derle" Click="OnConvertMarkdownToPdfClicked" Padding="14,8" Background="#0E639C" Foreground="#FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+
+                        <!-- Result message -->
+                        <Border x:Name="MarkdownToPdfResultBorder" Background="#2D2D30" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Visibility="Collapsed">
+                            <TextBlock x:Name="MarkdownToPdfResultText" Foreground="#4EC9B0" TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="CloseDialogButton" Content="Kapat" Click="OnCloseClicked" Padding="16,6" Background="#3E3E42" Foreground="#FFFFFF" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

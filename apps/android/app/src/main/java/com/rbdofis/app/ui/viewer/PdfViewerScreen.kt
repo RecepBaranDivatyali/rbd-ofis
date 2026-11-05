@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.BottomAppBar
@@ -137,6 +138,14 @@ fun PdfViewerScreen(
                             Icon(
                                 imageVector = Icons.Default.AutoFixHigh,
                                 contentDescription = stringResource(R.string.action_pro_tools)
+                            )
+                        }
+
+                        // Converter Tools
+                        IconButton(onClick = { viewModel.openConverter() }) {
+                            Icon(
+                                imageVector = Icons.Default.Transform,
+                                contentDescription = stringResource(R.string.action_convert)
                             )
                         }
 
@@ -386,6 +395,19 @@ fun PdfViewerScreen(
                 onApplyBatesStamp = { p, s, pad, suf, pos -> viewModel.applyBatesStamp(context, p, s, pad, suf, pos) },
                 onApplyRedaction = { json -> viewModel.applyRedaction(context, json) },
                 onFillFormFields = { json, flat -> viewModel.fillFormFields(context, json, flat) }
+            )
+        }
+
+        // Document Converter Bottom Sheet (Phase 5 Track 5D)
+        if (uiState.isConverterOpen) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            com.rbdofis.app.ui.DocumentConverterBottomSheet(
+                uiState = uiState,
+                onDismiss = { viewModel.closeConverter() },
+                onSelectTab = { viewModel.selectConverterTab(it) },
+                onPdfToImages = { dpi, format, range -> viewModel.convertPdfToImages(context, dpi, format, range) },
+                onImagesToPdf = { paths, size, margin -> viewModel.convertImagesToPdf(context, paths, size, margin) },
+                onMarkdownToPdf = { md -> viewModel.convertMarkdownToPdf(context, md) }
             )
         }
     }

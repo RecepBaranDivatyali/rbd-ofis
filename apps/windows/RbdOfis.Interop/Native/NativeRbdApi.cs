@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 
 namespace RbdOfis.Interop.Native;
 
@@ -233,4 +235,61 @@ public sealed class NativeRbdApi : INativeRbdApi
 
     public int ProFillFormFields(string inPath, string outPath, string fieldValuesJson, bool flatten) =>
         NativeMethods.rbd_pro_fill_form_fields(inPath, outPath, fieldValuesJson, flatten ? 1 : 0);
+
+    // Document Converter (Phase 5 Track 5B/5C)
+    public unsafe int ConvertPdfToImages(string inPath, string outDir, uint dpi, int format, string? pageRangeJson, out List<string> generatedPaths)
+    {
+        generatedPaths = [];
+        int bufSize = 65536;
+        for (int attempt = 0; attempt < 4; attempt++)
+        {
+            byte[] buffer = new byte[bufSize];
+            fixed (byte* p = buffer)
+            {
+                int status = NativeMethods.rbd_convert_pdf_to_images(
+                    inPath,
+                    outDir,
+                    dpi,
+                    format,
+                    pageRangeJson,
+                    (IntPtr)p,
+                    (nuint)buffer.Length);
+
+                if (status == 0)
+                {
+                    int nullIdx = Array.IndexOf(buffer, (byte)0);
+                    int len = nullIdx >= 0 ? nullIdx : buffer.Length;
+                    string json = System.Text.Encoding.UTF8.GetString(buffer, 0, len);
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        try
+                        {
+                            var parsed = JsonSerializer.Deserialize<List<string>>(json);
+                            if (parsed != null) generatedPaths = parsed;
+                        }
+                        catch
+                        {
+                            // Ignore json deserialization error if empty
+                        }
+                    }
+                    return 0;
+                }
+
+                if (status == (int)RbdStatusCode.ErrorBufferTooSmall)
+                {
+                    bufSize *= 4;
+                    continue;
+                }
+
+                return status;
+            }
+        }
+        return (int)RbdStatusCode.ErrorBufferTooSmall;
+    }
+
+    public int ConvertImagesToPdf(string imagesJson, int pageSize, float marginPt, string outPath) =>
+        NativeMethods.rbd_convert_images_to_pdf(imagesJson, pageSize, marginPt, outPath);
+
+    public int ConvertMarkdownToPdf(string markdownText, string outPath) =>
+        NativeMethods.rbd_convert_markdown_to_pdf(markdownText, outPath);
 }

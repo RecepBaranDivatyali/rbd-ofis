@@ -151,4 +151,29 @@
     <string name="status_pro_tool_success">Operation completed successfully.</string>
     <string name="status_pro_tool_failed">Operation failed: %1$s</string>
     <string name="status_processing_pro_tool">Processing…</string>
+
+    <!-- Document Converter (Phase 5 Track 5D) -->
+    <string name="action_convert">Convert</string>
+    <string name="converter_title">Document Converter</string>
+    <string name="converter_tab_pdf_to_images">PDF → Images</string>
+    <string name="converter_tab_images_to_pdf">Images → PDF</string>
+    <string name="converter_tab_markdown_to_pdf">Markdown → PDF</string>
+    <string name="converter_dpi_label">Resolution: %1$d DPI</string>
+    <string name="converter_format_label">Image Format</string>
+    <string name="converter_format_png">PNG (Lossless)</string>
+    <string name="converter_format_jpeg">JPEG (Lossy/Small Size)</string>
+    <string name="converter_page_range_label">Page Range (e.g. 1, 2-3 or blank for all)</string>
+    <string name="converter_action_export_images">Export as Images</string>
+    <string name="converter_images_to_pdf_hint">Enter paths of images to convert to PDF (one path per line):</string>
+    <string name="converter_page_size_label">Page Size</string>
+    <string name="converter_size_a4">A4 (Standard)</string>
+    <string name="converter_size_letter">US Letter</string>
+    <string name="converter_size_fit_image">Fit to Image</string>
+    <string name="converter_margin_label">Margin: %1$d pt</string>
+    <string name="converter_action_create_pdf">Generate PDF</string>
+    <string name="converter_md_hint">Type or paste Markdown content to convert to PDF:</string>
+    <string name="converter_action_render_md">Convert Markdown to PDF</string>
+    <string name="converter_success_images">Successfully converted %1$d pages to images.</string>
+    <string name="converter_success_pdf">PDF document successfully generated and opened.</string>
+    <string name="status_processing_converter">Converting…</string>
 </resources>

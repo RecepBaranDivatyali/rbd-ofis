@@ -68,4 +68,9 @@ public interface INativeRbdApi
     int ProApplyBatesStamp(string inPath, string outPath, string prefix, uint startNumber, uint paddingDigits, string suffix, int position);
     int ProReadFormFields(string inPath, out string fieldsJson);
     int ProFillFormFields(string inPath, string outPath, string fieldValuesJson, bool flatten);
+
+    // Document Converter (Phase 5 Track 5B/5C)
+    int ConvertPdfToImages(string inPath, string outDir, uint dpi, int format, string? pageRangeJson, out List<string> generatedPaths);
+    int ConvertImagesToPdf(string imagesJson, int pageSize, float marginPt, string outPath);
+    int ConvertMarkdownToPdf(string markdownText, string outPath);
 }

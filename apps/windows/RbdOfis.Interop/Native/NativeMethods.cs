@@ -262,4 +262,30 @@ internal static partial class NativeMethods
         string outPath,
         string fieldValuesJson,
         int flatten);
+
+    // Document Converter (Phase 5 Track 5B/5C)
+    [LibraryImport(LibraryName, EntryPoint = "rbd_convert_pdf_to_images", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_convert_pdf_to_images(
+        string inPath,
+        string outDir,
+        uint dpi,
+        int format,
+        string? pageRangeJson,
+        IntPtr outPathsJson,
+        nuint maxPathsLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_convert_images_to_pdf", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_convert_images_to_pdf(
+        string imagesJson,
+        int pageSize,
+        float marginPt,
+        string outPath);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_convert_markdown_to_pdf", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_convert_markdown_to_pdf(
+        string markdownText,
+        string outPath);
 }

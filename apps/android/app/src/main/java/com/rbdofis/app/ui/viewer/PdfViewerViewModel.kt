@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rbdofis.app.core.CompressionStats
 import com.rbdofis.app.core.FormFieldInfo
+import com.rbdofis.app.core.ImageExportFormat
+import com.rbdofis.app.core.ImageToPdfPageSize
 import com.rbdofis.app.core.PdfAnnotation
 import com.rbdofis.app.core.SearchResult
 import com.rbdofis.app.data.DocumentState
@@ -25,6 +27,12 @@ enum class ProToolTab {
     BATES_STAMP,
     REDACT,
     FORM_FIELDS
+}
+
+enum class ConverterTab {
+    PDF_TO_IMAGES,
+    IMAGES_TO_PDF,
+    MARKDOWN_TO_PDF
 }
 
 data class ViewerUiState(
@@ -52,7 +60,14 @@ data class ViewerUiState(
     val compressionStats: CompressionStats? = null,
     val formFields: List<FormFieldInfo> = emptyList(),
     val isProcessingProTool: Boolean = false,
-    val proToolMessage: String? = null
+    val proToolMessage: String? = null,
+
+    // Document Converter State (Phase 5 Track 5D)
+    val isConverterOpen: Boolean = false,
+    val activeConverterTab: ConverterTab = ConverterTab.PDF_TO_IMAGES,
+    val convertedImagePaths: List<String> = emptyList(),
+    val isProcessingConverter: Boolean = false,
+    val converterMessage: String? = null
 )
 
 class PdfViewerViewModel(
@@ -440,6 +455,120 @@ class PdfViewerViewModel(
                 },
                 onFailure = { err ->
                     _uiState.value = _uiState.value.copy(isProcessingProTool = false, proToolMessage = err.message ?: "Failed")
+                }
+            )
+        }
+    }
+
+    // =========================================================================
+    // Document Converter Actions (Phase 5 Track 5D)
+    // =========================================================================
+
+    private fun createConverterOutputDir(context: Context, prefix: String): File {
+        val dir = File(context.cacheDir, "${prefix}_${System.currentTimeMillis()}")
+        dir.mkdirs()
+        return dir
+    }
+
+    private fun createConverterOutputPath(context: Context, prefix: String): String {
+        val dir = File(context.cacheDir, "conversions")
+        dir.mkdirs()
+        return File(dir, "${prefix}_${System.currentTimeMillis()}.pdf").absolutePath
+    }
+
+    fun openConverter(tab: ConverterTab = ConverterTab.PDF_TO_IMAGES) {
+        _uiState.value = _uiState.value.copy(
+            isConverterOpen = true,
+            activeConverterTab = tab,
+            converterMessage = null
+        )
+    }
+
+    fun closeConverter() {
+        _uiState.value = _uiState.value.copy(isConverterOpen = false, converterMessage = null)
+    }
+
+    fun selectConverterTab(tab: ConverterTab) {
+        _uiState.value = _uiState.value.copy(activeConverterTab = tab, converterMessage = null)
+    }
+
+    fun convertPdfToImages(
+        context: Context,
+        dpi: Int = 150,
+        format: ImageExportFormat = ImageExportFormat.PNG,
+        pageRange: List<Int>? = null
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingConverter = true, converterMessage = null)
+            val outDir = createConverterOutputDir(context, "pdf_to_images")
+            val res = repository.convertPdfToImages(outDir.absolutePath, dpi, format, pageRange)
+            res.fold(
+                onSuccess = { paths ->
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingConverter = false,
+                        convertedImagePaths = paths,
+                        converterMessage = "success"
+                    )
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingConverter = false,
+                        converterMessage = err.message ?: "Failed"
+                    )
+                }
+            )
+        }
+    }
+
+    fun convertImagesToPdf(
+        context: Context,
+        imagePaths: List<String>,
+        pageSize: ImageToPdfPageSize = ImageToPdfPageSize.A4,
+        marginPt: Float = 10f
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingConverter = true, converterMessage = null)
+            val outPath = createConverterOutputPath(context, "images_to_pdf")
+            val res = repository.convertImagesToPdf(imagePaths, pageSize, marginPt, outPath)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingConverter = false,
+                        converterMessage = "success"
+                    )
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingConverter = false,
+                        converterMessage = err.message ?: "Failed"
+                    )
+                }
+            )
+        }
+    }
+
+    fun convertMarkdownToPdf(
+        context: Context,
+        markdownText: String
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isProcessingConverter = true, converterMessage = null)
+            val outPath = createConverterOutputPath(context, "markdown_to_pdf")
+            val res = repository.convertMarkdownToPdf(markdownText, outPath)
+            res.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingConverter = false,
+                        converterMessage = "success"
+                    )
+                    repository.openDocument(outPath)
+                },
+                onFailure = { err ->
+                    _uiState.value = _uiState.value.copy(
+                        isProcessingConverter = false,
+                        converterMessage = err.message ?: "Failed"
+                    )
                 }
             )
         }

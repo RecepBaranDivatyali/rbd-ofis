@@ -51,6 +51,7 @@ public partial class MainWindow : Window
 
     private readonly List<(uint PageIndex, PdfRect Rect)> _pendingRedactions = new();
     private readonly ProPdfService _proService = new();
+    private readonly DocumentConverterService _converterService = new();
 
     private enum ViewMode
     {
@@ -213,6 +214,7 @@ public partial class MainWindow : Window
         ToggleSearchButton.Content = $"🔍 {lm["SearchTitle"].Split('(')[0].Trim()}";
         PageOrganizerButton.Content = $"📑 {lm["PageOrganizerTitle"]}";
         ProToolsButton.Content = $"⚡ {lm["ProTools"]}";
+        ConverterButton.Content = $"🔄 {lm["Converter"]}";
         SidebarTitleText.Text = lm["ThumbnailsTitle"];
         ThemeToggleButton.Content = _isDarkTheme ? $"🌙 {lm["ThemeDark"]}" : $"☀️ {lm["ThemeLight"]}";
         AssociatePdfButton.Content = $"🔗 {lm["AssociatePdf"]}";
@@ -1116,6 +1118,33 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true && dialog.DocumentModified && !string.IsNullOrWhiteSpace(dialog.ResultFilePath))
         {
             ReloadActiveTabDocument(dialog.ResultFilePath);
+        }
+    }
+
+    private void OnConverterClicked(object sender, RoutedEventArgs e)
+    {
+        string? currentPdf = (_activeTab != null && !string.IsNullOrWhiteSpace(_activeTab.Document.FilePath) && File.Exists(_activeTab.Document.FilePath))
+            ? _activeTab.Document.FilePath
+            : null;
+
+        var dialog = new DocumentConverterDialog(currentPdf, _converterService)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResultPdfPath) && File.Exists(dialog.ResultPdfPath))
+        {
+            try
+            {
+                var doc = _engine.OpenDocument(dialog.ResultPdfPath);
+                doc.FilePath = dialog.ResultPdfPath;
+                OpenNewDocumentTab(doc, System.IO.Path.GetFileName(dialog.ResultPdfPath));
+            }
+            catch (Exception ex)
+            {
+                var lm = LocalizationManager.Instance;
+                MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 

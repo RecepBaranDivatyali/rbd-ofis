@@ -116,6 +116,33 @@ enum class StampPosition(val value: Int) {
 }
 
 /**
+ * Supported output formats for PDF-to-image conversion.
+ */
+enum class ImageExportFormat(val value: Int) {
+    PNG(0),
+    JPEG(1);
+
+    companion object {
+        fun fromInt(value: Int): ImageExportFormat =
+            entries.firstOrNull { it.value == value } ?: PNG
+    }
+}
+
+/**
+ * Standard page size targets when aggregating images into a PDF.
+ */
+enum class ImageToPdfPageSize(val value: Int) {
+    A4(0),
+    LETTER(1),
+    FIT_IMAGE(2);
+
+    companion object {
+        fun fromInt(value: Int): ImageToPdfPageSize =
+            entries.firstOrNull { it.value == value } ?: A4
+    }
+}
+
+/**
  * JNI FFI abstraction bridge between Kotlin and the Rust core (`librbd_core.so`).
  * Provides high-performance document parsing, page operations, and tile rendering.
  *
@@ -691,6 +718,97 @@ class RbdNativeBridge private constructor() {
         }
     }
 
+    // =========================================================================
+    // Document Converter Tools (Phase 5 Track 5D)
+    // =========================================================================
+
+    fun pdfToImages(
+        inPath: String,
+        outDir: String,
+        dpi: Int = 150,
+        format: ImageExportFormat = ImageExportFormat.PNG,
+        pageRange: List<Int>? = null
+    ): List<String>? {
+        if (isNativeAvailable()) {
+            val pageRangeJson = pageRange?.let { list ->
+                "[" + list.joinToString(",") + "]"
+            }
+            val json = nativePdfToImages(inPath, outDir, dpi, format.value, pageRangeJson)
+            if (!json.isNullOrBlank()) {
+                return parsePathsJson(json)
+            }
+            return null
+        }
+        return try {
+            val dir = File(outDir)
+            dir.mkdirs()
+            val ext = if (format == ImageExportFormat.PNG) "png" else "jpg"
+            val count = pageRange?.size ?: 3
+            val generated = mutableListOf<String>()
+            for (i in 0 until count) {
+                val pageIndex = pageRange?.getOrNull(i) ?: i
+                val f = File(dir, "page_${pageIndex + 1}.$ext")
+                f.writeText("mock image data for page ${pageIndex + 1}")
+                generated.add(f.absolutePath)
+            }
+            generated
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun imagesToPdf(
+        imagePaths: List<String>,
+        pageSize: ImageToPdfPageSize = ImageToPdfPageSize.A4,
+        marginPt: Float = 10f,
+        outPath: String
+    ): Boolean {
+        if (imagePaths.isEmpty()) return false
+        if (isNativeAvailable()) {
+            val imagesJson = "[" + imagePaths.joinToString(",") { "\"$it\"" } + "]"
+            return nativeImagesToPdf(imagesJson, pageSize.value, marginPt, outPath) == 0
+        }
+        return try {
+            val outFile = File(outPath)
+            outFile.parentFile?.mkdirs()
+            outFile.writeText("%PDF-1.7 mock images-to-pdf count=${imagePaths.size}\n%%EOF\n")
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    fun markdownToPdf(
+        markdownText: String,
+        outPath: String
+    ): Boolean {
+        if (markdownText.isBlank()) return false
+        if (isNativeAvailable()) {
+            return nativeMarkdownToPdf(markdownText, outPath) == 0
+        }
+        return try {
+            val outFile = File(outPath)
+            outFile.parentFile?.mkdirs()
+            outFile.writeText("%PDF-1.7 mock markdown-to-pdf len=${markdownText.length}\n%%EOF\n")
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private fun parsePathsJson(json: String): List<String> {
+        val list = mutableListOf<String>()
+        try {
+            val pathRegex = Regex("\"([^\"]+)\"")
+            pathRegex.findAll(json).forEach {
+                list.add(it.groupValues[1])
+            }
+        } catch (_: Throwable) {
+            // ignore
+        }
+        return list
+    }
+
     private fun parseCompressionStatsJson(json: String): CompressionStats? {
         return try {
             val orig = Regex("\"original_size\"\\s*:\\s*(\\d+)").find(json)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
@@ -770,6 +888,11 @@ class RbdNativeBridge private constructor() {
     private external fun nativeApplyBatesStamp(inputPath: String, outputPath: String, prefix: String, startNumber: Int, paddingDigits: Int, suffix: String, position: Int): Int
     private external fun nativeReadFormFields(inputPath: String): String?
     private external fun nativeFillFormFields(inputPath: String, outputPath: String, fieldValuesJson: String, flatten: Boolean): Int
+
+    // Phase 5 Converter Tools
+    private external fun nativePdfToImages(inPath: String, outDir: String, dpi: Int, format: Int, pageRangeJson: String?): String?
+    private external fun nativeImagesToPdf(imagesJson: String, pageSize: Int, marginPt: Float, outPath: String): Int
+    private external fun nativeMarkdownToPdf(markdownText: String, outPath: String): Int
 
     // =========================================================================
     // In-memory Mock Data Structures

@@ -151,4 +151,29 @@
     <string name="status_pro_tool_success">İşlem başarıyla tamamlandı.</string>
     <string name="status_pro_tool_failed">İşlem başarısız oldu: %1$s</string>
     <string name="status_processing_pro_tool">İşleniyor…</string>
+
+    <!-- Belge Dönüştürücü (Phase 5 Track 5D) -->
+    <string name="action_convert">Dönüştür</string>
+    <string name="converter_title">Belge Dönüştürücü</string>
+    <string name="converter_tab_pdf_to_images">PDF → Resim</string>
+    <string name="converter_tab_images_to_pdf">Resim → PDF</string>
+    <string name="converter_tab_markdown_to_pdf">Markdown → PDF</string>
+    <string name="converter_dpi_label">Çözünürlük: %1$d DPI</string>
+    <string name="converter_format_label">Görüntü Formatı</string>
+    <string name="converter_format_png">PNG (Kayıpsız)</string>
+    <string name="converter_format_jpeg">JPEG (Kayıplı/Küçük Boyut)</string>
+    <string name="converter_page_range_label">Sayfa Aralığı (Örn: 1, 2-3 veya tümü için boş bırakın)</string>
+    <string name="converter_action_export_images">Görüntü Olarak Dışa Aktar</string>
+    <string name="converter_images_to_pdf_hint">PDF\'e dönüştürülecek resim dosyalarının yollarını girin (her satıra bir dosya yolu):</string>
+    <string name="converter_page_size_label">Sayfa Boyutu</string>
+    <string name="converter_size_a4">A4 (Standart)</string>
+    <string name="converter_size_letter">US Letter</string>
+    <string name="converter_size_fit_image">Resim Boyutuna Uydur</string>
+    <string name="converter_margin_label">Kenar Boşluğu: %1$d pt</string>
+    <string name="converter_action_create_pdf">PDF Oluştur</string>
+    <string name="converter_md_hint">PDF\'e dönüştürülecek Markdown içeriğini buraya yazın veya yapıştırın:</string>
+    <string name="converter_action_render_md">Markdown\'ı PDF\'e Dönüştür</string>
+    <string name="converter_success_images">%1$d sayfa başarıyla görüntülere dönüştürüldü.</string>
+    <string name="converter_success_pdf">PDF belgesi başarıyla oluşturuldu ve açıldı.</string>
+    <string name="status_processing_converter">Dönüştürülüyor…</string>
 </resources>

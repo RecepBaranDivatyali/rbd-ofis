@@ -114,7 +114,10 @@
                 <Separator Margin="4,2,8,2"/>
 
                 <!-- Professional PDF Tools (Phase 4 Track 4C) -->
-                <Button x:Name="ProToolsButton" Content="⚡ Pro Araçlar" Click="OnProToolsClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
+                <Button x:Name="ProToolsButton" Content="⚡ Pro Araçlar" Click="OnProToolsClicked" Margin="0,0,4,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
+
+                <!-- Document Converter (Phase 5 Track 5C) -->
+                <Button x:Name="ConverterButton" Content="🔄 Dönüştür" Click="OnConverterClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
             </WrapPanel>
         </Border>
 

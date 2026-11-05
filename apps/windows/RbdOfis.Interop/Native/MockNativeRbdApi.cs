@@ -460,4 +460,86 @@ public sealed class MockNativeRbdApi : INativeRbdApi
         else File.WriteAllText(outPath, "%PDF-1.7 mock form filled");
         return (int)RbdStatusCode.Success;
     }
+
+    // Document Converter (Phase 5 Track 5B/5C)
+    public int ConvertPdfToImages(string inPath, string outDir, uint dpi, int format, string? pageRangeJson, out List<string> generatedPaths)
+    {
+        generatedPaths = [];
+        if (string.IsNullOrWhiteSpace(inPath) || string.IsNullOrWhiteSpace(outDir))
+            return (int)RbdStatusCode.ErrorNullPointer;
+        if (dpi == 0)
+            return (int)RbdStatusCode.ErrorInvalidArgument;
+        if (format != 0 && format != 1)
+            return (int)RbdStatusCode.ErrorInvalidArgument;
+
+        try
+        {
+            Directory.CreateDirectory(outDir);
+            string ext = format == 0 ? "png" : "jpg";
+
+            List<uint> pages = [0];
+            if (!string.IsNullOrWhiteSpace(pageRangeJson))
+            {
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<List<uint>>(pageRangeJson);
+                    if (parsed != null && parsed.Count > 0) pages = parsed;
+                }
+                catch { }
+            }
+
+            foreach (var page in pages)
+            {
+                string path = Path.Combine(outDir, $"page_{page}.{ext}");
+                File.WriteAllText(path, $"mock image content for page {page}");
+                generatedPaths.Add(path);
+            }
+
+            return (int)RbdStatusCode.Success;
+        }
+        catch
+        {
+            return (int)RbdStatusCode.ErrorEngineFailure;
+        }
+    }
+
+    public int ConvertImagesToPdf(string imagesJson, int pageSize, float marginPt, string outPath)
+    {
+        if (string.IsNullOrWhiteSpace(imagesJson) || string.IsNullOrWhiteSpace(outPath))
+            return (int)RbdStatusCode.ErrorNullPointer;
+        if (marginPt < 0.0f)
+            return (int)RbdStatusCode.ErrorInvalidArgument;
+        if (pageSize < 0 || pageSize > 2)
+            return (int)RbdStatusCode.ErrorInvalidArgument;
+
+        try
+        {
+            var images = JsonSerializer.Deserialize<List<string>>(imagesJson);
+            if (images == null || images.Count == 0)
+                return (int)RbdStatusCode.ErrorInvalidArgument;
+
+            File.WriteAllText(outPath, "%PDF-1.7 mock converted from images");
+            return (int)RbdStatusCode.Success;
+        }
+        catch
+        {
+            return (int)RbdStatusCode.ErrorInvalidArgument;
+        }
+    }
+
+    public int ConvertMarkdownToPdf(string markdownText, string outPath)
+    {
+        if (markdownText == null || string.IsNullOrWhiteSpace(outPath))
+            return (int)RbdStatusCode.ErrorNullPointer;
+
+        try
+        {
+            File.WriteAllText(outPath, $"%PDF-1.7 mock converted from markdown:\n{markdownText}");
+            return (int)RbdStatusCode.Success;
+        }
+        catch
+        {
+            return (int)RbdStatusCode.ErrorEngineFailure;
+        }
+    }
 }

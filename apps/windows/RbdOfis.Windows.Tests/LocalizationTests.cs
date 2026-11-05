@@ -171,6 +171,56 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void Verify_Phase5_Converter_Keys_Are_Present_And_Complete()
+    {
+        string[] requiredConverterKeys =
+        [
+            "Converter",
+            "ConverterTitle",
+            "TabPdfToImages",
+            "TabImagesToPdf",
+            "TabMarkdownToPdf",
+            "SelectPdf",
+            "SelectOutputDir",
+            "DpiLabel",
+            "FormatLabel",
+            "PageRangeLabel",
+            "PageRangeHint",
+            "SelectImages",
+            "AddImages",
+            "RemoveImage",
+            "ClearImages",
+            "NoImagesSelected",
+            "PageSizeLabel",
+            "PageSizeA4",
+            "PageSizeLetter",
+            "PageSizeFitImage",
+            "MarginPtLabel",
+            "MarkdownInputLabel",
+            "LoadMdFile",
+            "ConvertAction",
+            "ConversionSuccess",
+            "ConversionFailed",
+            "OpenConvertedFile",
+            "OpenConvertedFolder",
+            "SelectMarkdownFile",
+            "BrowseButton",
+            "InputPdfPrompt",
+            "OutputDirPrompt",
+            "OutputPdfPrompt"
+        ];
+
+        var turkish = LocalizationManager.GetCatalogForCulture("tr-TR");
+        var english = LocalizationManager.GetCatalogForCulture("en-US");
+
+        foreach (string key in requiredConverterKeys)
+        {
+            Assert.True(turkish.ContainsKey(key), $"Turkish catalog missing Phase 5 Converter key '{key}'.");
+            Assert.True(english.ContainsKey(key), $"English catalog missing Phase 5 Converter key '{key}'.");
+        }
+    }
+
+    [Fact]
     public void Verify_MainWindow_CodeBehind_Uses_Localization_For_All_User_Dialogs()
     {
         string? projectRoot = null;
