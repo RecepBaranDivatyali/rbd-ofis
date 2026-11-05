@@ -1,6 +1,7 @@
 pub mod annotation;
 pub mod backend;
 pub mod compression;
+pub mod converter;
 pub mod error;
 pub mod forms;
 pub mod page_ops;
@@ -16,6 +17,10 @@ pub use annotation::{
 pub use backend::{EngineType, HayroEngine, PdfiumEngine, create_default_engine, create_engine};
 pub use compression::{
     CompressionOptions, CompressionResult, compress_document, compress_document_bytes,
+};
+pub use converter::{
+    ImageFormatType, ImageToPdfOptions, PageSize, PdfToImageOptions, images_to_pdf,
+    markdown_to_pdf, pdf_to_images,
 };
 pub use error::EngineError;
 pub use forms::{
