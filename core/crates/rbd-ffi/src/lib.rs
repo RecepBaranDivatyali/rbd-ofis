@@ -1678,6 +1678,143 @@ pub unsafe extern "C" fn rbd_convert_markdown_to_pdf(
 }
 
 // ---------------------------------------------------------------------------
+// Office Document Functions (DOCX, XLSX, PPTX inspection, extraction & creation)
+// ---------------------------------------------------------------------------
+
+/// Extract text from Office document (DOCX, XLSX, PPTX).
+///
+/// # Safety
+/// Pointers must be valid null-terminated strings. `out_text_buf` must be writable with at least `max_len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_office_extract_text(
+    in_path: *const c_char,
+    out_text_buf: *mut c_char,
+    max_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_text_buf.is_null() {
+            set_last_error("Null pointer passed to rbd_office_extract_text");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if max_len == 0 {
+            set_last_error("max_len must be greater than zero");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let path_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let text =
+            rbd_core::extract_office_text(Path::new(path_str)).map_err(|e| map_engine_error(&e))?;
+
+        let text_bytes = text.as_bytes();
+        if text_bytes.len() + 1 > max_len {
+            set_last_error(&format!(
+                "Output buffer too small: required {}, provided {}",
+                text_bytes.len() + 1,
+                max_len
+            ));
+            return Err(RBD_ERR_BUFFER_TOO_SMALL);
+        }
+
+        unsafe {
+            let slice = slice::from_raw_parts_mut(out_text_buf as *mut u8, max_len);
+            slice[..text_bytes.len()].copy_from_slice(text_bytes);
+            slice[text_bytes.len()] = 0;
+        }
+
+        Ok(())
+    }))
+}
+
+/// Inspect Office document and return JSON metadata (doc_type, title, word_count, item_count, summary).
+///
+/// # Safety
+/// Pointers must be valid null-terminated strings. `out_json_buf` must be writable with at least `max_len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_office_inspect(
+    in_path: *const c_char,
+    out_json_buf: *mut c_char,
+    max_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_json_buf.is_null() {
+            set_last_error("Null pointer passed to rbd_office_inspect");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if max_len == 0 {
+            set_last_error("max_len must be greater than zero");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let path_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let info = rbd_core::inspect_office_document(Path::new(path_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        let json_str = serde_json::to_string(&info).map_err(|e| {
+            set_last_error(&format!("JSON serialization failed: {}", e));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        let json_bytes = json_str.as_bytes();
+        if json_bytes.len() + 1 > max_len {
+            set_last_error(&format!(
+                "Output buffer too small: required {}, provided {}",
+                json_bytes.len() + 1,
+                max_len
+            ));
+            return Err(RBD_ERR_BUFFER_TOO_SMALL);
+        }
+
+        unsafe {
+            let slice = slice::from_raw_parts_mut(out_json_buf as *mut u8, max_len);
+            slice[..json_bytes.len()].copy_from_slice(json_bytes);
+            slice[json_bytes.len()] = 0;
+        }
+
+        Ok(())
+    }))
+}
+
+/// Create a minimal standard-compliant DOCX file from raw text.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_office_create_docx(
+    text: *const c_char,
+    out_path: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if text.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_office_create_docx");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let text_str = unsafe { CStr::from_ptr(text) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in text");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::create_simple_docx(text_str, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Existing Legacy RbdSession Entrypoints (retained for backward compatibility)
 // ---------------------------------------------------------------------------
 
@@ -2625,6 +2762,74 @@ mod tests {
                 RBD_OK
             );
             assert!(out_md_pdf.exists());
+
+            let _ = std::fs::remove_dir_all(temp_dir);
+        }
+    }
+
+    #[test]
+    fn test_ffi_office() {
+        let pid = std::process::id();
+        let temp_dir = std::env::temp_dir().join(format!("rbd_ffi_office_{pid}"));
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let out_docx = temp_dir.join("test_output.docx");
+        let out_docx_c = CString::new(out_docx.to_str().unwrap()).unwrap();
+        let text_content = CString::new("RBD OFİS Ofis C-ABI\nİkinci satır.").unwrap();
+
+        unsafe {
+            // Null pointer checks
+            assert_eq!(
+                rbd_office_extract_text(std::ptr::null(), std::ptr::null_mut(), 0),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_office_inspect(std::ptr::null(), std::ptr::null_mut(), 0),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_office_create_docx(std::ptr::null(), std::ptr::null()),
+                RBD_ERR_NULL_PTR
+            );
+
+            // 1. Create DOCX
+            assert_eq!(
+                rbd_office_create_docx(text_content.as_ptr(), out_docx_c.as_ptr()),
+                RBD_OK
+            );
+            assert!(out_docx.exists());
+
+            // 2. Extract Text
+            let mut text_buf = vec![0u8; 4096];
+            assert_eq!(
+                rbd_office_extract_text(
+                    out_docx_c.as_ptr(),
+                    text_buf.as_mut_ptr() as *mut c_char,
+                    text_buf.len(),
+                ),
+                RBD_OK
+            );
+            let extracted = CStr::from_ptr(text_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(extracted.contains("RBD OFİS Ofis C-ABI"));
+            assert!(extracted.contains("İkinci satır."));
+
+            // 3. Inspect
+            let mut json_buf = vec![0u8; 4096];
+            assert_eq!(
+                rbd_office_inspect(
+                    out_docx_c.as_ptr(),
+                    json_buf.as_mut_ptr() as *mut c_char,
+                    json_buf.len(),
+                ),
+                RBD_OK
+            );
+            let json_str = CStr::from_ptr(json_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(json_str.contains("\"doc_type\":\"DOCX\""));
+            assert!(json_str.contains("\"word_count\":6"));
 
             let _ = std::fs::remove_dir_all(temp_dir);
         }

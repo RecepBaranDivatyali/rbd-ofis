@@ -240,7 +240,16 @@ internal static class StringCatalogs
         ["BrowseButton"] = "Gözat...",
         ["InputPdfPrompt"] = "Girdi PDF Dosyası:",
         ["OutputDirPrompt"] = "Çıktı Klasörü:",
-        ["OutputPdfPrompt"] = "Çıktı PDF Dosyası:"
+        ["OutputPdfPrompt"] = "Çıktı PDF Dosyası:",
+        ["FilterSupportedFiles"] = "Desteklenen Belgeler (*.pdf;*.docx;*.xlsx;*.pptx)|*.pdf;*.docx;*.xlsx;*.pptx|PDF Dosyaları (*.pdf)|*.pdf|Office Belgeleri (*.docx;*.xlsx;*.pptx)|*.docx;*.xlsx;*.pptx|Tüm Dosyalar (*.*)|*.*",
+        ["OfficeDocumentOpened"] = "Ofis belgesi çevrimdışı düzenleyicide açıldı: {0}",
+        ["OfficeExportPdfSuccess"] = "Ofis belgesi başarıyla PDF formatına dönüştürüldü: {0}",
+        ["OfficeSaveDocxSuccess"] = "DOCX belgesi başarıyla kaydedildi: {0}",
+        ["OfficeInspectSummary"] = "{0} • {1} sözcük, {2} {3}",
+        ["OfficeWords"] = "sözcük",
+        ["OfficeParagraphs"] = "paragraf",
+        ["OfficeRows"] = "satır",
+        ["OfficeSlides"] = "slayt"
     };
 
     public static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
@@ -475,6 +484,15 @@ internal static class StringCatalogs
         ["BrowseButton"] = "Browse...",
         ["InputPdfPrompt"] = "Input PDF File:",
         ["OutputDirPrompt"] = "Output Directory:",
-        ["OutputPdfPrompt"] = "Output PDF File:"
+        ["OutputPdfPrompt"] = "Output PDF File:",
+        ["FilterSupportedFiles"] = "Supported Documents (*.pdf;*.docx;*.xlsx;*.pptx)|*.pdf;*.docx;*.xlsx;*.pptx|PDF Files (*.pdf)|*.pdf|Office Documents (*.docx;*.xlsx;*.pptx)|*.docx;*.xlsx;*.pptx|All Files (*.*)|*.*",
+        ["OfficeDocumentOpened"] = "Office document opened in offline editor: {0}",
+        ["OfficeExportPdfSuccess"] = "Office document successfully exported to PDF: {0}",
+        ["OfficeSaveDocxSuccess"] = "DOCX document saved successfully: {0}",
+        ["OfficeInspectSummary"] = "{0} • {1} words, {2} {3}",
+        ["OfficeWords"] = "words",
+        ["OfficeParagraphs"] = "paragraphs",
+        ["OfficeRows"] = "rows",
+        ["OfficeSlides"] = "slides"
     };
 }

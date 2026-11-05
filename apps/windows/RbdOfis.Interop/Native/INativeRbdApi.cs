@@ -73,4 +73,9 @@ public interface INativeRbdApi
     int ConvertPdfToImages(string inPath, string outDir, uint dpi, int format, string? pageRangeJson, out List<string> generatedPaths);
     int ConvertImagesToPdf(string imagesJson, int pageSize, float marginPt, string outPath);
     int ConvertMarkdownToPdf(string markdownText, string outPath);
+
+    // Office Documents (Phase 6 Track 6B/6C)
+    int OfficeExtractText(string inPath, out string text);
+    int OfficeInspect(string inPath, out string metadataJson);
+    int OfficeCreateDocx(string text, string outPath);
 }

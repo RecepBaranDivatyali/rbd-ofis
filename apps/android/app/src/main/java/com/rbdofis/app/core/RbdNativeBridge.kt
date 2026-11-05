@@ -99,6 +99,17 @@ data class FormFieldInfo(
 )
 
 /**
+ * Metadata inspected from an Office document (DOCX, XLSX, PPTX).
+ */
+data class OfficeDocumentMetadata(
+    val docType: String,
+    val title: String,
+    val wordCount: Int,
+    val itemCount: Int,
+    val summary: String
+)
+
+/**
  * Standard anchor positions for watermarks, page numbers, and Bates stamps.
  */
 enum class StampPosition(val value: Int) {
@@ -796,6 +807,70 @@ class RbdNativeBridge private constructor() {
         }
     }
 
+    // =========================================================================
+    // Phase 6: Office Documents (DOCX, XLSX, PPTX)
+    // =========================================================================
+
+    fun isSupportedOfficeFile(path: String): Boolean {
+        val ext = path.substringAfterLast('.', "").lowercase()
+        return ext in listOf("docx", "doc", "xlsx", "xls", "pptx", "ppt")
+    }
+
+    fun officeExtractText(inPath: String): String? {
+        if (inPath.isBlank()) return null
+        if (isNativeAvailable()) {
+            return nativeOfficeExtractText(inPath)
+        }
+        val file = File(inPath)
+        return if (file.exists()) "Mock Office Content: ${file.name}" else null
+    }
+
+    fun officeInspect(inPath: String): OfficeDocumentMetadata? {
+        if (inPath.isBlank()) return null
+        if (isNativeAvailable()) {
+            val json = nativeOfficeInspect(inPath) ?: return null
+            return parseOfficeMetadataJson(json)
+        }
+        val file = File(inPath)
+        if (!file.exists()) return null
+        val ext = file.extension.uppercase().ifBlank { "DOCX" }
+        return OfficeDocumentMetadata(
+            docType = ext,
+            title = file.nameWithoutExtension,
+            wordCount = 150,
+            itemCount = 6,
+            summary = "Mock office document summary"
+        )
+    }
+
+    fun officeCreateDocx(text: String, outPath: String): Boolean {
+        if (outPath.isBlank()) return false
+        if (isNativeAvailable()) {
+            return nativeOfficeCreateDocx(text, outPath) == 0
+        }
+        return try {
+            val file = File(outPath)
+            file.parentFile?.mkdirs()
+            file.writeText("MOCK DOCX:\n$text")
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private fun parseOfficeMetadataJson(json: String): OfficeDocumentMetadata? {
+        return try {
+            val type = Regex("\"doc_type\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1) ?: "DOCX"
+            val title = Regex("\"title\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1) ?: "Document"
+            val words = Regex("\"word_count\"\\s*:\\s*(\\d+)").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val items = Regex("\"item_count\"\\s*:\\s*(\\d+)").find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            val summary = Regex("\"summary\"\\s*:\\s*\"([^\"]*)\"").find(json)?.groupValues?.get(1) ?: ""
+            OfficeDocumentMetadata(type, title, words, items, summary)
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     private fun parsePathsJson(json: String): List<String> {
         val list = mutableListOf<String>()
         try {
@@ -893,6 +968,11 @@ class RbdNativeBridge private constructor() {
     private external fun nativePdfToImages(inPath: String, outDir: String, dpi: Int, format: Int, pageRangeJson: String?): String?
     private external fun nativeImagesToPdf(imagesJson: String, pageSize: Int, marginPt: Float, outPath: String): Int
     private external fun nativeMarkdownToPdf(markdownText: String, outPath: String): Int
+
+    // Phase 6 Office Tools
+    private external fun nativeOfficeExtractText(inPath: String): String?
+    private external fun nativeOfficeInspect(inPath: String): String?
+    private external fun nativeOfficeCreateDocx(text: String, outPath: String): Int
 
     // =========================================================================
     // In-memory Mock Data Structures

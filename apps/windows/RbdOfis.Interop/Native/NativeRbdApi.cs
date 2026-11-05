@@ -292,4 +292,60 @@ public sealed class NativeRbdApi : INativeRbdApi
 
     public int ConvertMarkdownToPdf(string markdownText, string outPath) =>
         NativeMethods.rbd_convert_markdown_to_pdf(markdownText, outPath);
+
+    public int OfficeExtractText(string inPath, out string text)
+    {
+        text = string.Empty;
+        int bufSize = 65536; // 64 KB initial
+        for (int retry = 0; retry < 5; retry++)
+        {
+            byte[] buffer = new byte[bufSize];
+            unsafe
+            {
+                fixed (byte* p = buffer)
+                {
+                    int status = NativeMethods.rbd_office_extract_text(inPath, (IntPtr)p, (nuint)buffer.Length);
+                    if (status == 0)
+                    {
+                        int nullIdx = Array.IndexOf(buffer, (byte)0);
+                        int len = nullIdx >= 0 ? nullIdx : buffer.Length;
+                        text = System.Text.Encoding.UTF8.GetString(buffer, 0, len);
+                        return 0;
+                    }
+                    if (status == (int)RbdStatusCode.ErrorBufferTooSmall)
+                    {
+                        bufSize *= 4;
+                        continue;
+                    }
+                    return status;
+                }
+            }
+        }
+        return (int)RbdStatusCode.ErrorBufferTooSmall;
+    }
+
+    public int OfficeInspect(string inPath, out string metadataJson)
+    {
+        metadataJson = "{}";
+        int bufSize = 16384;
+        byte[] buffer = new byte[bufSize];
+        unsafe
+        {
+            fixed (byte* p = buffer)
+            {
+                int status = NativeMethods.rbd_office_inspect(inPath, (IntPtr)p, (nuint)buffer.Length);
+                if (status == 0)
+                {
+                    int nullIdx = Array.IndexOf(buffer, (byte)0);
+                    int len = nullIdx >= 0 ? nullIdx : buffer.Length;
+                    metadataJson = System.Text.Encoding.UTF8.GetString(buffer, 0, len);
+                    return 0;
+                }
+                return status;
+            }
+        }
+    }
+
+    public int OfficeCreateDocx(string text, string outPath) =>
+        NativeMethods.rbd_office_create_docx(text, outPath);
 }

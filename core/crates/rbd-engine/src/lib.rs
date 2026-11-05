@@ -4,6 +4,7 @@ pub mod compression;
 pub mod converter;
 pub mod error;
 pub mod forms;
+pub mod ooxml;
 pub mod page_ops;
 pub mod redaction;
 pub mod search;
@@ -26,6 +27,10 @@ pub use error::EngineError;
 pub use forms::{
     FormFieldInfo, FormFieldType, fill_form_fields, fill_form_fields_bytes, read_form_fields,
     read_form_fields_bytes,
+};
+pub use ooxml::{
+    OfficeDocType, OfficeDocumentInfo, create_simple_docx, create_simple_docx_bytes,
+    extract_office_text, extract_office_text_from_bytes, inspect_office_document,
 };
 pub use page_ops::{
     crop_page, delete_pages, insert_blank_page, merge, reorder_pages, rotate, split,

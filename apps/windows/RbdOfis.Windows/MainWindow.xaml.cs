@@ -52,6 +52,8 @@ public partial class MainWindow : Window
     private readonly List<(uint PageIndex, PdfRect Rect)> _pendingRedactions = new();
     private readonly ProPdfService _proService = new();
     private readonly DocumentConverterService _converterService = new();
+    private readonly OfficeDocumentService _officeService = new();
+    private string? _currentOfficeFilePath;
 
     private enum ViewMode
     {
@@ -976,11 +978,11 @@ public partial class MainWindow : Window
     }
 
     // --- Toolbar & Action Handlers ---
-    private void OnOpenFileClicked(object sender, RoutedEventArgs e)
+    private async void OnOpenFileClicked(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog
         {
-            Filter = "PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*",
+            Filter = LocalizationManager.Instance["FilterSupportedFiles"],
             Multiselect = true
         };
 
@@ -990,9 +992,16 @@ public partial class MainWindow : Window
             {
                 try
                 {
-                    var doc = _engine.OpenDocument(file);
-                    string name = System.IO.Path.GetFileName(file);
-                    OpenNewDocumentTab(doc, name);
+                    if (OfficeDocumentService.IsSupportedOfficeFile(file))
+                    {
+                        await OpenOfficeDocumentAsync(file);
+                    }
+                    else
+                    {
+                        var doc = _engine.OpenDocument(file);
+                        string name = System.IO.Path.GetFileName(file);
+                        OpenNewDocumentTab(doc, name);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1435,11 +1444,75 @@ public partial class MainWindow : Window
                 }
             };
 
+            OfficeWebView.CoreWebView2.WebMessageReceived += (_, args) =>
+            {
+                try
+                {
+                    string json = args.WebMessageAsJson;
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("action", out var actionProp))
+                    {
+                        string action = actionProp.GetString() ?? "";
+                        if (action == "saveDocx")
+                        {
+                            string content = root.TryGetProperty("content", out var cProp) ? cProp.GetString() ?? "" : "";
+                            string outPath = _currentOfficeFilePath ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Belge.docx");
+                            _officeService.CreateDocx(content, outPath);
+                            StatusMessageText.Text = LocalizationManager.Instance.GetString("OfficeSaveDocxSuccess", System.IO.Path.GetFileName(outPath));
+                        }
+                        else if (action == "exportPdf")
+                        {
+                            string content = root.TryGetProperty("content", out var cProp) ? cProp.GetString() ?? "" : "";
+                            string outPath = System.IO.Path.ChangeExtension(_currentOfficeFilePath ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Belge.docx"), ".pdf");
+                            _converterService.ConvertMarkdownToPdf(content, outPath);
+                            StatusMessageText.Text = LocalizationManager.Instance.GetString("OfficeExportPdfSuccess", System.IO.Path.GetFileName(outPath));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StatusMessageText.Text = ex.Message;
+                }
+            };
+
             OfficeWebView.CoreWebView2.Navigate("https://rbd-office.local/index.html");
         }
         catch (Exception ex)
         {
             StatusMessageText.Text = LocalizationManager.Instance.GetString("WebViewErrorPrefix", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Opens an Office document (DOCX, XLSX, PPTX) in the offline WebView workspace.
+    /// </summary>
+    public async Task OpenOfficeDocumentAsync(string filePath)
+    {
+        try
+        {
+            _currentOfficeFilePath = filePath;
+            var info = _officeService.Inspect(filePath);
+            string rawText = _officeService.ExtractText(filePath);
+            string title = System.IO.Path.GetFileName(filePath);
+
+            await InitializeWebView2Async();
+            ModeOfficeRadio.IsChecked = true;
+
+            string titleJson = System.Text.Json.JsonSerializer.Serialize(title);
+            string docTypeJson = System.Text.Json.JsonSerializer.Serialize(info.DocType);
+            string contentJson = System.Text.Json.JsonSerializer.Serialize(rawText);
+
+            string js = $"window.loadOfficeDocument({titleJson}, {docTypeJson}, {contentJson}, {info.WordCount}, {info.ItemCount});";
+            await OfficeWebView.CoreWebView2.ExecuteScriptAsync(js);
+
+            string unitName = info.DocType == "XLSX" ? LocalizationManager.Instance["OfficeRows"] : LocalizationManager.Instance["OfficeParagraphs"];
+            string summary = LocalizationManager.Instance.GetString("OfficeInspectSummary", info.DocType, info.WordCount, info.ItemCount, unitName);
+            StatusMessageText.Text = LocalizationManager.Instance.GetString("OfficeDocumentOpened", $"{title} ({summary})");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, LocalizationManager.Instance["ErrorOpeningDocument"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

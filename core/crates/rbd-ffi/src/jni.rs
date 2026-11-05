@@ -14,11 +14,12 @@ use crate::{
     rbd_document_get_page_size, rbd_document_open_file, rbd_document_open_memory,
     rbd_document_redo, rbd_document_remove_annotation, rbd_document_save_annotations,
     rbd_document_search_json, rbd_document_undo, rbd_engine_free, rbd_engine_init, rbd_free_string,
-    rbd_page_op_crop, rbd_page_op_decrypt, rbd_page_op_delete_pages, rbd_page_op_insert_blank,
-    rbd_page_op_merge, rbd_page_op_reorder, rbd_page_op_rotate, rbd_page_op_split,
-    rbd_pro_apply_bates_stamp, rbd_pro_apply_page_numbers, rbd_pro_apply_watermark,
-    rbd_pro_compress_document, rbd_pro_fill_form_fields, rbd_pro_read_form_fields,
-    rbd_pro_redact_document, rbd_render_tile_into_buffer,
+    rbd_office_create_docx, rbd_office_extract_text, rbd_office_inspect, rbd_page_op_crop,
+    rbd_page_op_decrypt, rbd_page_op_delete_pages, rbd_page_op_insert_blank, rbd_page_op_merge,
+    rbd_page_op_reorder, rbd_page_op_rotate, rbd_page_op_split, rbd_pro_apply_bates_stamp,
+    rbd_pro_apply_page_numbers, rbd_pro_apply_watermark, rbd_pro_compress_document,
+    rbd_pro_fill_form_fields, rbd_pro_read_form_fields, rbd_pro_redact_document,
+    rbd_render_tile_into_buffer,
 };
 use jni::JNIEnv;
 use jni::objects::{JByteArray, JByteBuffer, JClass, JString};
@@ -1231,6 +1232,110 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeMarkdow
     })
 }
 
+/// Extract text from Office document (DOCX, XLSX, PPTX) via JNI.
+/// Returns text string or null on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeExtractText(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if in_path.is_null() {
+            return ptr::null_mut();
+        }
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+
+        let mut buffer = vec![0u8; 131072]; // 128 KB initial buffer
+        let status = unsafe {
+            rbd_office_extract_text(
+                in_c.as_ptr(),
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Inspect Office document and return JSON metadata via JNI.
+/// Returns JSON string or null on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeInspect(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if in_path.is_null() {
+            return ptr::null_mut();
+        }
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+
+        let mut buffer = vec![0u8; 16384];
+        let status = unsafe {
+            rbd_office_inspect(
+                in_c.as_ptr(),
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("{}");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Create a minimal standard-compliant DOCX file from raw text via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeCreateDocx(
+    mut env: JNIEnv,
+    _class: JClass,
+    text: jstring,
+    out_path: jstring,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if text.is_null() || out_path.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let text_c = match unsafe { jstring_to_cstring(&mut env, text) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe { rbd_office_create_docx(text_c.as_ptr(), out_c.as_ptr()) }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1548,6 +1653,34 @@ mod tests {
 
             assert_eq!(
                 Java_com_rbdofis_app_core_RbdNativeBridge_nativeMarkdownToPdf(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeExtractText(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                )
+                .is_null()
+            );
+
+            assert!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeInspect(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                )
+                .is_null()
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeCreateDocx(
                     fake_env(),
                     fake_class(),
                     ptr::null_mut(),

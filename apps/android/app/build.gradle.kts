@@ -133,7 +133,8 @@ tasks.register<JavaExec>("runUnitTests") {
         "com.rbdofis.app.InkAnnotationTest",
         "com.rbdofis.app.DocumentScannerTest",
         "com.rbdofis.app.ProToolsTest",
-        "com.rbdofis.app.DocumentConverterTest"
+        "com.rbdofis.app.DocumentConverterTest",
+        "com.rbdofis.app.OfficeDocumentTest"
     )
     jvmArgs("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US")
 }

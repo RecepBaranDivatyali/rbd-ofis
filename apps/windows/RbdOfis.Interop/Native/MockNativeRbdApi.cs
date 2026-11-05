@@ -542,4 +542,72 @@ public sealed class MockNativeRbdApi : INativeRbdApi
             return (int)RbdStatusCode.ErrorEngineFailure;
         }
     }
+
+    public int OfficeExtractText(string inPath, out string text)
+    {
+        if (string.IsNullOrWhiteSpace(inPath))
+        {
+            text = string.Empty;
+            return (int)RbdStatusCode.ErrorNullPointer;
+        }
+
+        if (!File.Exists(inPath))
+        {
+            text = string.Empty;
+            return (int)RbdStatusCode.ErrorFileIo;
+        }
+
+        try
+        {
+            text = File.ReadAllText(inPath);
+            return (int)RbdStatusCode.Success;
+        }
+        catch
+        {
+            text = string.Empty;
+            return (int)RbdStatusCode.ErrorFileIo;
+        }
+    }
+
+    public int OfficeInspect(string inPath, out string metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(inPath))
+        {
+            metadataJson = "{}";
+            return (int)RbdStatusCode.ErrorNullPointer;
+        }
+
+        if (!File.Exists(inPath))
+        {
+            metadataJson = "{}";
+            return (int)RbdStatusCode.ErrorFileIo;
+        }
+
+        string ext = Path.GetExtension(inPath).TrimStart('.').ToUpperInvariant();
+        metadataJson = JsonSerializer.Serialize(new
+        {
+            doc_type = ext,
+            title = Path.GetFileNameWithoutExtension(inPath),
+            word_count = 120,
+            item_count = 5,
+            summary = "Mock office document summary"
+        });
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int OfficeCreateDocx(string text, string outPath)
+    {
+        if (text == null || string.IsNullOrWhiteSpace(outPath))
+            return (int)RbdStatusCode.ErrorNullPointer;
+
+        try
+        {
+            File.WriteAllText(outPath, $"MOCK_DOCX_CONTENT:\n{text}");
+            return (int)RbdStatusCode.Success;
+        }
+        catch
+        {
+            return (int)RbdStatusCode.ErrorFileIo;
+        }
+    }
 }

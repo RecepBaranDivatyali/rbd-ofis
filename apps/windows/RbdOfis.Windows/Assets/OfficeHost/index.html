@@ -12,7 +12,12 @@
             --text-color: #d4d4d4;
             --accent-color: #0078d4;
             --status-green: #107c41;
-            --badge-bg: #333333;
+            --ribbon-bg: #f3f3f3;
+            --ribbon-border: #e1e1e1;
+            --ribbon-text: #333333;
+        }
+        * {
+            box-sizing: border-box;
         }
         body {
             margin: 0;
@@ -24,11 +29,12 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            user-select: none;
         }
         header {
             background-color: var(--surface-color);
             border-bottom: 1px solid var(--border-color);
-            padding: 10px 20px;
+            padding: 8px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -36,12 +42,29 @@
         .header-left {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
         .brand-title {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
             color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+        .doc-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            color: #ffffff;
+            background-color: #2b579a; /* Default DOCX Blue */
+        }
+        .doc-badge.xlsx { background-color: #217346; }
+        .doc-badge.pptx { background-color: #d24726; }
+        .doc-filename {
+            font-size: 13px;
+            color: #e0e0e0;
+            font-weight: 500;
         }
         .powered-by-badge {
             background-color: #e24e2d;
@@ -56,7 +79,7 @@
         .security-badge {
             background-color: var(--status-green);
             color: #ffffff;
-            font-size: 12px;
+            font-size: 11px;
             padding: 4px 10px;
             border-radius: 12px;
             display: flex;
@@ -66,84 +89,253 @@
         .security-badge::before {
             content: "🔒";
         }
+        
+        /* Ribbon & Toolbar */
+        .ribbon-container {
+            background-color: var(--ribbon-bg);
+            border-bottom: 1px solid var(--ribbon-border);
+            color: var(--ribbon-text);
+            display: flex;
+            flex-direction: column;
+        }
+        .ribbon-tabs {
+            display: flex;
+            gap: 2px;
+            padding: 4px 12px 0 12px;
+            border-bottom: 1px solid var(--ribbon-border);
+            background-color: #eaeaea;
+        }
+        .ribbon-tab {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            border: 1px solid transparent;
+            border-bottom: none;
+            color: #555555;
+        }
+        .ribbon-tab:hover {
+            background-color: #f7f7f7;
+            color: #111111;
+        }
+        .ribbon-tab.active {
+            background-color: var(--ribbon-bg);
+            border-color: var(--ribbon-border);
+            color: #e24e2d;
+        }
+        .ribbon-toolbar {
+            padding: 6px 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            min-height: 38px;
+        }
+        .tool-btn {
+            background: #ffffff;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #333333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tool-btn:hover {
+            background: #e8f0fe;
+            border-color: #0078d4;
+        }
+        .tool-btn:active {
+            background: #d0e2fe;
+        }
+        .tool-btn.primary {
+            background-color: #0078d4;
+            color: #ffffff;
+            border-color: #0060aa;
+        }
+        .tool-btn.primary:hover {
+            background-color: #106ebe;
+        }
+        .tool-separator {
+            width: 1px;
+            height: 22px;
+            background-color: #dcdcdc;
+            margin: 0 4px;
+        }
+        .tool-select {
+            padding: 3px 6px;
+            font-size: 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            background-color: #ffffff;
+            color: #333333;
+        }
+
+        /* Main Workspace */
         main {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        .editor-container {
-            flex: 1;
-            background-color: #ffffff;
-            color: #333333;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
             overflow: hidden;
+            background-color: #e5e5e5;
+            position: relative;
         }
-        .editor-ribbon {
-            background-color: #f3f3f3;
-            border-bottom: 1px solid #e1e1e1;
-            padding: 8px 16px;
-            display: flex;
-            gap: 12px;
-            font-size: 13px;
-        }
-        .ribbon-tab {
-            padding: 6px 12px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .ribbon-tab.active {
-            background-color: #ffffff;
-            border: 1px solid #e1e1e1;
-            border-bottom-color: transparent;
-            color: #e24e2d;
-        }
-        .document-canvas-area {
+        .workspace-scroll {
             flex: 1;
-            background-color: #e8e8e8;
-            padding: 40px;
+            overflow: auto;
             display: flex;
             justify-content: center;
+            padding: 30px;
+        }
+
+        /* Document Canvas (Word DOCX mode) */
+        .document-page {
+            width: 816px; /* US Letter / A4 scaled */
+            min-height: 1056px;
+            background: #ffffff;
+            color: #2b2b2b;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            padding: 72px 90px;
+            box-sizing: border-box;
+            font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            outline: none;
+            user-select: text;
+        }
+        .document-page h1 { font-size: 24px; color: #111111; margin-top: 0; margin-bottom: 12px; }
+        .document-page h2 { font-size: 20px; color: #222222; margin-top: 16px; margin-bottom: 8px; }
+        .document-page h3 { font-size: 16px; color: #333333; margin-top: 12px; margin-bottom: 6px; }
+        .document-page p { margin-top: 0; margin-bottom: 12px; }
+        .document-page table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        .document-page th, .document-page td { border: 1px solid #cccccc; padding: 8px 12px; text-align: left; }
+        .document-page th { background-color: #f2f2f2; font-weight: 600; }
+
+        /* Spreadsheet Grid (Excel XLSX mode) */
+        .spreadsheet-container {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            color: #333333;
             overflow: auto;
         }
-        .document-page {
-            width: 595px;
-            min-height: 842px;
+        .spreadsheet-table {
+            border-collapse: collapse;
+            font-size: 13px;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            min-width: 100%;
+        }
+        .spreadsheet-table th, .spreadsheet-table td {
+            border: 1px solid #d4d4d4;
+            padding: 6px 10px;
+            height: 24px;
+            min-width: 80px;
+        }
+        .spreadsheet-table th {
+            background-color: #f8f9fa;
+            color: #666666;
+            font-weight: 600;
+            text-align: center;
+            user-select: none;
+        }
+        .spreadsheet-table td {
+            outline: none;
+            user-select: text;
+        }
+        .spreadsheet-table td:focus {
+            outline: 2px solid #217346;
+            background-color: #f4fbf6;
+        }
+
+        /* Presentation Slides (PowerPoint PPTX mode) */
+        .presentation-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .slides-sidebar {
+            width: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .slide-thumb {
+            aspect-ratio: 16/9;
             background: #ffffff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+            border: 2px solid #cccccc;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 10px;
+            color: #333333;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        .slide-thumb.active {
+            border-color: #d24726;
+            box-shadow: 0 0 8px rgba(210,71,38,0.5);
+        }
+        .slide-main-view {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .slide-stage {
+            width: 960px;
+            aspect-ratio: 16/9;
+            background: #ffffff;
+            color: #2b2b2b;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            border-radius: 4px;
             padding: 50px;
             box-sizing: border-box;
-            font-family: "Calibri", "Liberation Sans", sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
+            outline: none;
+            user-select: text;
         }
-        h1 {
-            font-size: 20px;
-            color: #2b2b2b;
-            margin-top: 0;
-            border-bottom: 2px solid #e24e2d;
-            padding-bottom: 8px;
-        }
-        .meta-box {
-            background-color: #f9f9f9;
-            border-left: 4px solid var(--accent-color);
-            padding: 12px;
-            margin: 15px 0;
-            font-size: 13px;
-        }
+
+        /* Footer */
         footer {
             background-color: var(--surface-color);
             border-top: 1px solid var(--border-color);
-            padding: 6px 20px;
+            padding: 6px 16px;
             font-size: 11px;
             color: #888888;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+        }
+        .footer-left {
+            display: flex;
+            gap: 16px;
+        }
+        .stat-item {
+            color: #bbbbbb;
+        }
+        .notification-toast {
+            position: fixed;
+            bottom: 35px;
+            right: 20px;
+            background-color: #107c41;
+            color: #ffffff;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: none;
+            z-index: 1000;
         }
     </style>
 </head>
@@ -151,57 +343,301 @@
     <header>
         <div class="header-left">
             <span class="brand-title">RBD OFİS</span>
+            <span id="doc-type-badge" class="doc-badge">DOCX</span>
+            <span id="doc-title" class="doc-filename">Yeni Belge.docx</span>
             <span class="powered-by-badge">Powered by ONLYOFFICE™</span>
         </div>
         <div class="security-badge">
-            Offline Virtual-Host (Zero Network Access)
+            Sanal Ana Bilgisayar • Çevrimdışı (Sıfır Ağ Erişimi)
         </div>
     </header>
 
+    <div class="ribbon-container">
+        <div class="ribbon-tabs">
+            <div class="ribbon-tab active" onclick="selectTab('home')">Giriş / Home</div>
+            <div class="ribbon-tab" onclick="selectTab('insert')">Ekle / Insert</div>
+            <div class="ribbon-tab" onclick="selectTab('layout')">Düzen / Layout</div>
+            <div class="ribbon-tab" onclick="selectTab('view')">Görünüm / View</div>
+        </div>
+
+        <div id="ribbon-toolbar" class="ribbon-toolbar">
+            <button class="tool-btn primary" onclick="exportToPdf()" title="PDF Olarak Dışa Aktar">
+                <span>📄</span> PDF Olarak Kaydet
+            </button>
+            <button class="tool-btn" onclick="saveDocument()" title="Belgeyi Kaydet">
+                <span>💾</span> Kaydet
+            </button>
+            <button class="tool-btn" onclick="window.print()" title="Yazdır">
+                <span>🖨️</span> Yazdır
+            </button>
+
+            <div class="tool-separator"></div>
+
+            <button class="tool-btn" onclick="execCmd('undo')" title="Geri Al (Ctrl+Z)">↶</button>
+            <button class="tool-btn" onclick="execCmd('redo')" title="Yinele (Ctrl+Y)">↷</button>
+
+            <div class="tool-separator"></div>
+
+            <select class="tool-select" onchange="execCmd('fontName', this.value)">
+                <option value="Calibri" selected>Calibri</option>
+                <option value="Segoe UI">Segoe UI</option>
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+            </select>
+
+            <select class="tool-select" onchange="execCmd('fontSize', this.value)">
+                <option value="3">12 pt</option>
+                <option value="4" selected>14 pt</option>
+                <option value="5">18 pt</option>
+                <option value="6">24 pt</option>
+                <option value="7">36 pt</option>
+            </select>
+
+            <button class="tool-btn" onclick="execCmd('bold')" title="Kalın (Ctrl+B)"><b>B</b></button>
+            <button class="tool-btn" onclick="execCmd('italic')" title="İtalik (Ctrl+I)"><i>I</i></button>
+            <button class="tool-btn" onclick="execCmd('underline')" title="Altı Çizili (Ctrl+U)"><u>U</u></button>
+            <button class="tool-btn" onclick="execCmd('strikeThrough')" title="Üstü Çizili"><s>S</s></button>
+
+            <div class="tool-separator"></div>
+
+            <button class="tool-btn" onclick="execCmd('justifyLeft')" title="Sola Hizala">⇤</button>
+            <button class="tool-btn" onclick="execCmd('justifyCenter')" title="Ortala">≡</button>
+            <button class="tool-btn" onclick="execCmd('justifyRight')" title="Sağa Hizala">⇥</button>
+            <button class="tool-btn" onclick="execCmd('justifyFull')" title="İki Yana Yasla">≣</button>
+
+            <div class="tool-separator"></div>
+
+            <button class="tool-btn" onclick="execCmd('insertUnorderedList')" title="Madde İmleri">• Liste</button>
+            <button class="tool-btn" onclick="execCmd('insertOrderedList')" title="Numaralandırma">1. Liste</button>
+            <button class="tool-btn" onclick="insertTable()" title="Tablo Ekle">▦ Tablo</button>
+        </div>
+    </div>
+
     <main>
-        <div class="editor-container">
-            <div class="editor-ribbon">
-                <div class="ribbon-tab active">Dosya / File</div>
-                <div class="ribbon-tab">Giriş / Home</div>
-                <div class="ribbon-tab">Ekle / Insert</div>
-                <div class="ribbon-tab">Düzen / Layout</div>
-                <div class="ribbon-tab">Görünüm / View</div>
+        <!-- Word DOCX Mode -->
+        <div id="docx-workspace" class="workspace-scroll">
+            <div id="editor-page" class="document-page" contenteditable="true" spellcheck="false" oninput="updateStats()">
+                <h1>RBD OFİS — Ofis Düzenleyici</h1>
+                <p>Bu çevrimdışı Word / DOCX düzenleyicisi, <strong>ADR-0004</strong> ve <strong>AGENTS.md</strong> kuralları doğrultusunda internet bağlantısı veya yerel TCP portu olmadan çalışır.</p>
+                <p>Buraya yeni paragraflar yazabilir, tablolar ekleyebilir ve tek tıkla <strong>PDF Olarak Kaydet</strong> butonunu kullanarak belgenizi dönüştürebilirsiniz.</p>
             </div>
-            <div class="document-canvas-area">
-                <div class="document-page">
-                    <h1>RBD OFİS — ONLYOFFICE Offline Düzenleyici Entegrasyonu</h1>
-                    
-                    <div class="meta-box">
-                        <strong>Mimari Notu (ADR-0004 &amp; AGENTS.md):</strong><br>
-                        Bu sayfa yerel bir TCP sunucusu açılmadan, doğrudan Windows WebView2
-                        <code>SetVirtualHostNameToFolderMapping</code> API'si ile
-                        <code>https://rbd-office.local/</code> sanal ana bilgisayarına eşlenerek sunulmaktadır.
-                    </div>
+        </div>
 
-                    <p>
-                        <strong>Yayın Uyumluluğu ve Güvenlik:</strong>
-                    </p>
-                    <ul>
-                        <li><strong>AGPL Bölüm 7 Uyumluluğu:</strong> ONLYOFFICE marka logosu ve ibaresi korunmuştur.</li>
-                        <li><strong>Sıfır Ağ Erişimi (Zero-Network):</strong> Dışarıya telemetri, bulut veya analitik çağrısı yapılmaz.</li>
-                        <li><strong>Güvenlik Politikası:</strong> <code>rbd-office.local</code> dışındaki tüm URL ve ağ istekleri P/Invoke ve WebView2 filtreleme katmanında anında engellenir.</li>
-                    </ul>
+        <!-- Excel XLSX Mode -->
+        <div id="xlsx-workspace" class="spreadsheet-container">
+            <table id="spreadsheet-table" class="spreadsheet-table">
+                <!-- Populated dynamically -->
+            </table>
+        </div>
 
-                    <p id="system-status">
-                        <em>Durum: Sanal ana bilgisayar başarıyla yüklendi. Çevrimdışı düzenleme motoru hazır.</em>
-                    </p>
+        <!-- PowerPoint PPTX Mode -->
+        <div id="pptx-workspace" class="presentation-container" style="display:none;">
+            <div id="slides-sidebar" class="slides-sidebar">
+                <!-- Slide thumbnails -->
+            </div>
+            <div class="slide-main-view">
+                <div id="slide-stage" class="slide-stage" contenteditable="true" spellcheck="false">
+                    <!-- Active slide content -->
                 </div>
             </div>
         </div>
     </main>
 
+    <div id="toast" class="notification-toast">İşlem başarıyla tamamlandı.</div>
+
     <footer>
-        <span>RBD OFİS v0.1.0-alpha • Recep Baran Divatyalı</span>
-        <span id="host-url">Host: https://rbd-office.local/index.html</span>
+        <div class="footer-left">
+            <span id="stat-words" class="stat-item">Sözcük: 32</span>
+            <span id="stat-items" class="stat-item">Paragraf: 3</span>
+            <span class="stat-item">Telif: Ascensio System SIA &amp; RBD OFİS</span>
+        </div>
+        <div>
+            <span id="host-url">Host: https://rbd-office.local/index.html</span>
+        </div>
     </footer>
 
     <script>
-        // Verify offline host integrity
+        let currentDocType = 'DOCX';
+        let currentTitle = 'Yeni Belge.docx';
+
+        function selectTab(tab) {
+            document.querySelectorAll('.ribbon-tab').forEach(el => el.classList.remove('active'));
+            if (event && event.target) event.target.classList.add('active');
+        }
+
+        function execCmd(command, value = null) {
+            document.execCommand(command, false, value);
+            updateStats();
+        }
+
+        function insertTable() {
+            const html = `
+                <table style="width:100%; border-collapse:collapse; margin:15px 0;">
+                    <tr><th style="border:1px solid #ccc; padding:8px; background:#f2f2f2;">Başlık 1</th><th style="border:1px solid #ccc; padding:8px; background:#f2f2f2;">Başlık 2</th></tr>
+                    <tr><td style="border:1px solid #ccc; padding:8px;">Veri 1</td><td style="border:1px solid #ccc; padding:8px;">Veri 2</td></tr>
+                </table><p></p>
+            `;
+            document.execCommand('insertHTML', false, html);
+            updateStats();
+        }
+
+        function updateStats() {
+            const text = document.getElementById('editor-page').innerText || '';
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            const paragraphs = text.split('\n').filter(p => p.trim().length > 0).length;
+
+            document.getElementById('stat-words').innerText = `Sözcük: ${words}`;
+            document.getElementById('stat-items').innerText = `Paragraf: ${paragraphs}`;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        function exportToPdf() {
+            const text = document.getElementById('editor-page').innerText;
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({
+                    action: 'exportPdf',
+                    title: currentTitle,
+                    content: text
+                });
+            } else {
+                window.print();
+            }
+            showToast('PDF çıktısı hazırlanıyor...');
+        }
+
+        function saveDocument() {
+            const text = document.getElementById('editor-page').innerText;
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({
+                    action: 'saveDocx',
+                    title: currentTitle,
+                    content: text
+                });
+            }
+            showToast('Belge kaydedildi.');
+        }
+
+        // Global API callable from C# / Android WebView
+        window.loadOfficeDocument = function(title, docType, rawContent, wordCount, itemCount) {
+            currentTitle = title || 'Belge';
+            currentDocType = (docType || 'DOCX').toUpperCase();
+
+            document.getElementById('doc-title').innerText = currentTitle;
+            const badge = document.getElementById('doc-type-badge');
+            badge.innerText = currentDocType;
+            badge.className = 'doc-badge ' + currentDocType.toLowerCase();
+
+            const docxWs = document.getElementById('docx-workspace');
+            const xlsxWs = document.getElementById('xlsx-workspace');
+            const pptxWs = document.getElementById('pptx-workspace');
+
+            docxWs.style.display = 'none';
+            xlsxWs.style.display = 'none';
+            pptxWs.style.display = 'none';
+
+            if (currentDocType === 'XLSX') {
+                xlsxWs.style.display = 'flex';
+                renderSpreadsheet(rawContent);
+            } else if (currentDocType === 'PPTX') {
+                pptxWs.style.display = 'flex';
+                renderPresentation(rawContent);
+            } else {
+                docxWs.style.display = 'flex';
+                renderDocument(title, rawContent);
+            }
+
+            document.getElementById('stat-words').innerText = `Sözcük: ${wordCount || 0}`;
+            document.getElementById('stat-items').innerText = `${currentDocType === 'XLSX' ? 'Satır' : 'Öğe'}: ${itemCount || 0}`;
+        };
+
+        function renderDocument(title, content) {
+            const editor = document.getElementById('editor-page');
+            editor.innerHTML = '';
+
+            const h1 = document.createElement('h1');
+            h1.innerText = title;
+            editor.appendChild(h1);
+
+            const lines = (content || '').split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed) {
+                    const p = document.createElement('p');
+                    p.innerText = trimmed;
+                    editor.appendChild(p);
+                }
+            }
+            updateStats();
+        }
+
+        function renderSpreadsheet(content) {
+            const table = document.getElementById('spreadsheet-table');
+            table.innerHTML = '';
+
+            const lines = (content || '').split('\n').filter(l => l.trim().length > 0);
+            
+            // Header row (A, B, C...)
+            const headerRow = document.createElement('tr');
+            headerRow.appendChild(document.createElement('th')); // Top-left corner
+            const maxCols = 8;
+            for (let c = 0; c < maxCols; c++) {
+                const th = document.createElement('th');
+                th.innerText = String.fromCharCode(65 + c);
+                headerRow.appendChild(th);
+            }
+            table.appendChild(headerRow);
+
+            let rowIdx = 1;
+            for (const line of lines) {
+                const tr = document.createElement('tr');
+                const rowHeader = document.createElement('th');
+                rowHeader.innerText = rowIdx;
+                tr.appendChild(rowHeader);
+
+                const cells = line.split('\t');
+                for (let c = 0; c < maxCols; c++) {
+                    const td = document.createElement('td');
+                    td.contentEditable = "true";
+                    td.innerText = cells[c] || '';
+                    tr.appendChild(td);
+                }
+                table.appendChild(tr);
+                rowIdx++;
+            }
+        }
+
+        function renderPresentation(content) {
+            const sidebar = document.getElementById('slides-sidebar');
+            const stage = document.getElementById('slide-stage');
+            sidebar.innerHTML = '';
+
+            const slides = (content || '').split('--- Slayt ');
+            let idx = 1;
+            for (const s of slides) {
+                if (!s.trim()) continue;
+                const thumb = document.createElement('div');
+                thumb.className = 'slide-thumb' + (idx === 1 ? ' active' : '');
+                thumb.innerText = `Slayt ${idx}`;
+                const slideText = s.substring(s.indexOf('---') + 3).trim();
+                thumb.onclick = () => {
+                    document.querySelectorAll('.slide-thumb').forEach(t => t.classList.remove('active'));
+                    thumb.classList.add('active');
+                    stage.innerHTML = `<h2>Slayt ${idx}</h2><p>${slideText}</p>`;
+                };
+                sidebar.appendChild(thumb);
+                if (idx === 1) {
+                    stage.innerHTML = `<h2>Slayt 1</h2><p>${slideText}</p>`;
+                }
+                idx++;
+            }
+        }
+
         console.log("RBD OFİS Offline Virtual Host initialized at " + window.location.href);
         document.getElementById("host-url").innerText = "Host: " + window.location.href;
     </script>

@@ -176,4 +176,14 @@
     <string name="converter_success_images">%1$d sayfa başarıyla görüntülere dönüştürüldü.</string>
     <string name="converter_success_pdf">PDF belgesi başarıyla oluşturuldu ve açıldı.</string>
     <string name="status_processing_converter">Dönüştürülüyor…</string>
+
+    <!-- Ofis Düzenleyici (Phase 6 Track 6D) -->
+    <string name="office_editor_title">Ofis Düzenleyici</string>
+    <string name="office_powered_by">Powered by ONLYOFFICE™</string>
+    <string name="office_action_save">Belgeyi Kaydet</string>
+    <string name="office_action_export_pdf">PDF Olarak Aktar</string>
+    <string name="office_words_count">%1$d sözcük</string>
+    <string name="office_items_count">%1$d öğe</string>
+    <string name="office_save_success">Belge başarıyla kaydedildi.</string>
+    <string name="office_export_success">PDF belgesi başarıyla oluşturuldu.</string>
 </resources>

@@ -288,4 +288,25 @@ internal static partial class NativeMethods
     public static partial int rbd_convert_markdown_to_pdf(
         string markdownText,
         string outPath);
+
+    // Office Documents (Phase 6 Track 6B/6C)
+    [LibraryImport(LibraryName, EntryPoint = "rbd_office_extract_text", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_office_extract_text(
+        string inPath,
+        IntPtr outTextBuf,
+        nuint maxLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_office_inspect", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_office_inspect(
+        string inPath,
+        IntPtr outJsonBuf,
+        nuint maxLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_office_create_docx", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_office_create_docx(
+        string text,
+        string outPath);
 }
