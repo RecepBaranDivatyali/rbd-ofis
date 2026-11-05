@@ -13,11 +13,12 @@ pub use page_ops::{
 };
 pub use rbd_engine::{
     BatesOptions, CompressionOptions, CompressionResult, FormFieldInfo, FormFieldType,
-    PageNumberOptions, PageRedaction, StampPosition, WatermarkOptions, apply_bates_stamp,
-    apply_bates_stamp_bytes, apply_page_numbers, apply_page_numbers_bytes, apply_watermark,
-    apply_watermark_bytes, compress_document, compress_document_bytes, fill_form_fields,
-    fill_form_fields_bytes, read_form_fields, read_form_fields_bytes, redact_document,
-    redact_document_bytes,
+    ImageFormatType, ImageToPdfOptions, PageNumberOptions, PageRedaction, PageSize,
+    PdfToImageOptions, StampPosition, WatermarkOptions, apply_bates_stamp, apply_bates_stamp_bytes,
+    apply_page_numbers, apply_page_numbers_bytes, apply_watermark, apply_watermark_bytes,
+    compress_document, compress_document_bytes, fill_form_fields, fill_form_fields_bytes,
+    images_to_pdf, markdown_to_pdf, pdf_to_images, read_form_fields, read_form_fields_bytes,
+    redact_document, redact_document_bytes,
 };
 pub use session::DocumentSession;
 pub use tile_cache::{TileCache, TileKey};

@@ -1480,6 +1480,204 @@ pub unsafe extern "C" fn rbd_pro_fill_form_fields(
 }
 
 // ---------------------------------------------------------------------------
+// Document Converter C-ABI Entrypoints (Phase 5 Track 5B)
+// ---------------------------------------------------------------------------
+
+/// Convert PDF pages to image files (PNG or JPEG) with configurable DPI.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+/// `page_range_json` may be null (converts all pages).
+/// `out_paths_json` buffer of length `max_paths_len` receives the JSON array of generated image paths.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_convert_pdf_to_images(
+    in_path: *const c_char,
+    out_dir: *const c_char,
+    dpi: u32,
+    format: i32,
+    page_range_json: *const c_char,
+    out_paths_json: *mut c_char,
+    max_paths_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if in_path.is_null() || out_dir.is_null() {
+            set_last_error("Null pointer passed to rbd_convert_pdf_to_images");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        if dpi == 0 {
+            set_last_error("DPI must be greater than 0");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(in_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in in_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(out_dir) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_dir");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let img_format = match format {
+            0 => rbd_core::ImageFormatType::Png,
+            1 => rbd_core::ImageFormatType::Jpeg,
+            _ => {
+                set_last_error("Invalid format: expected 0 (Png) or 1 (Jpeg)");
+                return Err(RBD_ERR_INVALID_PARAM);
+            }
+        };
+
+        let page_range = if page_range_json.is_null() {
+            None
+        } else {
+            let json_str = unsafe { CStr::from_ptr(page_range_json) }
+                .to_str()
+                .map_err(|_| {
+                    set_last_error("Invalid UTF-8 in page_range_json");
+                    RBD_ERR_INVALID_PARAM
+                })?;
+            let trimmed = json_str.trim();
+            if trimmed.is_empty() || trimmed == "null" {
+                None
+            } else {
+                let range: Vec<u32> = serde_json::from_str(trimmed).map_err(|e| {
+                    set_last_error(&format!("Failed to parse page_range_json: {e}"));
+                    RBD_ERR_INVALID_PARAM
+                })?;
+                Some(range)
+            }
+        };
+
+        let options = rbd_core::PdfToImageOptions {
+            dpi,
+            format: img_format,
+            page_range,
+        };
+
+        let generated_paths =
+            rbd_core::pdf_to_images(Path::new(in_str), &options, Path::new(out_str))
+                .map_err(|e| map_engine_error(&e))?;
+
+        if !out_paths_json.is_null() && max_paths_len > 0 {
+            let path_strings: Vec<String> = generated_paths
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            let json = serde_json::to_string(&path_strings).map_err(|e| {
+                set_last_error(&format!("Failed to serialize paths to JSON: {e}"));
+                RBD_ERR_ENGINE_FAILURE
+            })?;
+            copy_str_to_caller_buffer(&json, out_paths_json, max_paths_len)?;
+        }
+
+        Ok(())
+    }))
+}
+
+/// Aggregate one or more image files into a single PDF document.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_convert_images_to_pdf(
+    images_json: *const c_char,
+    page_size: i32,
+    margin_pt: f32,
+    out_path: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if images_json.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_convert_images_to_pdf");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        if margin_pt < 0.0 {
+            set_last_error("margin_pt cannot be negative");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let json_str = unsafe { CStr::from_ptr(images_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in images_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let image_path_strings: Vec<String> = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to parse images_json: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        if image_path_strings.is_empty() {
+            set_last_error("No image paths provided in images_json");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let image_paths: Vec<std::path::PathBuf> = image_path_strings
+            .into_iter()
+            .map(std::path::PathBuf::from)
+            .collect();
+
+        let target_page_size = match page_size {
+            0 => rbd_core::PageSize::A4,
+            1 => rbd_core::PageSize::Letter,
+            2 => rbd_core::PageSize::FitImage,
+            _ => {
+                set_last_error("Invalid page_size: expected 0 (A4), 1 (Letter), or 2 (FitImage)");
+                return Err(RBD_ERR_INVALID_PARAM);
+            }
+        };
+
+        let options = rbd_core::ImageToPdfOptions {
+            page_size: target_page_size,
+            margin_pt,
+        };
+
+        rbd_core::images_to_pdf(&image_paths, &options, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+/// Convert markdown text into a paginated PDF document.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_convert_markdown_to_pdf(
+    markdown_text: *const c_char,
+    out_path: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if markdown_text.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_convert_markdown_to_pdf");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let md_str = unsafe { CStr::from_ptr(markdown_text) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in markdown_text");
+                RBD_ERR_INVALID_PARAM
+            })?;
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        rbd_core::markdown_to_pdf(md_str, Path::new(out_str)).map_err(|e| map_engine_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Existing Legacy RbdSession Entrypoints (retained for backward compatibility)
 // ---------------------------------------------------------------------------
 
@@ -2340,6 +2538,95 @@ mod tests {
             let _ = std::fs::remove_file(out_num);
             let _ = std::fs::remove_file(out_bates);
             let _ = std::fs::remove_file(out_form);
+        }
+    }
+
+    #[test]
+    fn test_ffi_converter() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sample_pdf =
+            manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world-2-pages.pdf");
+        assert!(sample_pdf.exists());
+
+        let pid = std::process::id();
+        let temp_dir = std::env::temp_dir().join(format!("rbd_ffi_conv_{pid}"));
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let in_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+        let out_dir_c = CString::new(temp_dir.to_str().unwrap()).unwrap();
+
+        unsafe {
+            // 1. Null pointer checks
+            assert_eq!(
+                rbd_convert_pdf_to_images(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    150,
+                    0,
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    0,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_convert_images_to_pdf(std::ptr::null(), 0, 10.0, std::ptr::null()),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_convert_markdown_to_pdf(std::ptr::null(), std::ptr::null()),
+                RBD_ERR_NULL_PTR
+            );
+
+            // 2. PDF to images (page 2 only, PNG)
+            let mut paths_buf = vec![0u8; 4096];
+            let pr_json = CString::new("[2]").unwrap();
+            assert_eq!(
+                rbd_convert_pdf_to_images(
+                    in_c.as_ptr(),
+                    out_dir_c.as_ptr(),
+                    100,
+                    0, // PNG
+                    pr_json.as_ptr(),
+                    paths_buf.as_mut_ptr() as *mut c_char,
+                    paths_buf.len(),
+                ),
+                RBD_OK
+            );
+            let paths_str = CStr::from_ptr(paths_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(paths_str.contains("page_2.png"));
+
+            // 3. Images to PDF (round-trip the image generated in step 2)
+            let out_img_pdf = temp_dir.join("from_images.pdf");
+            let out_img_pdf_c = CString::new(out_img_pdf.to_str().unwrap()).unwrap();
+
+            assert_eq!(
+                rbd_convert_images_to_pdf(
+                    paths_buf.as_ptr() as *const c_char,
+                    0, // A4
+                    20.0,
+                    out_img_pdf_c.as_ptr(),
+                ),
+                RBD_OK
+            );
+            assert!(out_img_pdf.exists());
+
+            // 4. Markdown to PDF
+            let md_text =
+                CString::new("# C-ABI Header\n\n- Bullet 1\n- Bullet 2\n\nParagraph text.")
+                    .unwrap();
+            let out_md_pdf = temp_dir.join("from_md.pdf");
+            let out_md_pdf_c = CString::new(out_md_pdf.to_str().unwrap()).unwrap();
+
+            assert_eq!(
+                rbd_convert_markdown_to_pdf(md_text.as_ptr(), out_md_pdf_c.as_ptr()),
+                RBD_OK
+            );
+            assert!(out_md_pdf.exists());
+
+            let _ = std::fs::remove_dir_all(temp_dir);
         }
     }
 }

@@ -8,7 +8,8 @@
 
 use crate::{
     RBD_ERR_BUFFER_TOO_SMALL, RBD_ERR_INVALID_PARAM, RBD_ERR_NULL_PTR, RBD_ERR_PAGE_OUT_OF_RANGE,
-    RBD_ERR_PANIC, RBD_OK, rbd_document_add_annotation_json, rbd_document_extract_page_text,
+    RBD_ERR_PANIC, RBD_OK, rbd_convert_images_to_pdf, rbd_convert_markdown_to_pdf,
+    rbd_convert_pdf_to_images, rbd_document_add_annotation_json, rbd_document_extract_page_text,
     rbd_document_free, rbd_document_get_annotations_json, rbd_document_get_page_count,
     rbd_document_get_page_size, rbd_document_open_file, rbd_document_open_memory,
     rbd_document_redo, rbd_document_remove_annotation, rbd_document_save_annotations,
@@ -1117,6 +1118,119 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeFillFor
     })
 }
 
+/// Convert PDF pages to image files (PNG/JPEG) via JNI.
+/// Returns JSON array of output file paths, or null on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativePdfToImages(
+    mut env: JNIEnv,
+    _class: JClass,
+    in_path: jstring,
+    out_dir: jstring,
+    dpi: jint,
+    format: jint,
+    page_range_json: jstring,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if in_path.is_null() || out_dir.is_null() {
+            return ptr::null_mut();
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, in_path) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_dir) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+        let pr_c = if page_range_json.is_null() {
+            None
+        } else {
+            unsafe { jstring_to_cstring(&mut env, page_range_json) }
+        };
+
+        let pr_ptr = pr_c.as_ref().map(|c| c.as_ptr()).unwrap_or(ptr::null());
+
+        let mut buffer = vec![0u8; 65536];
+        let status = unsafe {
+            rbd_convert_pdf_to_images(
+                in_c.as_ptr(),
+                out_c.as_ptr(),
+                dpi as u32,
+                format,
+                pr_ptr,
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("[]");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Convert one or more images into a single PDF document via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeImagesToPdf(
+    mut env: JNIEnv,
+    _class: JClass,
+    images_json: jstring,
+    page_size: jint,
+    margin_pt: jfloat,
+    out_path: jstring,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if images_json.is_null() || out_path.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let img_c = match unsafe { jstring_to_cstring(&mut env, images_json) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe { rbd_convert_images_to_pdf(img_c.as_ptr(), page_size, margin_pt, out_c.as_ptr()) }
+    })
+}
+
+/// Convert markdown text into a paginated PDF document via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeMarkdownToPdf(
+    mut env: JNIEnv,
+    _class: JClass,
+    markdown_text: jstring,
+    out_path: jstring,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if markdown_text.is_null() || out_path.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let md_c = match unsafe { jstring_to_cstring(&mut env, markdown_text) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe { rbd_convert_markdown_to_pdf(md_c.as_ptr(), out_c.as_ptr()) }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1397,6 +1511,47 @@ mod tests {
                     ptr::null_mut(),
                     ptr::null_mut(),
                     JNI_TRUE,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+        }
+    }
+
+    #[test]
+    fn test_jni_converter() {
+        unsafe {
+            // Null pointer safety checks
+            assert!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativePdfToImages(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    150,
+                    0,
+                    ptr::null_mut(),
+                )
+                .is_null()
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeImagesToPdf(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    0,
+                    10.0,
+                    ptr::null_mut(),
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeMarkdownToPdf(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
                 ),
                 RBD_ERR_NULL_PTR
             );
