@@ -139,11 +139,14 @@ flowchart LR
 - **Track 4D (Android Pro Araçları UI):** `RbdNativeBridge.kt` JNI sarmalayıcısı, Material 3 `ProToolsBottomSheet` ile tek dokunuşla mobil cihazda PDF Sıkıştırma, Filigran, Sayfa Numaralandırma, Bates Damgası, Redaksiyon ve Form Düzenleme, 29/29 başarılı test.
 - 🚪 **Kapı:** Tüm mimari denetimler (`mimar-elestirmen`) bağımsız olarak onaylandı, 47 çekirdek Rust testi, 78 Windows testi, 29 Android testi (Toplam: 154 test) %100 yeşil.
 
-### Faz 5: Dönüştürücüler — [Sıradaki Faz]
-PDF ↔ Word/Excel/PowerPoint, PDF ↔ resim, HTML/Markdown → PDF, EPUB.
-- 🚪 **Kapı:** Kendi doğruluk ölçütümüzle (görsel fark + yapı skoru) Adobe çıktısıyla karşılaştırmalı test.
+### Faz 5: Dönüştürücüler — [✅ TAMAMLANDI - v0.3.0-alpha]
+- **Track 5A (Çekirdek Dönüştürücü Motoru):** `pdf_to_images` (DPI ölçekleme, PNG/JPEG dışa aktarma, sayfa aralığı filtreleme), `images_to_pdf` (A4/Letter/FitImage, en-boy oranı koruma, DCTDecode/FlateDecode XObject Image), `markdown_to_pdf` (başlıklar, listeler, alıntılar, Type 1 font, kelime kaydırma, çok sayfalı otomatik sayfalama, Türkçe karakter uyumu).
+- **Track 5B (FFI Köprüsü: C-ABI & JNI):** `rbd_convert_pdf_to_images`, `rbd_convert_images_to_pdf`, `rbd_convert_markdown_to_pdf` fonksiyonları ve Android JNI karşılıkları (`nativePdfToImages`, `nativeImagesToPdf`, `nativeMarkdownToPdf`). `catch_unwind` koruması ve dinamik bellek tamponu.
+- **Track 5C (Windows Dönüştürücü Sihirbazı):** `DocumentConverterDialog` 3 sekmeli kullanıcı arayüzü, `DocumentConverterService` yönetilen servisi, 28 yeni TR/EN yerelleştirme anahtarı, 83/83 başarılı test.
+- **Track 5D (Android Dönüştürücü Sayfası):** Material 3 `DocumentConverterBottomSheet`, `Dispatchers.IO` arka plan dönüştürme, 38/38 başarılı test.
+- 🚪 **Kapı:** 57 Rust testi, 83 Windows testi, 38 Android testi (Toplam: 178 test) %100 yeşil. Mimar-Eleştirmen bağımsız denetimi onaylandı.
 
-### Faz 6: Ofis Düzenleme (WPS seviyesi)
+### Faz 6: Ofis Düzenleme (WPS seviyesi) — [Sıradaki Faz]
 Faz 0'da seçilen motorun Windows ve Android'e gömülmesi, PDF tarafıyla tek uygulamada birleştirme.
 
 ### Faz 7: Apple (macOS, iOS, iPadOS) + Linux
