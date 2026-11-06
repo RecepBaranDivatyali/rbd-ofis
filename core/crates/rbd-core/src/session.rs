@@ -373,4 +373,87 @@ impl DocumentSession {
         rbd_engine::save_annotations_to_pdf(input_path, output_path, &self.annotations)?;
         Ok(())
     }
+
+    /// Extract text across all pages and summarize using offline natural language processing.
+    pub fn summarize_document(
+        &self,
+        max_sentences: usize,
+    ) -> Result<rbd_engine::DocumentSummary, CoreError> {
+        let count = self.page_count()?;
+        let mut page_texts: Vec<(u32, String)> = Vec::with_capacity(count as usize);
+
+        for p in 0..count {
+            let text = self.extract_text(p).unwrap_or_default();
+            page_texts.push((p + 1, text));
+        }
+
+        let slice_refs: Vec<(u32, &str)> =
+            page_texts.iter().map(|(p, t)| (*p, t.as_str())).collect();
+        let summary = rbd_engine::summarize_document(&slice_refs, max_sentences)?;
+        Ok(summary)
+    }
+
+    /// Query the document using natural language and return the most relevant passage with page citation.
+    pub fn ask_document(&self, query: &str) -> Result<rbd_engine::DocumentAnswer, CoreError> {
+        let count = self.page_count()?;
+        let mut page_texts: Vec<(u32, String)> = Vec::with_capacity(count as usize);
+
+        for p in 0..count {
+            let text = self.extract_text(p).unwrap_or_default();
+            page_texts.push((p + 1, text));
+        }
+
+        let slice_refs: Vec<(u32, &str)> =
+            page_texts.iter().map(|(p, t)| (*p, t.as_str())).collect();
+        let answer = rbd_engine::ask_document(&slice_refs, query)?;
+        Ok(answer)
+    }
+
+    /// Extract fluid, structured paragraphs from a page for reflow editing.
+    pub fn extract_page_paragraphs(
+        &self,
+        page_index: u32,
+    ) -> Result<Vec<rbd_engine::ReflowParagraph>, CoreError> {
+        let text = self.extract_text(page_index)?;
+        let (width, height) = self.page_dimensions(page_index)?;
+
+        let mut segments = Vec::new();
+        let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+        let line_count = lines.len().max(1) as f32;
+        let step_y = (height - 100.0) / line_count;
+
+        for (i, line) in lines.iter().enumerate() {
+            let y_top = height - 50.0 - (i as f32) * step_y;
+            let y_bottom = y_top - 12.0;
+            segments.push(rbd_engine::TextLineSegment {
+                text: line.to_string(),
+                bbox: [50.0, y_bottom, width - 50.0, y_top],
+                font_size: 11.0,
+            });
+        }
+
+        let paragraphs = rbd_engine::cluster_lines_into_paragraphs(page_index, &segments);
+        Ok(paragraphs)
+    }
+
+    /// Replace text in a paragraph bounding box with automatic multi-line reflow.
+    pub fn replace_paragraph_text(
+        &self,
+        input_path: &Path,
+        page_index: u32,
+        bbox: rbd_engine::BoundingBox,
+        new_text: &str,
+        font_size: f32,
+        output_path: &Path,
+    ) -> Result<(), CoreError> {
+        rbd_engine::replace_paragraph_text(
+            input_path,
+            page_index,
+            bbox,
+            new_text,
+            font_size,
+            output_path,
+        )?;
+        Ok(())
+    }
 }

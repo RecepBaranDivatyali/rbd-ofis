@@ -106,6 +106,12 @@ int32_t rbd_office_extract_text(const char* in_path, char* out_text_buf, size_t 
 int32_t rbd_office_inspect(const char* in_path, char* out_json_buf, size_t max_len);
 int32_t rbd_office_create_docx(const char* text, const char* out_path);
 
+/* Offline AI & Reflow Editing */
+int32_t rbd_ai_summarize_document(RbdDocumentHandle doc, uint32_t max_sentences, char* out_json_buf, size_t max_len);
+int32_t rbd_ai_ask_document(RbdDocumentHandle doc, const char* query, char* out_json_buf, size_t max_len);
+int32_t rbd_document_reflow_page_text(RbdDocumentHandle doc, uint32_t page_index, char* out_json_buf, size_t max_len);
+int32_t rbd_document_replace_paragraph_text(RbdDocumentHandle doc, const char* input_path, uint32_t page_index, float x0, float y0, float x1, float y1, const char* new_text, float font_size, const char* output_path);
+
 #ifdef __cplusplus
 }
 #endif

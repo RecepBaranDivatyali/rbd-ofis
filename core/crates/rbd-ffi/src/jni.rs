@@ -1336,6 +1336,173 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeC
     })
 }
 
+/// Summarize document text using offline natural language processing via JNI.
+/// Returns JSON-encoded `DocumentSummary` or null on error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeSummarizeDocument(
+    env: JNIEnv,
+    _class: JClass,
+    doc_handle: jlong,
+    max_sentences: jint,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if doc_handle == 0 {
+            return ptr::null_mut();
+        }
+
+        let mut buffer = vec![0u8; 65536]; // 64 KB buffer
+        let status = unsafe {
+            crate::rbd_ai_summarize_document(
+                doc_handle as *mut c_void,
+                max_sentences as u32,
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("{}");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Query the document using natural language via JNI.
+/// Returns JSON-encoded `DocumentAnswer` or null on error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeAskDocument(
+    mut env: JNIEnv,
+    _class: JClass,
+    doc_handle: jlong,
+    query: jstring,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if doc_handle == 0 || query.is_null() {
+            return ptr::null_mut();
+        }
+
+        let query_c = match unsafe { jstring_to_cstring(&mut env, query) } {
+            Some(p) => p,
+            None => return ptr::null_mut(),
+        };
+
+        let mut buffer = vec![0u8; 65536];
+        let status = unsafe {
+            crate::rbd_ai_ask_document(
+                doc_handle as *mut c_void,
+                query_c.as_ptr(),
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("{}");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Extract fluid, structured paragraphs from a page for reflow editing via JNI.
+/// Returns JSON-encoded array of `ReflowParagraph` or null on error.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReflowPageText(
+    env: JNIEnv,
+    _class: JClass,
+    doc_handle: jlong,
+    page_index: jint,
+) -> jstring {
+    jni_boundary(ptr::null_mut(), || {
+        if doc_handle == 0 {
+            return ptr::null_mut();
+        }
+
+        let mut buffer = vec![0u8; 65536];
+        let status = unsafe {
+            crate::rbd_document_reflow_page_text(
+                doc_handle as *mut c_void,
+                page_index as u32,
+                buffer.as_mut_ptr() as *mut c_char,
+                buffer.len(),
+            )
+        };
+
+        if status != RBD_OK {
+            return ptr::null_mut();
+        }
+
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
+        let rust_str = c_str.to_str().unwrap_or("[]");
+        match env.new_string(rust_str) {
+            Ok(js) => js.into_raw(),
+            Err(_) => ptr::null_mut(),
+        }
+    })
+}
+
+/// Replace text in a paragraph bounding box with automatic multi-line reflow via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReplaceParagraphText(
+    mut env: JNIEnv,
+    _class: JClass,
+    doc_handle: jlong,
+    input_path: jstring,
+    page_index: jint,
+    x0: jfloat,
+    y0: jfloat,
+    x1: jfloat,
+    y1: jfloat,
+    new_text: jstring,
+    font_size: jfloat,
+    output_path: jstring,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if doc_handle == 0 || input_path.is_null() || new_text.is_null() || output_path.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+
+        let in_c = match unsafe { jstring_to_cstring(&mut env, input_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let text_c = match unsafe { jstring_to_cstring(&mut env, new_text) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, output_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+
+        unsafe {
+            crate::rbd_document_replace_paragraph_text(
+                doc_handle as *mut c_void,
+                in_c.as_ptr(),
+                page_index as u32,
+                x0,
+                y0,
+                x1,
+                y1,
+                text_c.as_ptr(),
+                font_size,
+                out_c.as_ptr(),
+            )
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

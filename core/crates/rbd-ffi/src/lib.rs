@@ -1815,6 +1815,183 @@ pub unsafe extern "C" fn rbd_office_create_docx(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 8: Offline AI, Document Q&A & Reflow Editing
+// ---------------------------------------------------------------------------
+
+/// Summarize document text using offline natural language processing (returns JSON).
+///
+/// # Safety
+/// `doc` must be a valid document handle. `out_json_buf` must be writable with at least `max_len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_ai_summarize_document(
+    doc: *mut c_void,
+    max_sentences: u32,
+    out_json_buf: *mut c_char,
+    max_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_json_buf.is_null() {
+            set_last_error("Null pointer passed to rbd_ai_summarize_document");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if max_len == 0 {
+            set_last_error("max_len must be greater than zero");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let summary = doc_handle
+            .session
+            .summarize_document(max_sentences as usize)
+            .map_err(|e| map_core_error(&e))?;
+
+        let json_str = serde_json::to_string(&summary).map_err(|e| {
+            set_last_error(&format!("JSON serialization failed: {e}"));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        copy_str_to_caller_buffer(&json_str, out_json_buf, max_len)?;
+        Ok(())
+    }))
+}
+
+/// Query the document using natural language and return the best passage with citation as JSON.
+///
+/// # Safety
+/// `doc` must be a valid document handle. `query` and `out_json_buf` must be non-null and valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_ai_ask_document(
+    doc: *mut c_void,
+    query: *const c_char,
+    out_json_buf: *mut c_char,
+    max_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || query.is_null() || out_json_buf.is_null() {
+            set_last_error("Null pointer passed to rbd_ai_ask_document");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if max_len == 0 {
+            set_last_error("max_len must be greater than zero");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let query_str = unsafe { CStr::from_ptr(query) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in query");
+            RBD_ERR_INVALID_PARAM
+        })?;
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let answer = doc_handle
+            .session
+            .ask_document(query_str)
+            .map_err(|e| map_core_error(&e))?;
+
+        let json_str = serde_json::to_string(&answer).map_err(|e| {
+            set_last_error(&format!("JSON serialization failed: {e}"));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        copy_str_to_caller_buffer(&json_str, out_json_buf, max_len)?;
+        Ok(())
+    }))
+}
+
+/// Extract fluid, structured paragraphs from a page for reflow editing as JSON.
+///
+/// # Safety
+/// `doc` must be a valid document handle. `out_json_buf` must be writable with at least `max_len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_reflow_page_text(
+    doc: *mut c_void,
+    page_index: u32,
+    out_json_buf: *mut c_char,
+    max_len: usize,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || out_json_buf.is_null() {
+            set_last_error("Null pointer passed to rbd_document_reflow_page_text");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if max_len == 0 {
+            set_last_error("max_len must be greater than zero");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let paragraphs = doc_handle
+            .session
+            .extract_page_paragraphs(page_index)
+            .map_err(|e| map_core_error(&e))?;
+
+        let json_str = serde_json::to_string(&paragraphs).map_err(|e| {
+            set_last_error(&format!("JSON serialization failed: {e}"));
+            RBD_ERR_ENGINE_FAILURE
+        })?;
+
+        copy_str_to_caller_buffer(&json_str, out_json_buf, max_len)?;
+        Ok(())
+    }))
+}
+
+/// Replace text in a paragraph bounding box with automatic multi-line reflow.
+///
+/// # Safety
+/// All pointers must be valid and null-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_document_replace_paragraph_text(
+    doc: *mut c_void,
+    input_path: *const c_char,
+    page_index: u32,
+    x0: f32,
+    y0: f32,
+    x1: f32,
+    y1: f32,
+    new_text: *const c_char,
+    font_size: f32,
+    output_path: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if doc.is_null() || input_path.is_null() || new_text.is_null() || output_path.is_null() {
+            set_last_error("Null pointer passed to rbd_document_replace_paragraph_text");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+
+        let in_str = unsafe { CStr::from_ptr(input_path) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in input_path");
+                RBD_ERR_INVALID_PARAM
+            })?;
+        let text_str = unsafe { CStr::from_ptr(new_text) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in new_text");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let out_str = unsafe { CStr::from_ptr(output_path) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in output_path");
+                RBD_ERR_INVALID_PARAM
+            })?;
+
+        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        doc_handle
+            .session
+            .replace_paragraph_text(
+                Path::new(in_str),
+                page_index,
+                [x0, y0, x1, y1],
+                text_str,
+                if font_size > 0.0 { font_size } else { 11.0 },
+                Path::new(out_str),
+            )
+            .map_err(|e| map_core_error(&e))?;
+
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Existing Legacy RbdSession Entrypoints (retained for backward compatibility)
 // ---------------------------------------------------------------------------
 
@@ -2832,6 +3009,106 @@ mod tests {
             assert!(json_str.contains("\"word_count\":6"));
 
             let _ = std::fs::remove_dir_all(temp_dir);
+        }
+    }
+
+    #[test]
+    fn test_ffi_ai_summarize_and_ask() {
+        let sample_pdf = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../corpus/files/pdf-basic/sample.pdf");
+        if !sample_pdf.exists() {
+            return;
+        }
+
+        let pid = std::process::id();
+        let path_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+
+        unsafe {
+            let mut engine = std::ptr::null_mut();
+            assert_eq!(rbd_engine_init(&mut engine), RBD_OK);
+            assert!(!engine.is_null());
+
+            let mut doc = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_open_file(engine, path_c.as_ptr(), &mut doc),
+                RBD_OK
+            );
+            assert!(!doc.is_null());
+
+            // 1. AI Summarize
+            let mut sum_buf = vec![0u8; 16384];
+            assert_eq!(
+                rbd_ai_summarize_document(
+                    doc,
+                    3,
+                    sum_buf.as_mut_ptr() as *mut c_char,
+                    sum_buf.len()
+                ),
+                RBD_OK
+            );
+            let sum_str = CStr::from_ptr(sum_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(sum_str.contains("summary_text"));
+
+            // 2. AI Ask
+            let query_c = CString::new("sample document query").unwrap();
+            let mut ask_buf = vec![0u8; 16384];
+            assert_eq!(
+                rbd_ai_ask_document(
+                    doc,
+                    query_c.as_ptr(),
+                    ask_buf.as_mut_ptr() as *mut c_char,
+                    ask_buf.len()
+                ),
+                RBD_OK
+            );
+            let ask_str = CStr::from_ptr(ask_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(ask_str.contains("query"));
+
+            // 3. Reflow Paragraphs
+            let mut reflow_buf = vec![0u8; 16384];
+            assert_eq!(
+                rbd_document_reflow_page_text(
+                    doc,
+                    0,
+                    reflow_buf.as_mut_ptr() as *mut c_char,
+                    reflow_buf.len()
+                ),
+                RBD_OK
+            );
+            let reflow_str = CStr::from_ptr(reflow_buf.as_ptr() as *const c_char)
+                .to_str()
+                .unwrap();
+            assert!(reflow_str.starts_with('['));
+
+            // 4. Replace paragraph text
+            let out_pdf = std::env::temp_dir().join(format!("rbd_ffi_reflow_{pid}.pdf"));
+            let out_c = CString::new(out_pdf.to_str().unwrap()).unwrap();
+            let new_text_c = CString::new("Reflowed text for testing").unwrap();
+
+            assert_eq!(
+                rbd_document_replace_paragraph_text(
+                    doc,
+                    path_c.as_ptr(),
+                    0,
+                    72.0,
+                    600.0,
+                    400.0,
+                    650.0,
+                    new_text_c.as_ptr(),
+                    11.0,
+                    out_c.as_ptr(),
+                ),
+                RBD_OK
+            );
+            assert!(out_pdf.exists());
+            let _ = std::fs::remove_file(out_pdf);
+
+            rbd_document_free(doc);
+            rbd_engine_free(engine);
         }
     }
 }

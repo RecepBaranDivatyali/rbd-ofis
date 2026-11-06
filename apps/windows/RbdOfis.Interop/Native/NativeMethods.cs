@@ -309,4 +309,43 @@ internal static partial class NativeMethods
     public static partial int rbd_office_create_docx(
         string text,
         string outPath);
+
+    // Offline AI & Reflow Editing (Phase 8 Track 8C/8D)
+    [LibraryImport(LibraryName, EntryPoint = "rbd_ai_summarize_document", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_ai_summarize_document(
+        IntPtr doc,
+        uint maxSentences,
+        IntPtr outJsonBuf,
+        nuint maxLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_ai_ask_document", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_ai_ask_document(
+        IntPtr doc,
+        string query,
+        IntPtr outJsonBuf,
+        nuint maxLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_document_reflow_page_text", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_document_reflow_page_text(
+        IntPtr doc,
+        uint pageIndex,
+        IntPtr outJsonBuf,
+        nuint maxLen);
+
+    [LibraryImport(LibraryName, EntryPoint = "rbd_document_replace_paragraph_text", StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int rbd_document_replace_paragraph_text(
+        IntPtr doc,
+        string inputPath,
+        uint pageIndex,
+        float x0,
+        float y0,
+        float x1,
+        float y1,
+        string newText,
+        float fontSize,
+        string outputPath);
 }

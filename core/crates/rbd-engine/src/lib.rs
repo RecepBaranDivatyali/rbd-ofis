@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod annotation;
 pub mod backend;
 pub mod compression;
@@ -7,10 +8,15 @@ pub mod forms;
 pub mod ooxml;
 pub mod page_ops;
 pub mod redaction;
+pub mod reflow;
 pub mod search;
 pub mod stamp;
 pub mod traits;
 
+pub use ai::{
+    DocumentAnswer, DocumentSummary, KeywordScore, ask_document, split_sentences,
+    summarize_document, tokenize_words,
+};
 pub use annotation::{
     Annotation, AnnotationKind, list_annotations_from_doc, list_annotations_from_pdf,
     save_annotations_to_memory, save_annotations_to_pdf,
@@ -36,6 +42,10 @@ pub use page_ops::{
     crop_page, delete_pages, insert_blank_page, merge, reorder_pages, rotate, split,
 };
 pub use redaction::{PageRedaction, redact_document, redact_document_bytes};
+pub use reflow::{
+    BoundingBox, ReflowParagraph, TextLineSegment, cluster_lines_into_paragraphs,
+    reflow_text_to_width, replace_paragraph_text, replace_paragraph_text_doc,
+};
 pub use search::{PdfRect, SearchHit, find_matches, turkish_lowercase};
 pub use stamp::{
     BatesOptions, PageNumberOptions, StampPosition, WatermarkOptions, apply_bates_stamp,

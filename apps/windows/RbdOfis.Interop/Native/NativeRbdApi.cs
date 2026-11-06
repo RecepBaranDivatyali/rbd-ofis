@@ -348,4 +348,93 @@ public sealed class NativeRbdApi : INativeRbdApi
 
     public int OfficeCreateDocx(string text, string outPath) =>
         NativeMethods.rbd_office_create_docx(text, outPath);
+
+    public int SummarizeDocument(IntPtr docHandle, uint maxSentences, out string summaryJson)
+    {
+        summaryJson = "{}";
+        int bufSize = 65536;
+        byte[] buffer = new byte[bufSize];
+        unsafe
+        {
+            fixed (byte* p = buffer)
+            {
+                int status = NativeMethods.rbd_ai_summarize_document(docHandle, maxSentences, (IntPtr)p, (nuint)buffer.Length);
+                if (status == 0)
+                {
+                    int nullIdx = Array.IndexOf(buffer, (byte)0);
+                    int len = nullIdx >= 0 ? nullIdx : buffer.Length;
+                    summaryJson = System.Text.Encoding.UTF8.GetString(buffer, 0, len);
+                    return 0;
+                }
+                return status;
+            }
+        }
+    }
+
+    public int AskDocument(IntPtr docHandle, string query, out string answerJson)
+    {
+        answerJson = "{}";
+        int bufSize = 65536;
+        byte[] buffer = new byte[bufSize];
+        unsafe
+        {
+            fixed (byte* p = buffer)
+            {
+                int status = NativeMethods.rbd_ai_ask_document(docHandle, query, (IntPtr)p, (nuint)buffer.Length);
+                if (status == 0)
+                {
+                    int nullIdx = Array.IndexOf(buffer, (byte)0);
+                    int len = nullIdx >= 0 ? nullIdx : buffer.Length;
+                    answerJson = System.Text.Encoding.UTF8.GetString(buffer, 0, len);
+                    return 0;
+                }
+                return status;
+            }
+        }
+    }
+
+    public int ReflowPageText(IntPtr docHandle, uint pageIndex, out string paragraphsJson)
+    {
+        paragraphsJson = "[]";
+        int bufSize = 65536;
+        byte[] buffer = new byte[bufSize];
+        unsafe
+        {
+            fixed (byte* p = buffer)
+            {
+                int status = NativeMethods.rbd_document_reflow_page_text(docHandle, pageIndex, (IntPtr)p, (nuint)buffer.Length);
+                if (status == 0)
+                {
+                    int nullIdx = Array.IndexOf(buffer, (byte)0);
+                    int len = nullIdx >= 0 ? nullIdx : buffer.Length;
+                    paragraphsJson = System.Text.Encoding.UTF8.GetString(buffer, 0, len);
+                    return 0;
+                }
+                return status;
+            }
+        }
+    }
+
+    public int ReplaceParagraphText(
+        IntPtr docHandle,
+        string inputPath,
+        uint pageIndex,
+        float x0,
+        float y0,
+        float x1,
+        float y1,
+        string newText,
+        float fontSize,
+        string outputPath) =>
+        NativeMethods.rbd_document_replace_paragraph_text(
+            docHandle,
+            inputPath,
+            pageIndex,
+            x0,
+            y0,
+            x1,
+            y1,
+            newText,
+            fontSize,
+            outputPath);
 }

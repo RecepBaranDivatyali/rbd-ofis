@@ -173,6 +173,74 @@ public final class RbdDocument {
         guard let h = handle else { return false }
         return rbd_document_redo(h) == RBD_OK
     }
+
+    // Phase 8 Offline AI & Reflow Editing
+    public func summarize(maxSentences: Int = 5) throws -> String {
+        guard let h = handle else { throw RbdError.nullPointer }
+        var buffer = [CChar](repeating: 0, count: 65536)
+        let status = rbd_ai_summarize_document(h, UInt32(maxSentences), &buffer, buffer.count)
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+        return String(cString: buffer)
+    }
+
+    public func ask(query: String) throws -> String {
+        guard let h = handle else { throw RbdError.nullPointer }
+        var buffer = [CChar](repeating: 0, count: 65536)
+        let status = query.withCString { cQuery in
+            rbd_ai_ask_document(h, cQuery, &buffer, buffer.count)
+        }
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+        return String(cString: buffer)
+    }
+
+    public func reflowPage(pageIndex: Int) throws -> String {
+        guard let h = handle else { throw RbdError.nullPointer }
+        var buffer = [CChar](repeating: 0, count: 65536)
+        let status = rbd_document_reflow_page_text(h, UInt32(pageIndex), &buffer, buffer.count)
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+        return String(cString: buffer)
+    }
+
+    public func replaceParagraph(
+        inputPath: String,
+        pageIndex: Int,
+        x0: Double,
+        y0: Double,
+        x1: Double,
+        y1: Double,
+        newText: String,
+        fontSize: Double = 11.0,
+        outputPath: String
+    ) throws {
+        guard let h = handle else { throw RbdError.nullPointer }
+        let status = inputPath.withCString { cIn in
+            newText.withCString { cText in
+                outputPath.withCString { cOut in
+                    rbd_document_replace_paragraph_text(
+                        h,
+                        cIn,
+                        UInt32(pageIndex),
+                        Float(x0),
+                        Float(y0),
+                        Float(x1),
+                        Float(y1),
+                        cText,
+                        Float(fontSize),
+                        cOut
+                    )
+                }
+            }
+        }
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+    }
 }
 
 /// Headless Office document inspection and extraction service (Phase 6 & 7).

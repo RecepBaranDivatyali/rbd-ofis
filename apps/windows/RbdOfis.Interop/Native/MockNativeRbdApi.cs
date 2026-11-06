@@ -610,4 +610,72 @@ public sealed class MockNativeRbdApi : INativeRbdApi
             return (int)RbdStatusCode.ErrorFileIo;
         }
     }
+
+    public int SummarizeDocument(IntPtr docHandle, uint maxSentences, out string summaryJson)
+    {
+        summaryJson = JsonSerializer.Serialize(new
+        {
+            summary_text = "RBD OFİS yüksek performanslı, çevrimdışı ve reklamsız bir ofis paketidir.",
+            key_sentences = new[] { "RBD OFİS yüksek performanslı, çevrimdışı ve reklamsız bir ofis paketidir." },
+            top_keywords = new[] { new { word = "ofis", count = 3, score = 1.0f } },
+            total_sentences = 1,
+            word_count = 10,
+            reading_time_minutes = 0.1f
+        });
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int AskDocument(IntPtr docHandle, string query, out string answerJson)
+    {
+        answerJson = JsonSerializer.Serialize(new
+        {
+            query,
+            answer_text = "RBD OFİS tamamen yerel olarak çalışır ve internet bağlantısı gerektirmez.",
+            context_excerpt = "RBD OFİS tamamen yerel olarak çalışır ve internet bağlantısı gerektirmez.",
+            page_number = 1,
+            confidence = 0.95f,
+            found = true
+        });
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ReflowPageText(IntPtr docHandle, uint pageIndex, out string paragraphsJson)
+    {
+        paragraphsJson = JsonSerializer.Serialize(new[]
+        {
+            new
+            {
+                id = 1,
+                page_index = pageIndex,
+                bbox = new[] { 72.0f, 600.0f, 400.0f, 650.0f },
+                text = "RBD OFİS paragraf akış metni.",
+                font_size = 12.0f,
+                line_count = 1
+            }
+        });
+        return (int)RbdStatusCode.Success;
+    }
+
+    public int ReplaceParagraphText(
+        IntPtr docHandle,
+        string inputPath,
+        uint pageIndex,
+        float x0,
+        float y0,
+        float x1,
+        float y1,
+        string newText,
+        float fontSize,
+        string outputPath)
+    {
+        if (File.Exists(inputPath))
+        {
+            File.Copy(inputPath, outputPath, overwrite: true);
+        }
+        else
+        {
+            File.WriteAllText(outputPath, $"%PDF-1.7 reflowed: {newText}");
+        }
+        return (int)RbdStatusCode.Success;
+    }
 }

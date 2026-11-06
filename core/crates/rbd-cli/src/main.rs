@@ -74,6 +74,14 @@ enum Commands {
     OfficeInspect(OfficeInspectArgs),
     /// Create a minimal DOCX document from text
     OfficeCreateDocx(OfficeCreateDocxArgs),
+    /// Summarize document using offline AI natural language processing
+    AiSummarize(AiSummarizeArgs),
+    /// Ask natural language questions about document content with citations
+    AiAsk(AiAskArgs),
+    /// Extract fluid, structured paragraphs from a page for reflow editing
+    ReflowText(ReflowTextArgs),
+    /// Replace paragraph text with dynamic multi-line reflow
+    ReplaceParagraph(ReplaceParagraphArgs),
     /// Benchmark cold open, first-page render, and 256x256 tile rendering latency
     Bench(BenchArgs),
 }
@@ -407,6 +415,62 @@ struct OfficeCreateDocxArgs {
 }
 
 #[derive(Args)]
+struct AiSummarizeArgs {
+    /// Path to the PDF file
+    file: PathBuf,
+    /// Target maximum sentence count
+    #[arg(short, long, default_value_t = 5)]
+    sentences: usize,
+    /// Output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args)]
+struct AiAskArgs {
+    /// Path to the PDF file
+    file: PathBuf,
+    /// Natural language question
+    query: String,
+    /// Output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args)]
+struct ReflowTextArgs {
+    /// Path to the PDF file
+    file: PathBuf,
+    /// 1-based page number
+    #[arg(short, long, default_value_t = 1)]
+    page: u32,
+    /// Output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args)]
+struct ReplaceParagraphArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// 1-based page number
+    #[arg(short, long)]
+    page: u32,
+    /// Paragraph bounding box "x0,y0,x1,y1"
+    #[arg(long = "box")]
+    bbox: String,
+    /// Replacement text
+    #[arg(short, long)]
+    text: String,
+    /// Font size in points
+    #[arg(long, default_value_t = 11.0)]
+    font_size: f32,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
 struct BenchArgs {
     /// Path to the PDF file
     file: PathBuf,
@@ -485,6 +549,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::OfficeExtract(args) => handle_office_extract(&args)?,
         Commands::OfficeInspect(args) => handle_office_inspect(&args)?,
         Commands::OfficeCreateDocx(args) => handle_office_create_docx(&args)?,
+        Commands::AiSummarize(args) => handle_ai_summarize(&args, engine.as_ref())?,
+        Commands::AiAsk(args) => handle_ai_ask(&args, engine.as_ref())?,
+        Commands::ReflowText(args) => handle_reflow_text(&args, engine.as_ref())?,
+        Commands::ReplaceParagraph(args) => handle_replace_paragraph(&args, engine.as_ref())?,
         Commands::Bench(args) => handle_bench(&args, engine.as_ref())?,
     }
 
@@ -676,6 +744,116 @@ fn handle_office_create_docx(
 ) -> Result<(), Box<dyn std::error::Error>> {
     create_simple_docx(&args.text, &args.out)?;
     println!("Successfully created DOCX: {}", args.out.display());
+    Ok(())
+}
+
+fn handle_ai_summarize(
+    args: &AiSummarizeArgs,
+    engine: &dyn PdfEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let session = DocumentSession::open_file(&args.file, None, engine, None)?;
+    let summary = session.summarize_document(args.sentences)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&summary)?);
+    } else {
+        println!("=== Document Summary: {} ===", args.file.display());
+        println!(
+            "Words: {} | Reading Time: ~{:.1} min | Sentences: {}",
+            summary.word_count, summary.reading_time_minutes, summary.total_sentences
+        );
+        println!("\nSummary:\n{}", summary.summary_text);
+        if !summary.top_keywords.is_empty() {
+            let kw: Vec<&str> = summary
+                .top_keywords
+                .iter()
+                .map(|k| k.word.as_str())
+                .collect();
+            println!("\nTop Keywords: {:?}", kw);
+        }
+    }
+    Ok(())
+}
+
+fn handle_ai_ask(
+    args: &AiAskArgs,
+    engine: &dyn PdfEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let session = DocumentSession::open_file(&args.file, None, engine, None)?;
+    let answer = session.ask_document(&args.query)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&answer)?);
+    } else {
+        println!("Q: {}", answer.query);
+        if answer.found {
+            println!(
+                "A: {} (Page {}, Confidence: {:.0}%)",
+                answer.answer_text,
+                answer.page_number,
+                answer.confidence * 100.0
+            );
+            if !answer.context_excerpt.is_empty() {
+                println!("\nContext:\n{}", answer.context_excerpt);
+            }
+        } else {
+            println!("A: {}", answer.answer_text);
+        }
+    }
+    Ok(())
+}
+
+fn handle_reflow_text(
+    args: &ReflowTextArgs,
+    engine: &dyn PdfEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let session = DocumentSession::open_file(&args.file, None, engine, None)?;
+    let page_idx = args.page.saturating_sub(1);
+    let paragraphs = session.extract_page_paragraphs(page_idx)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&paragraphs)?);
+    } else {
+        println!(
+            "Found {} paragraph(s) on page {}:",
+            paragraphs.len(),
+            args.page
+        );
+        for p in &paragraphs {
+            println!(
+                "  [{}] [{:.1}, {:.1}, {:.1}, {:.1}] (font {:.1}pt): {}",
+                p.id, p.bbox[0], p.bbox[1], p.bbox[2], p.bbox[3], p.font_size, p.text
+            );
+        }
+    }
+    Ok(())
+}
+
+fn handle_replace_paragraph(
+    args: &ReplaceParagraphArgs,
+    engine: &dyn PdfEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let session = DocumentSession::open_file(&args.input, None, engine, None)?;
+    let page_idx = args.page.saturating_sub(1);
+    let parts: Vec<f32> = args
+        .bbox
+        .split(',')
+        .map(|s| s.trim().parse::<f32>())
+        .collect::<Result<_, _>>()?;
+    if parts.len() != 4 {
+        eprintln!("Error: bbox must be 'x0,y0,x1,y1'");
+        std::process::exit(1);
+    }
+    let bbox = [parts[0], parts[1], parts[2], parts[3]];
+    session.replace_paragraph_text(
+        &args.input,
+        page_idx,
+        bbox,
+        &args.text,
+        args.font_size,
+        &args.out,
+    )?;
+    println!(
+        "Successfully replaced paragraph text and reflowed into: {}",
+        args.out.display()
+    );
     Ok(())
 }
 
