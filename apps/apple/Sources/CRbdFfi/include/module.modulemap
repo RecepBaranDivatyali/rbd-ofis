@@ -1,0 +1,4 @@
+module CRbdFfi [system] {
+    header "rbd_ffi.h"
+    export *
+}

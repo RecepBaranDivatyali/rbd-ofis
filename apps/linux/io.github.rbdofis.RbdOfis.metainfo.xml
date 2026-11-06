@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rbdofis.RbdOfis</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <name>RBD OFİS</name>
+  <summary>Free, offline, privacy-first Office and PDF suite</summary>
+  <description>
+    <p>
+      RBD OFİS is a high-performance, ad-free, completely offline Office &amp; PDF suite built with Rust core architecture.
+    </p>
+    <ul>
+      <li>Fast PDF viewing, tile rendering, search, and page editing</li>
+      <li>Freehand drawing, highlight, sticky note annotations</li>
+      <li>Document compression, watermarking, bates stamping, page numbering</li>
+      <li>Interactive AcroForm reading, filling, and flattening</li>
+      <li>Office document extraction and editing (DOCX, XLSX, PPTX)</li>
+      <li>Zero network access, zero tracking, strict privacy guaranteed</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.rbdofis.RbdOfis.desktop</launchable>
+  <provides>
+    <binary>rbd</binary>
+    <mediatype>application/pdf</mediatype>
+    <mediatype>application/vnd.openxmlformats-officedocument.wordprocessingml.document</mediatype>
+    <mediatype>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</mediatype>
+    <mediatype>application/vnd.openxmlformats-officedocument.presentationml.presentation</mediatype>
+  </provides>
+  <developer_name>Recep Baran Divatyalı</developer_name>
+  <url type="homepage">https://github.com/RecepBaranDivatyali/rbd-ofis</url>
+  <url type="bugtracker">https://github.com/RecepBaranDivatyali/rbd-ofis/issues</url>
+</component>

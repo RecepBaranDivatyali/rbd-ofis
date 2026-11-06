@@ -1,0 +1,21 @@
+[Desktop Entry]
+Name=RBD OFİS
+Comment=Offline, privacy-respecting, high-performance Office & PDF Suite
+GenericName=Office & PDF Suite
+Exec=rbd %U
+Terminal=false
+Type=Application
+Icon=io.github.rbdofis.RbdOfis
+Categories=Office;Viewer;WordProcessor;Spreadsheet;Presentation;
+MimeType=application/pdf;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.openxmlformats-officedocument.presentationml.presentation;text/markdown;
+Keywords=PDF;Office;Word;Excel;PowerPoint;DOCX;XLSX;PPTX;Viewer;Editor;
+StartupNotify=true
+Actions=NewDocx;NewPdf;
+
+[Desktop Action NewDocx]
+Name=New Document
+Exec=rbd office-create-docx --out ~/Documents/Yeni_Belge.docx --text ""
+
+[Desktop Action NewPdf]
+Name=Open PDF
+Exec=rbd info %f

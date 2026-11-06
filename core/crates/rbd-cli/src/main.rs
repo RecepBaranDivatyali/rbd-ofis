@@ -1,11 +1,16 @@
 use clap::{Args, Parser, Subcommand};
 use image::ExtendedColorType;
 use rbd_core::{
-    DocumentSession, crop_page, decrypt_pdf, delete_pages, insert_blank_page, merge, reorder_pages,
-    rotate, split,
+    BatesOptions, CompressionOptions, DocumentSession, ImageFormatType, ImageToPdfOptions,
+    PageNumberOptions, PageSize, PdfToImageOptions, StampPosition, WatermarkOptions,
+    apply_bates_stamp, apply_page_numbers, apply_watermark, compress_document, create_simple_docx,
+    crop_page, decrypt_pdf, delete_pages, extract_office_text, fill_form_fields, images_to_pdf,
+    insert_blank_page, inspect_office_document, markdown_to_pdf, merge, pdf_to_images,
+    read_form_fields, reorder_pages, rotate, split,
 };
 use rbd_engine::{Annotation, AnnotationKind, PdfEngine, PdfRect, create_default_engine};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -45,6 +50,30 @@ enum Commands {
     Split(SplitArgs),
     /// Rotate PDF pages
     Rotate(RotateArgs),
+    /// Compress a PDF document to reduce file size
+    Compress(CompressArgs),
+    /// Apply a text watermark across document pages
+    Watermark(WatermarkArgs),
+    /// Apply dynamic page numbers ({page} / {total})
+    PageNumbers(PageNumbersArgs),
+    /// Apply legal Bates stamping across pages
+    Bates(BatesArgs),
+    /// Inspect interactive AcroForm form fields
+    FormRead(FormReadArgs),
+    /// Fill interactive form fields and optionally flatten
+    FormFill(FormFillArgs),
+    /// Convert PDF pages to image files (PNG/JPEG)
+    PdfToImages(PdfToImagesArgs),
+    /// Convert image files to a standardized PDF
+    ImagesToPdf(ImagesToPdfArgs),
+    /// Convert Markdown document into a styled PDF
+    MarkdownToPdf(MarkdownToPdfArgs),
+    /// Extract text from OOXML Office documents (DOCX, XLSX, PPTX)
+    OfficeExtract(OfficeExtractArgs),
+    /// Inspect structure & metadata of OOXML Office documents
+    OfficeInspect(OfficeInspectArgs),
+    /// Create a minimal DOCX document from text
+    OfficeCreateDocx(OfficeCreateDocxArgs),
     /// Benchmark cold open, first-page render, and 256x256 tile rendering latency
     Bench(BenchArgs),
 }
@@ -214,6 +243,170 @@ struct RotateArgs {
 }
 
 #[derive(Args)]
+struct CompressArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output compressed PDF path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Strip document metadata (/Info, /Metadata)
+    #[arg(long)]
+    strip_metadata: bool,
+}
+
+#[derive(Args)]
+struct WatermarkArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output PDF path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Watermark text string
+    #[arg(short, long)]
+    text: String,
+    /// Font size in points (default: 48.0)
+    #[arg(long, default_value_t = 48.0)]
+    font_size: f32,
+    /// Rotation angle in degrees (default: 45.0)
+    #[arg(long, default_value_t = 45.0)]
+    angle: f32,
+    /// Opacity from 0.0 to 1.0 (default: 0.25)
+    #[arg(long, default_value_t = 0.25)]
+    opacity: f32,
+}
+
+#[derive(Args)]
+struct PageNumbersArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output PDF path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Template string with {page} and {total} placeholders
+    #[arg(long, default_value = "Sayfa {page} / {total}")]
+    template: String,
+    /// Position (topleft, topcenter, topright, bottomleft, bottomcenter, bottomright)
+    #[arg(long, default_value = "bottomcenter")]
+    position: String,
+    /// 1-based start page
+    #[arg(long, default_value_t = 1)]
+    start_page: u32,
+}
+
+#[derive(Args)]
+struct BatesArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output PDF path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Prefix (e.g. "RBD-")
+    #[arg(long, default_value = "RBD-")]
+    prefix: String,
+    /// Suffix (optional)
+    #[arg(long)]
+    suffix: Option<String>,
+    /// Number of digits to pad with zeros
+    #[arg(long, default_value_t = 6)]
+    digits: usize,
+    /// Starting number
+    #[arg(long, default_value_t = 1)]
+    start: u32,
+    /// Position (topleft, topcenter, topright, bottomleft, bottomcenter, bottomright)
+    #[arg(long, default_value = "bottomright")]
+    position: String,
+}
+
+#[derive(Args)]
+struct FormReadArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args)]
+struct FormFillArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output PDF path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Comma-separated "key=value,key2=value2" or JSON format
+    #[arg(short, long)]
+    data: String,
+    /// Flatten form fields permanently into page content
+    #[arg(long)]
+    flatten: bool,
+}
+
+#[derive(Args)]
+struct PdfToImagesArgs {
+    /// Input PDF file path
+    input: PathBuf,
+    /// Output directory for rendered images
+    #[arg(short, long)]
+    out_dir: PathBuf,
+    /// Image DPI resolution (default: 150)
+    #[arg(long, default_value_t = 150)]
+    dpi: u32,
+    /// Format: png or jpeg (default: png)
+    #[arg(long, default_value = "png")]
+    format: String,
+}
+
+#[derive(Args)]
+struct ImagesToPdfArgs {
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Input image files
+    #[arg(required = true)]
+    inputs: Vec<PathBuf>,
+    /// Page size: a4, letter, fit (default: a4)
+    #[arg(long, default_value = "a4")]
+    page_size: String,
+    /// Margin in points (default: 20.0)
+    #[arg(long, default_value_t = 20.0)]
+    margin: f32,
+}
+
+#[derive(Args)]
+struct MarkdownToPdfArgs {
+    /// Input Markdown file path
+    input: PathBuf,
+    /// Output PDF file path
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct OfficeExtractArgs {
+    /// Path to DOCX, XLSX, or PPTX file
+    input: PathBuf,
+}
+
+#[derive(Args)]
+struct OfficeInspectArgs {
+    /// Path to DOCX, XLSX, or PPTX file
+    input: PathBuf,
+    /// Output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args)]
+struct OfficeCreateDocxArgs {
+    /// Output DOCX file path
+    #[arg(short, long)]
+    out: PathBuf,
+    /// Text content for the document
+    #[arg(short, long)]
+    text: String,
+}
+
+#[derive(Args)]
 struct BenchArgs {
     /// Path to the PDF file
     file: PathBuf,
@@ -242,6 +435,26 @@ struct BenchmarkReport {
     tile_60fps_passed: bool,
 }
 
+fn parse_stamp_pos(pos: &str) -> StampPosition {
+    match pos.to_lowercase().replace(['-', '_'], "").as_str() {
+        "topleft" => StampPosition::TopLeft,
+        "topcenter" => StampPosition::TopCenter,
+        "topright" => StampPosition::TopRight,
+        "bottomleft" => StampPosition::BottomLeft,
+        "bottomcenter" => StampPosition::BottomCenter,
+        "bottomright" => StampPosition::BottomRight,
+        _ => StampPosition::BottomCenter,
+    }
+}
+
+fn parse_page_sz(sz: &str) -> PageSize {
+    match sz.to_lowercase().as_str() {
+        "letter" => PageSize::Letter,
+        "fit" | "fitimage" => PageSize::FitImage,
+        _ => PageSize::A4,
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let engine = create_default_engine();
@@ -260,9 +473,209 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Merge(args) => handle_merge(&args)?,
         Commands::Split(args) => handle_split(&args)?,
         Commands::Rotate(args) => handle_rotate(&args)?,
+        Commands::Compress(args) => handle_compress(&args)?,
+        Commands::Watermark(args) => handle_watermark(&args)?,
+        Commands::PageNumbers(args) => handle_page_numbers(&args)?,
+        Commands::Bates(args) => handle_bates(&args)?,
+        Commands::FormRead(args) => handle_form_read(&args)?,
+        Commands::FormFill(args) => handle_form_fill(&args)?,
+        Commands::PdfToImages(args) => handle_pdf_to_images(&args)?,
+        Commands::ImagesToPdf(args) => handle_images_to_pdf(&args)?,
+        Commands::MarkdownToPdf(args) => handle_markdown_to_pdf(&args)?,
+        Commands::OfficeExtract(args) => handle_office_extract(&args)?,
+        Commands::OfficeInspect(args) => handle_office_inspect(&args)?,
+        Commands::OfficeCreateDocx(args) => handle_office_create_docx(&args)?,
         Commands::Bench(args) => handle_bench(&args, engine.as_ref())?,
     }
 
+    Ok(())
+}
+
+fn handle_compress(args: &CompressArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let opts = CompressionOptions {
+        remove_unused_objects: true,
+        recompress_streams: true,
+        strip_metadata: args.strip_metadata,
+    };
+    let res = compress_document(&args.input, &opts, &args.out)?;
+    println!(
+        "Successfully compressed {}: {} -> {} bytes (saved {:.1}%)",
+        args.input.display(),
+        res.original_size,
+        res.compressed_size,
+        res.savings_percent
+    );
+    Ok(())
+}
+
+fn handle_watermark(args: &WatermarkArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let opts = WatermarkOptions {
+        text: args.text.clone(),
+        font_size: args.font_size,
+        rotation_degrees: args.angle,
+        opacity: args.opacity,
+        color_rgb: (180, 180, 180),
+        on_top: true,
+    };
+    apply_watermark(&args.input, &opts, &args.out)?;
+    println!(
+        "Successfully applied watermark '{}' to {}",
+        args.text,
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_page_numbers(args: &PageNumbersArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let opts = PageNumberOptions {
+        template: args.template.clone(),
+        position: parse_stamp_pos(&args.position),
+        font_size: 10.0,
+        margin: 36.0,
+        color_rgb: (80, 80, 80),
+        start_page: args.start_page,
+    };
+    apply_page_numbers(&args.input, &opts, &args.out)?;
+    println!(
+        "Successfully applied page numbers to {}",
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_bates(args: &BatesArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let opts = BatesOptions {
+        prefix: args.prefix.clone(),
+        start_number: args.start,
+        padding: args.digits,
+        suffix: args.suffix.clone().unwrap_or_default(),
+        position: parse_stamp_pos(&args.position),
+        margin: 36.0,
+        color_rgb: (60, 60, 60),
+    };
+    apply_bates_stamp(&args.input, &opts, &args.out)?;
+    println!("Successfully applied Bates stamp to {}", args.out.display());
+    Ok(())
+}
+
+fn handle_form_read(args: &FormReadArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let fields = read_form_fields(&args.input)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&fields)?);
+    } else {
+        println!(
+            "Found {} form field(s) in {}:",
+            fields.len(),
+            args.input.display()
+        );
+        for (i, f) in fields.iter().enumerate() {
+            println!(
+                "  [{}] Name: '{}' | Type: {:?} | Value: '{}' | ReadOnly: {}",
+                i + 1,
+                f.name,
+                f.field_type,
+                f.value,
+                f.read_only
+            );
+        }
+    }
+    Ok(())
+}
+
+fn handle_form_fill(args: &FormFillArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let values: HashMap<String, String> = if args.data.trim_start().starts_with('{') {
+        serde_json::from_str(&args.data)?
+    } else {
+        let mut map = HashMap::new();
+        for pair in args.data.split(',') {
+            if let Some((k, v)) = pair.split_once('=') {
+                map.insert(k.trim().to_string(), v.trim().to_string());
+            }
+        }
+        map
+    };
+
+    fill_form_fields(&args.input, &values, args.flatten, &args.out)?;
+    println!(
+        "Successfully filled {} field(s) into {} (flatten: {})",
+        values.len(),
+        args.out.display(),
+        args.flatten
+    );
+    Ok(())
+}
+
+fn handle_pdf_to_images(args: &PdfToImagesArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let format = match args.format.to_lowercase().as_str() {
+        "jpeg" | "jpg" => ImageFormatType::Jpeg,
+        _ => ImageFormatType::Png,
+    };
+    let opts = PdfToImageOptions {
+        dpi: args.dpi,
+        format,
+        page_range: None,
+    };
+    let files = pdf_to_images(&args.input, &opts, &args.out_dir)?;
+    println!(
+        "Successfully converted {} to {} images in {}",
+        args.input.display(),
+        files.len(),
+        args.out_dir.display()
+    );
+    Ok(())
+}
+
+fn handle_images_to_pdf(args: &ImagesToPdfArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let opts = ImageToPdfOptions {
+        page_size: parse_page_sz(&args.page_size),
+        margin_pt: args.margin,
+    };
+    images_to_pdf(&args.inputs, &opts, &args.out)?;
+    println!(
+        "Successfully combined {} image(s) into {}",
+        args.inputs.len(),
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_markdown_to_pdf(args: &MarkdownToPdfArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let markdown_text = std::fs::read_to_string(&args.input)?;
+    markdown_to_pdf(&markdown_text, &args.out)?;
+    println!(
+        "Successfully converted Markdown {} to PDF {}",
+        args.input.display(),
+        args.out.display()
+    );
+    Ok(())
+}
+
+fn handle_office_extract(args: &OfficeExtractArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let text = extract_office_text(&args.input)?;
+    println!("{}", text);
+    Ok(())
+}
+
+fn handle_office_inspect(args: &OfficeInspectArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let info = inspect_office_document(&args.input)?;
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&info)?);
+    } else {
+        println!("=== Office Document Info: {} ===", args.input.display());
+        println!("Document Type: {:?}", info.doc_type);
+        println!("Title: {}", info.title);
+        println!("Word Count: {}", info.word_count);
+        println!("Item Count: {}", info.item_count);
+        println!("Summary: {}", info.summary);
+    }
+    Ok(())
+}
+
+fn handle_office_create_docx(
+    args: &OfficeCreateDocxArgs,
+) -> Result<(), Box<dyn std::error::Error>> {
+    create_simple_docx(&args.text, &args.out)?;
+    println!("Successfully created DOCX: {}", args.out.display());
     Ok(())
 }
 
@@ -601,29 +1014,19 @@ fn handle_bench(
     args: &BenchArgs,
     engine: &dyn PdfEngine,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if !args.json {
-        println!(
-            "================================================================================"
-        );
-        println!(
-            "                 RBD OFİS — PDF Engine & Rendering Benchmark                    "
-        );
-        println!(
-            "================================================================================"
-        );
-        println!("Target File: {}", args.file.display());
-        println!("Engine:      {}", engine.name());
-    }
-
-    // 1. Measure Cold Open Time
+    // 1. Measure Cold Document Open Time
     let t0 = Instant::now();
     let session = DocumentSession::open_file(&args.file, None, engine, None)?;
     let cold_open_dur = t0.elapsed();
     let cold_open_ms = cold_open_dur.as_secs_f64() * 1000.0;
 
     let total_pages = session.page_count()?;
+    if total_pages == 0 {
+        eprintln!("Error: Document has 0 pages.");
+        std::process::exit(1);
+    }
 
-    // 2. Measure First-Page Render at 150 DPI
+    // 2. Measure First Page Render at 150 DPI
     let (w_pt, h_pt) = session.page_dimensions(0)?;
     let scale = 150.0 / 72.0;
     let px_w = (w_pt * scale).round() as u32;
@@ -686,13 +1089,26 @@ fn handle_bench(
     if args.json {
         println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
-        println!("Total Pages: {}", total_pages);
-        println!();
+        println!(
+            "================================================================================"
+        );
+        println!(
+            "                     RBD OFİS - PERFORMANCE BENCHMARK REPORT                    "
+        );
+        println!(
+            "================================================================================"
+        );
+        println!("Document   : {}", report.file);
+        println!("Pages      : {}", report.total_pages);
+        println!("Engine     : {}", report.engine);
+        println!(
+            "--------------------------------------------------------------------------------"
+        );
         println!(
             "+-----------------------------------------+--------------------+----------------+"
         );
         println!(
-            "| Metric                                  | Result             | Target Gate    |"
+            "| Metric                                  | Value              | Target Gate    |"
         );
         println!(
             "+-----------------------------------------+--------------------+----------------+"

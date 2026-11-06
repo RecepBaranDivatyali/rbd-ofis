@@ -154,10 +154,14 @@ flowchart LR
 - **Track 6E (Yayın Güvenliği ve Lisans Uyumluluğu):** ADR-0004 ve AGPL-3 Bölüm 7 gereğince "Powered by ONLYOFFICE™" ve telif ibareleri Windows ve Android arayüzlerinde eksiksiz korundu; `zip` (v2.6.1, MIT) `THIRD_PARTY.md`'ye eklendi.
 - 🚪 **Kapı:** 62 Rust testi, 88 Windows testi, 43 Android testi (Toplam: 193 test) %100 yeşil. Mimar-Eleştirmen bağımsız denetimi onaylandı (`VERDICT: APPROVED`).
 
-### Faz 7: Apple (macOS, iOS, iPadOS) + Linux — [Sıradaki Faz]
-SwiftUI + Metal + PencilKit, GTK4. *Önkoşul: Artifex lisans görüşmesi.*
+### Faz 7: Apple (macOS, iOS, iPadOS) + Linux — [✅ TAMAMLANDI - v0.5.0-alpha]
+- **Track 7A (C-ABI ve Apple Swift Paketi):** `core/crates/rbd-ffi/include/rbd_ffi.h` C başlığı, `apps/apple/Package.swift` Swift Package Manager konfigürasyonu (macOS 13+, iOS 16+), `CRbdFfi` C modül eşlemesi (`module.modulemap`), bellek güvenli Swift sarmalayıcısı (`RbdBridge.swift`: `RbdEngine`, `RbdDocument`, `RbdOfficeService`, `RbdError`).
+- **Track 7B (Apple SwiftUI & PencilKit Kullanıcı Arayüzü):** `apps/apple/Sources/RbdOfis/UI/DocumentView.swift` SwiftUI çok sayfalı belge görüntüleyici ve CoreGraphics/Metal karo çizimi; `PencilKitCanvas.swift` iPadOS Apple Pencil donanım ivmeli çizim ve avuç içi reddi (palm rejection); `OfficeHostView.swift` macOS ve iOS için çevrimdışı yerel `WKWebView` ofis düzenleyici kabuğu; `RbdOfisTests.swift` XCTest birim test paketi.
+- **Track 7C (Linux Başsız/CLI ve XDG Entegrasyonu):** `rbd-cli` komut satırı aracının tam Pro araçları (sıkıştırma, filigran, sayfa no, Bates, form okuma/doldurma), Dönüştürücüler (PDF-resim, resim-PDF, Markdown-PDF) ve OOXML ofis (metin çıkarma, üstveri denetleme, DOCX üretme) alt komutlarıyla zenginleştirilmesi; `io.github.rbdofis.RbdOfis.desktop` XDG masaüstü kısayolu ve `io.github.rbdofis.RbdOfis.metainfo.xml` AppStream meta veri dosyası.
+- **Track 7D (Çoklu Platform CI Matrisi):** `.github/workflows/ci.yml` GitHub Actions iş akışına `macos-latest` platformunun eklenmesi, Swift paket derleme ve test adımları (`apple-app`).
+- 🚪 **Kapı:** 63 Rust testi, 88 Windows testi, 43 Android testi (Toplam: 194 test) %100 yeşil. Mimar-Eleştirmen bağımsız denetimi tamamlandı.
 
-### Faz 8: Yapay Zeka ve "Kutsal Kâse"
+### Faz 8: Yapay Zeka ve "Kutsal Kâse" — [Sıradaki Faz]
 Yerel belge sohbeti ve özetleme (internet yok), paragraf akışlı PDF metin düzenleme, isteğe bağlı kendi bulutunla senkronizasyon (WebDAV / Google Drive / OneDrive).
 
 ---

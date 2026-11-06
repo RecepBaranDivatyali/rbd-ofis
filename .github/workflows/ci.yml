@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -149,3 +149,22 @@ jobs:
       - name: Run Android Unit Tests
         working-directory: apps/android
         run: ./gradlew runUnitTests --no-daemon
+
+  apple-app:
+    name: Apple App (Swift Package)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Build rbd-ffi native library
+        working-directory: core
+        run: cargo build --release -p rbd-ffi
+      - name: Build Swift Package
+        working-directory: apps/apple
+        run: swift build -v -Xlinker -L../../core/target/release -Xlinker -lrbd_ffi
+      - name: Run Swift Package Tests
+        working-directory: apps/apple
+        run: swift test -v -Xlinker -L../../core/target/release -Xlinker -lrbd_ffi
