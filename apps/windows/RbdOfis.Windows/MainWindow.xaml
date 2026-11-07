@@ -49,7 +49,7 @@
                     <TextBlock x:Name="AppSubtitleText" Text="Açık Kaynak, Offline Ofis ve PDF Paketi" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" FontSize="12" Margin="0,0,20,0"/>
 
                     <RadioButton x:Name="ModePdfRadio" Content="PDF Düzenleyici" IsChecked="True" Checked="OnModeRadioChanged" Foreground="{DynamicResource AppForegroundBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <RadioButton x:Name="ModeOfficeRadio" Content="ONLYOFFICE Düzenleyici" Checked="OnModeRadioChanged" Foreground="{DynamicResource AppForegroundBrush}" VerticalAlignment="Center"/>
+                    <RadioButton x:Name="ModeOfficeRadio" Content="Ofis Düzenleyici" Checked="OnModeRadioChanged" Foreground="{DynamicResource AppForegroundBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -165,7 +165,7 @@
             </DockPanel>
         </Border>
 
-        <!-- Row 4: Workspace Area (Sidebar + Canvas OR ONLYOFFICE WebHost) -->
+        <!-- Row 4: Workspace Area (Sidebar + Canvas OR Office WebHost) -->
         <Grid Grid.Row="4">
             <!-- Mode 1: PDF Viewer Workspace -->
             <Grid x:Name="PdfWorkspaceGrid" Visibility="Visible">
@@ -219,7 +219,7 @@
                 </ScrollViewer>
             </Grid>
 
-            <!-- Mode 2: ONLYOFFICE Offline WebHost Container per ADR-0004 -->
+            <!-- Mode 2: Office Offline WebHost Container per ADR-0004 -->
             <Grid x:Name="OfficeWorkspaceGrid" Visibility="Collapsed">
                 <wv2:WebView2 x:Name="OfficeWebView"/>
             </Grid>

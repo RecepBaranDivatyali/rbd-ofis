@@ -17,7 +17,7 @@ RBD OFİS, AGPL-3.0 lisanslı açık kaynak bir uygulama olarak Microsoft Store,
 3. **Kaynak kodu sunma yükümlülüğü:** Her sürümün tam kaynağı GitHub'da etiketlenir (`v1.2.3`). Uygulamanın "Hakkında" ekranında depo bağlantısı ve lisans metni yer alır.
 4. **Üçüncü taraf bildirimleri:** `cargo-about` (Rust) ve Gradle lisans eklentisiyle otomatik üretilir, uygulama içinde gösterilir.
 5. **Yazı tipleri:** Yalnızca OFL/Apache lisanslı yazı tipleri paketlenir (Noto, Liberation, Carlito ≈ Calibri, Caladea ≈ Cambria). Microsoft yazı tipleri paketlenmez; sistemde varsa kullanılır.
-6. **OnlyOffice uyarısı:** OnlyOffice'in AGPL lisansına eklediği 7. bölüm maddesi, arayüzde ONLYOFFICE logosunun korunmasını gerektirir. Ofis motoru seçimi (Faz 0, Deney 2) bu kısıtı dikkate alarak yapılacak.
+6. **Ofis motoru lisans durumu:** Projede ONLYOFFICE kodu kullanılmamaktadır (ADR-0004 revize edildi). Çevrimdışı hafif HTML düzenleyici ve saf Rust OOXML (MIT zip) kullanılmaktadır; arayüzde herhangi bir üçüncü taraf logosu veya atfı zorunluluğu bulunmamaktadır.
 7. **Katkı:** Telif sahibi Recep Baran Divatyalı. Dış katkılar DCO (`Signed-off-by`) ile kabul edilir.
 
 ### B. Microsoft Store / Windows

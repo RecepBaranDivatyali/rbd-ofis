@@ -206,6 +206,8 @@ public partial class MainWindow : Window
         AppTitleText.Text = lm["AppTitle"];
         AppSubtitleText.Text = lm["AppSubtitle"];
         LanguageLabelText.Text = lm["LanguageLabel"];
+        ModePdfRadio.Content = lm["TabPdfViewer"];
+        ModeOfficeRadio.Content = lm["TabOfficeEditor"];
         OpenFileButton.Content = $"📁 {lm["MenuOpen"]}";
         SaveFileButton.Content = $"💾 {lm["MenuSave"]}";
         ToggleThumbnailsButton.Content = $"🖼 {lm["ToggleThumbnails"]}";

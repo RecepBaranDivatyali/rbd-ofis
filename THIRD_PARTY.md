@@ -7,7 +7,7 @@ Tüm bağımlılıklar `docs/adr/0003-yayin-uyumlulugu.md` ve `AGENTS.md` Madde 
 
 | Paket | Sürüm | Lisans | Kullanım Amacı | Notlar |
 |---|---|---|---|---|
-| **Microsoft.Web.WebView2** | 1.0.4314.35 | BSD-2-Clause / Microsoft Redistributable | ONLYOFFICE offline sanal sunucu görüntüleme (`https://rbd-office.local/`) | ADR-0003 A.2: İşletim sistemi bileşeni / sistem kütüphanesi istisnası kapsamında. |
+| **Microsoft.Web.WebView2** | 1.0.4314.35 | BSD-2-Clause / Microsoft Redistributable | Çevrimdışı HTML ofis editörü sanal sunucu görüntüleme (`https://rbd-office.local/`) | ADR-0003 A.2: İşletim sistemi bileşeni / sistem kütüphanesi istisnası kapsamında. |
 | **xunit** | 2.9.2 | Apache-2.0 | Birim test çerçevesi | İzinli lisans. |
 | **xunit.runner.visualstudio** | 2.8.2 | Apache-2.0 | Visual Studio / `dotnet test` test çalıştırıcısı | Test aracı. |
 | **Microsoft.NET.Test.Sdk** | 17.12.0 | MS-EULA / MIT | .NET test SDK alt yapısı | Test aracı. |

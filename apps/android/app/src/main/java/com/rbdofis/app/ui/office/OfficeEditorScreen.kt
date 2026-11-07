@@ -29,8 +29,7 @@ import java.io.File
 
 /**
  * Mobile Office Document Editor Screen (Phase 6 Track 6D).
- * Compliant with ADR-0004 & AGPL Section 7:
- * - "Powered by ONLYOFFICE™" attribution strictly displayed.
+ * Compliant with ADR-0004:
  * - 100% offline, zero network access.
  * - Supports editing and viewing DOCX, XLSX, and PPTX documents.
  */
@@ -102,12 +101,6 @@ fun OfficeEditorScreen(
                                 )
                             }
                         }
-                        Text(
-                            text = stringResource(R.string.office_powered_by),
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 },
                 navigationIcon = {

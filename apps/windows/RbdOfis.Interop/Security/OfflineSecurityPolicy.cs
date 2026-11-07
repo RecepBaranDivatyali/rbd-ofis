@@ -22,7 +22,7 @@ public sealed class BlockedRequestEventArgs : EventArgs
 }
 
 /// <summary>
-/// Enforces the strict offline sandbox security policy for WebView2 (ONLYOFFICE virtual host spike).
+/// Enforces the strict offline sandbox security policy for WebView2 (Office virtual host spike).
 /// In accordance with AGENTS.md Rule 5 (zero network access / telemetry prohibited)
 /// and ADR-0004 (offline virtual-host mapping to https://rbd-office.local/ with no local TCP ports).
 /// </summary>

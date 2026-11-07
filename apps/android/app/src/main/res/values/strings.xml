@@ -179,7 +179,6 @@
 
     <!-- Ofis Düzenleyici (Phase 6 Track 6D) -->
     <string name="office_editor_title">Ofis Düzenleyici</string>
-    <string name="office_powered_by">Powered by ONLYOFFICE™</string>
     <string name="office_action_save">Belgeyi Kaydet</string>
     <string name="office_action_export_pdf">PDF Olarak Aktar</string>
     <string name="office_words_count">%1$d sözcük</string>

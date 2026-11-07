@@ -179,7 +179,6 @@
 
     <!-- Office Editor (Phase 6 Track 6D) -->
     <string name="office_editor_title">Office Editor</string>
-    <string name="office_powered_by">Powered by ONLYOFFICE™</string>
     <string name="office_action_save">Save Document</string>
     <string name="office_action_export_pdf">Export to PDF</string>
     <string name="office_words_count">%1$d words</string>

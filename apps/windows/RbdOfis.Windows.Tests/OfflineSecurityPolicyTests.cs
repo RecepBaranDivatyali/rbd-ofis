@@ -39,7 +39,7 @@ public class OfflineSecurityPolicyTests
     [Theory]
     [InlineData("https://google.com/")]
     [InlineData("https://www.google-analytics.com/collect")]
-    [InlineData("https://telemetry.onlyoffice.com/v1/track")]
+    [InlineData("https://telemetry.example.com/v1/track")]
     [InlineData("https://api.github.com/repos/rbdofis")]
     [InlineData("https://fonts.googleapis.com/css?family=Roboto")]
     [InlineData("https://cdn.jsdelivr.net/npm/bootstrap")]

@@ -5,7 +5,7 @@
 
 ## Karar
 - Ortak mantık (döküman modeli, görüntüleme, düzenleme, OCR, dönüştürme) **Rust** çekirdekte (`core/`) yazılır.
-- Arayüzler: **Windows → WinUI 3 (C#)**, **Android → Kotlin + Jetpack Compose**, ileride **Apple → SwiftUI**, **Linux → GTK4 (gtk-rs)**.
+- Arayüzler: **Windows → WPF (.NET 9, C#)** (WinUI 3 yerine kararlı masaüstü desteği ve düşük ek yük için WPF seçildi), **Android → Kotlin + Jetpack Compose**, ileride **Apple → SwiftUI**, **Linux → GTK4 (gtk-rs)**.
 - Köprü: UniFFI (Kotlin/Swift) ve C-ABI (C# için `csbindgen` veya UniFFI C# üreticisi; Faz 0'da seçilecek).
 
 ## Elenen seçenekler
