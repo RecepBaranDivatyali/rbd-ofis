@@ -145,4 +145,41 @@ class RbdNativeBridgeTest {
             bridge.closeDocument(handle)
         }
     }
+
+    @Test
+    fun testFileBasedPageOperations() {
+        val tempIn = File.createTempFile("rbd_op_in", ".pdf")
+        val tempOut = File.createTempFile("rbd_op_out", ".pdf")
+        try {
+            tempIn.writeText("%PDF-1.7 input")
+
+            assertTrue(bridge.pageOpRotate(tempIn.absolutePath, tempOut.absolutePath, 90))
+            assertTrue(bridge.pageOpDeletePages(tempIn.absolutePath, tempOut.absolutePath, listOf(1)))
+            assertTrue(bridge.pageOpMerge(tempOut.absolutePath, listOf(tempIn.absolutePath)))
+            assertTrue(bridge.pageOpSplit(tempIn.absolutePath, tempOut.absolutePath, 1, 1))
+            assertTrue(bridge.pageOpReorder(tempIn.absolutePath, tempOut.absolutePath, listOf(1)))
+            assertTrue(bridge.pageOpCrop(tempIn.absolutePath, tempOut.absolutePath, 1, 0f, 0f, 100f, 100f))
+            assertTrue(bridge.pageOpInsertBlank(tempIn.absolutePath, tempOut.absolutePath, 1, 595f, 842f))
+            assertTrue(bridge.pageOpDecrypt(tempIn.absolutePath, tempOut.absolutePath, "secret"))
+        } finally {
+            tempIn.delete()
+            tempOut.delete()
+        }
+    }
+
+    @Test
+    fun testEngineLifecycle() {
+        bridge.freeEngine()
+        assertEquals(0L, bridge.getEngineHandle())
+    }
+
+    @Test
+    fun testNumericAnnotationRemoval() {
+        val handle = bridge.openDocument("/test/annot_num.pdf")
+        val added = bridge.addAnnotationJson(handle, """{"id":999,"page_index":0,"kind":"Highlight","rect":{"x0":0,"y0":0,"x1":10,"y1":10},"color_rgba":[255,0,0,255],"contents":""}""")
+        assertTrue(added)
+        val removed = bridge.removeAnnotation(handle, 999L)
+        assertTrue(removed)
+        bridge.closeDocument(handle)
+    }
 }

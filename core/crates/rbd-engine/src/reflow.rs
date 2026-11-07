@@ -58,9 +58,8 @@ pub fn cluster_lines_into_paragraphs(
     // Sort primarily by Y descending (top to bottom), then by X ascending (left to right)
     sorted.sort_by(|a, b| {
         b.bbox[3]
-            .partial_cmp(&a.bbox[3])
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.bbox[0].partial_cmp(&b.bbox[0]).unwrap())
+            .total_cmp(&a.bbox[3])
+            .then_with(|| a.bbox[0].total_cmp(&b.bbox[0]))
     });
 
     let mut paragraphs: Vec<ReflowParagraph> = Vec::new();
@@ -303,26 +302,42 @@ pub fn replace_paragraph_text_doc(
     Ok(())
 }
 
-fn sanitize_text(input: &str) -> String {
-    input
-        .chars()
-        .map(|c| match c {
-            'ı' => 'i',
-            'İ' => 'I',
-            'ğ' => 'g',
-            'Ğ' => 'G',
-            'ş' => 's',
-            'Ş' => 'S',
-            'ç' => 'c',
-            'Ç' => 'C',
-            'ö' => 'o',
-            'Ö' => 'O',
-            'ü' => 'u',
-            'Ü' => 'U',
-            c if c.is_ascii() => c,
-            _ => '?',
-        })
-        .collect()
+pub(crate) fn sanitize_text(input: &str) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(input.len());
+    for c in input.chars() {
+        match c {
+            // WinAnsiEncoding (Windows-1252) Turkish characters encoded with exact single-byte codes:
+            'ç' => bytes.push(0xE7),
+            'Ç' => bytes.push(0xC7),
+            'ö' => bytes.push(0xF6),
+            'Ö' => bytes.push(0xD6),
+            'ü' => bytes.push(0xFC),
+            'Ü' => bytes.push(0xDC),
+            // Circumflex vowels present in WinAnsi:
+            'â' => bytes.push(0xE2),
+            'Â' => bytes.push(0xC2),
+            'î' => bytes.push(0xEE),
+            'Î' => bytes.push(0xCE),
+            'û' => bytes.push(0xFB),
+            'Û' => bytes.push(0xDB),
+            // Non-WinAnsi Turkish characters: map gracefully to ASCII equivalents (never use '?')
+            'ı' => bytes.push(b'i'),
+            'İ' => bytes.push(b'I'),
+            'ğ' => bytes.push(b'g'),
+            'Ğ' => bytes.push(b'G'),
+            'ş' => bytes.push(b's'),
+            'Ş' => bytes.push(b'S'),
+            // Common typographic symbols
+            '“' | '”' => bytes.push(b'"'),
+            '‘' | '’' => bytes.push(b'\''),
+            '—' | '–' => bytes.push(b'-'),
+            '•' => bytes.push(b'*'),
+            '…' => bytes.extend_from_slice(b"..."),
+            c if c.is_ascii() => bytes.push(c as u8),
+            _ => bytes.push(b' '),
+        }
+    }
+    bytes
 }
 
 #[cfg(test)]
@@ -358,11 +373,52 @@ mod tests {
     }
 
     #[test]
+    fn test_cluster_lines_with_nan_bbox_total_cmp_regression() {
+        let lines = vec![
+            TextLineSegment {
+                text: "Line with normal bbox".into(),
+                bbox: [72.0, 700.0, 300.0, 712.0],
+                font_size: 12.0,
+            },
+            TextLineSegment {
+                text: "Line with NaN bbox".into(),
+                bbox: [f32::NAN, 684.0, 250.0, f32::NAN],
+                font_size: 12.0,
+            },
+        ];
+
+        // Must not panic when sorting with NaN coordinates
+        let paras = cluster_lines_into_paragraphs(0, &lines);
+        assert!(!paras.is_empty());
+    }
+
+    #[test]
     fn test_reflow_text_to_width() {
         let text = "Bu uzun bir paragraf metnidir ve belirtilen genişliğe göre kelime kelime alt satırlara bölünmelidir.";
         let lines = reflow_text_to_width(text, 150.0, 11.0);
         assert!(lines.len() >= 3);
         let joined = lines.join(" ");
         assert_eq!(joined, text);
+    }
+
+    #[test]
+    fn test_sanitize_text_turkish_characters_regression() {
+        let input = "Türkçe ışık Ğöçü İŞ!";
+        let encoded = sanitize_text(input);
+
+        // WinAnsi supported:
+        // 'ü' => 0xFC, 'ç' => 0xE7, 'ö' => 0xF6, 'Ü' => 0xDC
+        // Non-WinAnsi supported (gracefully mapped to ASCII, NEVER '?'):
+        // 'ı' => 'i', 'ş' => 's', 'Ğ' => 'G', 'İ' => 'I', 'Ş' => 'S'
+        let expected = vec![
+            b'T', 0xFC, b'r', b'k', 0xE7, b'e', b' ', b'i', b's', b'i', b'k', b' ', b'G', 0xF6,
+            0xE7, 0xFC, b' ', b'I', b'S', b'!',
+        ];
+
+        assert_eq!(encoded, expected);
+        assert!(
+            !encoded.contains(&b'?'),
+            "Must never produce '?' for Turkish text"
+        );
     }
 }

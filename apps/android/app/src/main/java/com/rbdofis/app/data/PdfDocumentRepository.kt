@@ -161,12 +161,27 @@ class PdfDocumentRepository(
      * Closes the active document and clears all memory caches.
      */
     suspend fun closeDocument() = withContext(ioDispatcher) {
+        closeDocumentSync()
+    }
+
+    /**
+     * Closes the active document and clears all memory caches synchronously.
+     */
+    fun closeDocumentSync() {
         if (currentDocHandle != 0L) {
             nativeBridge.closeDocument(currentDocHandle)
             currentDocHandle = 0L
         }
         tileCache.clear()
         _documentState.value = DocumentState()
+    }
+
+    /**
+     * Releases the active document handle and shuts down the native engine via nativeEngineFree.
+     */
+    fun release() {
+        closeDocumentSync()
+        nativeBridge.freeEngine()
     }
 
     /**

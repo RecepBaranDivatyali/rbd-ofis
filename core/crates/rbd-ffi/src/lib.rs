@@ -322,6 +322,11 @@ pub unsafe extern "C" fn rbd_render_tile_into_buffer(
             return Err(RBD_ERR_INVALID_PARAM);
         }
 
+        if buffer_stride <= 0 {
+            set_last_error("buffer_stride must be positive");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
         let row_bytes = (tile_width as usize) * 4;
         if (buffer_stride as usize) < row_bytes {
             set_last_error("buffer_stride is smaller than tile_width * 4");
@@ -3106,6 +3111,61 @@ mod tests {
             );
             assert!(out_pdf.exists());
             let _ = std::fs::remove_file(out_pdf);
+
+            rbd_document_free(doc);
+            rbd_engine_free(engine);
+        }
+    }
+
+    #[test]
+    fn test_render_tile_invalid_stride_regression() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let sample_pdf =
+            manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        assert!(sample_pdf.exists());
+
+        unsafe {
+            let mut engine = std::ptr::null_mut();
+            assert_eq!(rbd_engine_init(&mut engine), RBD_OK);
+
+            let path_c = CString::new(sample_pdf.to_str().unwrap()).unwrap();
+            let mut doc = std::ptr::null_mut();
+            assert_eq!(
+                rbd_document_open_file(engine, path_c.as_ptr(), &mut doc),
+                RBD_OK
+            );
+
+            let mut dummy_buf = [0u8; 1024];
+
+            // Regression test: buffer_stride = 0 must fail with RBD_ERR_INVALID_PARAM
+            let res_zero = rbd_render_tile_into_buffer(
+                doc,
+                0,
+                0,
+                0,
+                256,
+                256,
+                1.0,
+                dummy_buf.as_mut_ptr(),
+                0,
+                0,
+            );
+            assert_eq!(res_zero, RBD_ERR_INVALID_PARAM);
+
+            // Regression test: negative buffer_stride must fail with RBD_ERR_INVALID_PARAM (not cast to huge usize / UB)
+            let res_neg = rbd_render_tile_into_buffer(
+                doc,
+                0,
+                0,
+                0,
+                256,
+                256,
+                1.0,
+                dummy_buf.as_mut_ptr(),
+                -1024,
+                0,
+            );
+            assert_eq!(res_neg, RBD_ERR_INVALID_PARAM);
 
             rbd_document_free(doc);
             rbd_engine_free(engine);

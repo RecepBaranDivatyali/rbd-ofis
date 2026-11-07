@@ -573,4 +573,9 @@ class PdfViewerViewModel(
             )
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        repository.release()
+    }
 }

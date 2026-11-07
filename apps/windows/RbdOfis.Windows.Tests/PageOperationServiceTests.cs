@@ -99,4 +99,53 @@ public class PageOperationServiceTests : IDisposable
         string missingPath = Path.Combine(Path.GetTempPath(), "non_existent_file.pdf");
         Assert.Throws<FileNotFoundException>(() => _service.Rotate(missingPath, 90, _tempOutput));
     }
+
+    [Fact]
+    public void Verify_RotatePages_Rotates_Only_Selected_Pages()
+    {
+        // 3 pages, only page 2 rotated 90 degrees
+        var rotations = new System.Collections.Generic.Dictionary<int, int>
+        {
+            { 2, 90 }
+        };
+
+        _service.RotatePages(_tempInput, rotations, 3, _tempOutput);
+        Assert.True(File.Exists(_tempOutput));
+    }
+
+    [Fact]
+    public void Verify_RotatePages_NoOp_Copies_File_When_No_Rotations()
+    {
+        var rotations = new System.Collections.Generic.Dictionary<int, int>();
+        _service.RotatePages(_tempInput, rotations, 3, _tempOutput);
+        Assert.True(File.Exists(_tempOutput));
+    }
+
+    [Fact]
+    public void Verify_RotatePages_Single_Page_Document()
+    {
+        var rotations = new System.Collections.Generic.Dictionary<int, int>
+        {
+            { 1, 180 }
+        };
+        _service.RotatePages(_tempInput, rotations, 1, _tempOutput);
+        Assert.True(File.Exists(_tempOutput));
+    }
+
+    [Fact]
+    public void Verify_RotatePages_Validates_Multiple_Of_90()
+    {
+        var rotations = new System.Collections.Generic.Dictionary<int, int>
+        {
+            { 2, 45 }
+        };
+        Assert.Throws<ArgumentException>(() => _service.RotatePages(_tempInput, rotations, 3, _tempOutput));
+    }
+
+    [Fact]
+    public void Verify_RotatePages_Validates_TotalPages()
+    {
+        var rotations = new System.Collections.Generic.Dictionary<int, int>();
+        Assert.Throws<ArgumentException>(() => _service.RotatePages(_tempInput, rotations, 0, _tempOutput));
+    }
 }

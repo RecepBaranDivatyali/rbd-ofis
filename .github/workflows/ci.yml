@@ -32,6 +32,10 @@ jobs:
             echo "ERROR: Forbidden telemetry or proprietary SDK reference detected!"
             exit 1
           fi
+      - name: Run cargo-deny check
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: core/Cargo.toml
 
   rust-core:
     name: Rust Core (${{ matrix.os }})
@@ -159,12 +163,42 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
+      - name: Fetch PDFium native library for macOS
+        shell: bash
+        run: |
+          mkdir -p core/vendor/pdfium/bin core/vendor/pdfium/lib
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            ASSET="pdfium-mac-arm64.tgz"
+          else
+            ASSET="pdfium-mac-x64.tgz"
+          fi
+          curl -sSL "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/${ASSET}" | tar -xz -C core/vendor/pdfium
+          cp -f core/vendor/pdfium/lib/libpdfium.dylib core/vendor/pdfium/bin/libpdfium.dylib
+          mkdir -p core/target/release
+          cp -f core/vendor/pdfium/lib/libpdfium.dylib core/target/release/libpdfium.dylib
       - name: Build rbd-ffi native library
         working-directory: core
-        run: cargo build --release -p rbd-ffi
+        run: |
+          cargo build --release -p rbd-ffi
+          cp -f vendor/pdfium/lib/libpdfium.dylib target/release/libpdfium.dylib || true
       - name: Build Swift Package
         working-directory: apps/apple
-        run: swift build -v -Xlinker -L../../core/target/release -Xlinker -lrbd_ffi
+        run: |
+          swift build -v \
+            -Xlinker -L${{ github.workspace }}/core/target/release \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/target/release \
+            -Xlinker -L${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -lrbd_ffi
       - name: Run Swift Package Tests
         working-directory: apps/apple
-        run: swift test -v -Xlinker -L../../core/target/release -Xlinker -lrbd_ffi
+        env:
+          DYLD_LIBRARY_PATH: ${{ github.workspace }}/core/target/release:${{ github.workspace }}/core/vendor/pdfium/lib
+        run: |
+          swift test -v \
+            -Xlinker -L${{ github.workspace }}/core/target/release \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/target/release \
+            -Xlinker -L${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -lrbd_ffi

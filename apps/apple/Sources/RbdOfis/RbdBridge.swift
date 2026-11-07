@@ -1,6 +1,14 @@
 import Foundation
 import CRbdFfi
 
+/// Supported pixel formats matching Rust `rbd_engine::PixelFormat`.
+public enum RbdPixelFormat: Int32 {
+    /// 32-bit BGRA (Blue, Green, Red, Alpha) - Apple CoreGraphics & Direct2D standard.
+    case bgra32 = 0
+    /// 32-bit RGBA (Red, Green, Blue, Alpha).
+    case rgba32 = 1
+}
+
 /// Search hit representation for in-document text queries.
 public struct RbdSearchHit {
     public let pageIndex: Int
@@ -43,19 +51,53 @@ public enum RbdError: Error, LocalizedError {
     }
 
     static func from(code: Int32, message: String? = nil) -> RbdError {
-        let msg = message ?? String(cString: rbd_get_last_error())
+        let msg: String
+        if let message = message {
+            msg = message
+        } else if let errPtr = rbd_get_last_error() {
+            msg = String(cString: errPtr)
+        } else {
+            msg = "No error details available"
+        }
+
         switch code {
         case RBD_ERR_NULL_PTR: return .nullPointer
         case RBD_ERR_INVALID_PARAM: return .invalidParameter
         case RBD_ERR_FILE_IO: return .fileIO(msg)
         case RBD_ERR_CORRUPT_PDF: return .corruptPdf(msg)
         case RBD_ERR_PASSWORD_REQUIRED: return .passwordRequired
+        case RBD_ERR_PAGE_OUT_OF_RANGE: return .pageOutOfRange(index: 0, total: 0)
         case RBD_ERR_BUFFER_TOO_SMALL: return .bufferTooSmall
         case RBD_ERR_ENGINE_FAILURE: return .engineFailure(msg)
         case RBD_ERR_PANIC: return .panic(msg)
         default: return .unknown(code)
         }
     }
+}
+
+/// Helper executing native C buffer operations with dynamic buffer doubling on `RBD_ERR_BUFFER_TOO_SMALL`.
+private func callWithDynamicBuffer(
+    initialCapacity: Int = 65536,
+    maxCapacity: Int = 64 * 1024 * 1024,
+    _ body: (UnsafeMutablePointer<CChar>, Int) -> Int32
+) throws -> String {
+    var capacity = initialCapacity
+    while capacity <= maxCapacity {
+        var buffer = [CChar](repeating: 0, count: capacity)
+        let status = buffer.withUnsafeMutableBufferPointer { ptr -> Int32 in
+            guard let base = ptr.baseAddress else { return RBD_ERR_NULL_PTR }
+            return body(base, capacity)
+        }
+        if status == RBD_OK {
+            return String(cString: buffer)
+        } else if status == RBD_ERR_BUFFER_TOO_SMALL {
+            // Buffer too small: double capacity and retry
+            capacity *= 2
+        } else {
+            throw RbdError.from(code: status)
+        }
+    }
+    throw RbdError.bufferTooSmall
 }
 
 /// Native engine wrapper.
@@ -129,7 +171,7 @@ public final class RbdDocument {
     public func extractText(for pageIndex: Int) throws -> String {
         guard let h = handle else { throw RbdError.nullPointer }
         var textPtr: UnsafeMutablePointer<CChar>? = nil
-        let status = rbd_document_extract_page_text(h, Int32(pageIndex), &textPtr)
+        let status = rbd_document_extract_page_text(h, UInt32(pageIndex), &textPtr)
         guard status == RBD_OK, let ptr = textPtr else {
             throw RbdError.from(code: status)
         }
@@ -137,7 +179,15 @@ public final class RbdDocument {
         return String(cString: ptr)
     }
 
-    public func renderTile(pageIndex: Int, tileX: Int, tileY: Int, width: Int, height: Int, zoom: Double) throws -> Data {
+    public func renderTile(
+        pageIndex: Int,
+        tileX: Int,
+        tileY: Int,
+        width: Int,
+        height: Int,
+        zoom: Double,
+        pixelFormat: RbdPixelFormat = .bgra32
+    ) throws -> Data {
         guard let h = handle else { throw RbdError.nullPointer }
         let stride = width * 4
         var buffer = Data(count: stride * height)
@@ -155,7 +205,7 @@ public final class RbdDocument {
                 zoom,
                 baseAddress,
                 Int32(stride),
-                1 // Rgba32
+                pixelFormat.rawValue
             )
         }
         guard status == RBD_OK else {
@@ -164,47 +214,98 @@ public final class RbdDocument {
         return buffer
     }
 
+    // MARK: - Annotation Management & Undo/Redo
+
+    public func addAnnotation(json: String) throws {
+        guard let h = handle else { throw RbdError.nullPointer }
+        let status = json.withCString { cJson in
+            rbd_document_add_annotation_json(h, cJson)
+        }
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+    }
+
+    public func removeAnnotation(id: UInt64) throws {
+        guard let h = handle else { throw RbdError.nullPointer }
+        let status = rbd_document_remove_annotation(h, id)
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+    }
+
+    public func updateAnnotation(json: String) throws {
+        guard let h = handle else { throw RbdError.nullPointer }
+        let status = json.withCString { cJson in
+            rbd_document_update_annotation_json(h, cJson)
+        }
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
+    }
+
+    public func annotationsJson(for pageIndex: Int) throws -> String {
+        guard let h = handle else { throw RbdError.nullPointer }
+        var jsonPtr: UnsafeMutablePointer<CChar>? = nil
+        let status = rbd_document_get_annotations_json(h, UInt32(pageIndex), &jsonPtr)
+        guard status == RBD_OK, let ptr = jsonPtr else {
+            throw RbdError.from(code: status)
+        }
+        defer { rbd_free_string(ptr) }
+        return String(cString: ptr)
+    }
+
     public func undo() -> Bool {
         guard let h = handle else { return false }
-        return rbd_document_undo(h) == RBD_OK
+        var undone: Int32 = 0
+        let status = rbd_document_undo(h, &undone)
+        return status == RBD_OK && undone != 0
     }
 
     public func redo() -> Bool {
         guard let h = handle else { return false }
-        return rbd_document_redo(h) == RBD_OK
+        var redone: Int32 = 0
+        let status = rbd_document_redo(h, &redone)
+        return status == RBD_OK && redone != 0
     }
 
-    // Phase 8 Offline AI & Reflow Editing
+    public var canUndo: Bool {
+        guard let h = handle else { return false }
+        var can: Int32 = 0
+        let status = rbd_document_can_undo(h, &can)
+        return status == RBD_OK && can != 0
+    }
+
+    public var canRedo: Bool {
+        guard let h = handle else { return false }
+        var can: Int32 = 0
+        let status = rbd_document_can_redo(h, &can)
+        return status == RBD_OK && can != 0
+    }
+
+    // MARK: - Phase 8 Offline AI & Reflow Editing (Dynamic Buffer)
+
     public func summarize(maxSentences: Int = 5) throws -> String {
         guard let h = handle else { throw RbdError.nullPointer }
-        var buffer = [CChar](repeating: 0, count: 65536)
-        let status = rbd_ai_summarize_document(h, UInt32(maxSentences), &buffer, buffer.count)
-        guard status == RBD_OK else {
-            throw RbdError.from(code: status)
+        return try callWithDynamicBuffer { buf, cap in
+            rbd_ai_summarize_document(h, UInt32(maxSentences), buf, cap)
         }
-        return String(cString: buffer)
     }
 
     public func ask(query: String) throws -> String {
         guard let h = handle else { throw RbdError.nullPointer }
-        var buffer = [CChar](repeating: 0, count: 65536)
-        let status = query.withCString { cQuery in
-            rbd_ai_ask_document(h, cQuery, &buffer, buffer.count)
+        return try query.withCString { cQuery in
+            try callWithDynamicBuffer { buf, cap in
+                rbd_ai_ask_document(h, cQuery, buf, cap)
+            }
         }
-        guard status == RBD_OK else {
-            throw RbdError.from(code: status)
-        }
-        return String(cString: buffer)
     }
 
     public func reflowPage(pageIndex: Int) throws -> String {
         guard let h = handle else { throw RbdError.nullPointer }
-        var buffer = [CChar](repeating: 0, count: 65536)
-        let status = rbd_document_reflow_page_text(h, UInt32(pageIndex), &buffer, buffer.count)
-        guard status == RBD_OK else {
-            throw RbdError.from(code: status)
+        return try callWithDynamicBuffer { buf, cap in
+            rbd_document_reflow_page_text(h, UInt32(pageIndex), buf, cap)
         }
-        return String(cString: buffer)
     }
 
     public func replaceParagraph(
@@ -251,25 +352,19 @@ public enum RbdOfficeService {
     }
 
     public static func extractText(at path: String) throws -> String {
-        var buffer = [CChar](repeating: 0, count: 65536)
-        let status = path.withCString { cPath in
-            rbd_office_extract_text(cPath, &buffer, buffer.count)
+        return try path.withCString { cPath in
+            try callWithDynamicBuffer { buf, cap in
+                rbd_office_extract_text(cPath, buf, cap)
+            }
         }
-        guard status == RBD_OK else {
-            throw RbdError.from(code: status)
-        }
-        return String(cString: buffer)
     }
 
     public static func inspect(at path: String) throws -> String {
-        var buffer = [CChar](repeating: 0, count: 65536)
-        let status = path.withCString { cPath in
-            rbd_office_inspect(cPath, &buffer, buffer.count)
+        return try path.withCString { cPath in
+            try callWithDynamicBuffer { buf, cap in
+                rbd_office_inspect(cPath, buf, cap)
+            }
         }
-        guard status == RBD_OK else {
-            throw RbdError.from(code: status)
-        }
-        return String(cString: buffer)
     }
 
     public static func createDocx(text: String, outputPath: String) throws {

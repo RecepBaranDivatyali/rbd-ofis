@@ -1236,7 +1236,7 @@ fn handle_bench(
         tile_latencies_ms.push(dur.as_secs_f64() * 1000.0);
     }
 
-    tile_latencies_ms.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    tile_latencies_ms.sort_by(|a, b| a.total_cmp(b));
 
     let tile_min_ms = tile_latencies_ms[0];
     let tile_max_ms = *tile_latencies_ms.last().unwrap();
@@ -1342,4 +1342,15 @@ fn handle_bench(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_tile_latencies_sort_with_nan_total_cmp_regression() {
+        let mut tile_latencies_ms = [12.5, f64::NAN, 8.2, 15.0, f64::NAN];
+        // Must not panic with total_cmp when comparing NaN values
+        tile_latencies_ms.sort_by(|a, b| a.total_cmp(b));
+        assert_eq!(tile_latencies_ms.len(), 5);
+    }
 }

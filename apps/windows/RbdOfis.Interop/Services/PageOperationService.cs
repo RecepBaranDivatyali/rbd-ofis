@@ -33,6 +33,83 @@ public sealed class PageOperationService
         }
     }
 
+    /// <summary>
+    /// Rotates only specific pages by their individual degree offsets using split, rotate, and merge.
+    /// Pages with 0 degree rotation or non-specified pages remain unchanged.
+    /// </summary>
+    /// <param name="inputPath">Path to the source PDF.</param>
+    /// <param name="pageRotations">Dictionary of 1-based page numbers to rotation degrees (must be multiples of 90).</param>
+    /// <param name="totalPages">Total number of pages in the input document.</param>
+    /// <param name="outputPath">Path to the output PDF.</param>
+    public void RotatePages(string inputPath, System.Collections.Generic.IReadOnlyDictionary<int, int> pageRotations, int totalPages, string outputPath)
+    {
+        ValidateFiles(inputPath, outputPath);
+        ArgumentNullException.ThrowIfNull(pageRotations);
+        if (totalPages < 1)
+        {
+            throw new ArgumentException("Total pages must be at least 1.", nameof(totalPages));
+        }
+
+        var activeRotations = new System.Collections.Generic.Dictionary<int, int>();
+        foreach (var kvp in pageRotations)
+        {
+            if (kvp.Value % 360 != 0 && kvp.Key >= 1 && kvp.Key <= totalPages)
+            {
+                if (kvp.Value % 90 != 0)
+                {
+                    throw new ArgumentException($"Rotation degrees must be a multiple of 90, received {kvp.Value}.", nameof(pageRotations));
+                }
+                activeRotations[kvp.Key] = kvp.Value;
+            }
+        }
+
+        if (activeRotations.Count == 0)
+        {
+            File.Copy(inputPath, outputPath, overwrite: true);
+            return;
+        }
+
+        if (totalPages == 1)
+        {
+            int deg = activeRotations[1];
+            Rotate(inputPath, deg, outputPath);
+            return;
+        }
+
+        var tempFiles = new System.Collections.Generic.List<string>();
+        try
+        {
+            var partFiles = new System.Collections.Generic.List<string>();
+            for (int p = 1; p <= totalPages; p++)
+            {
+                string splitPart = Path.Combine(Path.GetTempPath(), $"split_p{p}_{Guid.NewGuid():N}.pdf");
+                Split(inputPath, (uint)p, (uint)p, splitPart);
+                tempFiles.Add(splitPart);
+
+                if (activeRotations.TryGetValue(p, out int deg))
+                {
+                    string rotPart = Path.Combine(Path.GetTempPath(), $"rot_p{p}_{Guid.NewGuid():N}.pdf");
+                    Rotate(splitPart, deg, rotPart);
+                    tempFiles.Add(rotPart);
+                    partFiles.Add(rotPart);
+                }
+                else
+                {
+                    partFiles.Add(splitPart);
+                }
+            }
+
+            Merge(partFiles.ToArray(), outputPath);
+        }
+        finally
+        {
+            foreach (var f in tempFiles)
+            {
+                try { if (File.Exists(f)) File.Delete(f); } catch { }
+            }
+        }
+    }
+
     public void DeletePages(string inputPath, int[] pageNumbers, string outputPath)
     {
         ValidateFiles(inputPath, outputPath);

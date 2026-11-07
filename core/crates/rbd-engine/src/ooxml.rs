@@ -44,7 +44,7 @@ pub struct OfficeDocumentInfo {
 }
 
 /// Helper function to extract plain text between XML tags
-fn extract_xml_text(xml: &str, tag_names: &[&str]) -> Vec<String> {
+pub fn extract_xml_text(xml: &str, tag_names: &[&str]) -> Vec<String> {
     let mut results = Vec::new();
     for &tag in tag_names {
         let open_tag = format!("<{}", tag);
@@ -53,9 +53,30 @@ fn extract_xml_text(xml: &str, tag_names: &[&str]) -> Vec<String> {
         let mut pos = 0;
         while let Some(start_idx) = xml[pos..].find(&open_tag) {
             let abs_start = pos + start_idx;
-            // Find end of opening tag '>'
-            if let Some(tag_end) = xml[abs_start..].find('>') {
-                let content_start = abs_start + tag_end + 1;
+            let after_tag_name = abs_start + open_tag.len();
+
+            // Verify that this is the exact tag name and not a prefix of another tag (e.g. <tbl vs <t)
+            if let Some(next_char) = xml[after_tag_name..].chars().next()
+                && !next_char.is_whitespace()
+                && next_char != '>'
+                && next_char != '/'
+            {
+                pos = after_tag_name;
+                continue;
+            }
+
+            // Find end of opening/self-closing tag '>'
+            if let Some(tag_end_offset) = xml[abs_start..].find('>') {
+                let tag_end = abs_start + tag_end_offset;
+                let tag_header = &xml[abs_start..tag_end];
+
+                // If tag is self-closing (e.g. <t/>, <t xml:space="preserve"/>)
+                if tag_header.trim_end().ends_with('/') {
+                    pos = tag_end + 1;
+                    continue;
+                }
+
+                let content_start = tag_end + 1;
                 if let Some(end_idx) = xml[content_start..].find(&close_tag) {
                     let content_end = content_start + end_idx;
                     let text = &xml[content_start..content_end];
@@ -119,6 +140,10 @@ fn extract_docx_text(
                         current_p.clear();
                     }
                 } else if tag.starts_with("w:t") {
+                    if tag.trim_end().ends_with('/') {
+                        i += end + 1;
+                        continue;
+                    }
                     let text_start = i + end + 1;
                     if let Some(close) = xml[text_start..].find("</w:t>") {
                         let text = &xml[text_start..text_start + close];
@@ -409,4 +434,40 @@ pub fn create_simple_docx(text: &str, output_path: &Path) -> Result<(), EngineEr
     let mut file = File::create(output_path).map_err(EngineError::Io)?;
     file.write_all(&bytes).map_err(EngineError::Io)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_xml_text_self_closing_tags() {
+        let xml = r#"
+            <root>
+                <t/>
+                <t xml:space="preserve"/>
+                <t>Valid Text 1</t>
+                <t/>
+                <t>Valid Text 2</t>
+                <t />
+            </root>
+        "#;
+        let texts = extract_xml_text(xml, &["t"]);
+        assert_eq!(texts, vec!["Valid Text 1", "Valid Text 2"]);
+    }
+
+    #[test]
+    fn test_extract_xml_text_tag_prefix_disambiguation() {
+        let xml = r#"
+            <sheetData>
+                <tbl>Table content</tbl>
+                <t>Cell text</t>
+                <target>Target content</target>
+                <t/>
+                <t>Another text</t>
+            </sheetData>
+        "#;
+        let texts = extract_xml_text(xml, &["t"]);
+        assert_eq!(texts, vec!["Cell text", "Another text"]);
+    }
 }

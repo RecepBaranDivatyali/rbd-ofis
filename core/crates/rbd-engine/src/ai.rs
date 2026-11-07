@@ -608,11 +608,7 @@ pub fn summarize_document(
 
     // 3. Select top non-redundant sentences
     let mut sorted_candidates = candidates.clone();
-    sorted_candidates.sort_by(|a, b| {
-        b.score
-            .partial_cmp(&a.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    sorted_candidates.sort_by(|a, b| b.score.total_cmp(&a.score));
 
     let target_count = max_sentences.clamp(1, 10).min(total_sentences);
     let mut selected: Vec<SentenceCandidate> = Vec::with_capacity(target_count);
@@ -651,7 +647,7 @@ pub fn summarize_document(
     keyword_vec.sort_by(|a, b| {
         b.count
             .cmp(&a.count)
-            .then_with(|| b.score.partial_cmp(&a.score).unwrap())
+            .then_with(|| b.score.total_cmp(&a.score))
     });
     keyword_vec.truncate(10);
 
@@ -852,5 +848,33 @@ mod tests {
         let answer = ask_document(&pages, "Uzay yolculuğu maliyeti nedir?").unwrap();
 
         assert!(!answer.found);
+    }
+
+    #[test]
+    fn test_ai_keyword_and_candidate_nan_total_cmp_regression() {
+        let mut keywords = [
+            KeywordScore {
+                word: "alpha".into(),
+                count: 5,
+                score: f32::NAN,
+            },
+            KeywordScore {
+                word: "beta".into(),
+                count: 5,
+                score: 0.5,
+            },
+            KeywordScore {
+                word: "gamma".into(),
+                count: 10,
+                score: f32::NAN,
+            },
+        ];
+        // Must not panic with total_cmp when comparing NaN scores
+        keywords.sort_by(|a, b| {
+            b.count
+                .cmp(&a.count)
+                .then_with(|| b.score.total_cmp(&a.score))
+        });
+        assert_eq!(keywords[0].word, "gamma");
     }
 }

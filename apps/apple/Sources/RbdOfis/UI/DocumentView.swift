@@ -90,7 +90,8 @@ public struct DocumentView: View {
             tileY: 0,
             width: width,
             height: height,
-            zoom: zoomScale
+            zoom: zoomScale,
+            pixelFormat: .bgra32
         ) else {
             return nil
         }

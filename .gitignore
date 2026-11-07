@@ -36,4 +36,11 @@ Thumbs.db
 .xwin-cache/
 *.dll
 !core/vendor/pdfium/bin/pdfium.dll
+*.dylib
+*.so
+
+# Swift / Apple SPM
+.build/
+.swiftpm/
+
 

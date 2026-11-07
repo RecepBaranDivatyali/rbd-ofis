@@ -60,15 +60,18 @@ int32_t rbd_render_tile_into_buffer(
 );
 
 /* Text Extraction & Search */
-int32_t rbd_document_extract_page_text(RbdDocumentHandle doc, int32_t page_index, char** out_text);
+int32_t rbd_document_extract_page_text(RbdDocumentHandle doc, uint32_t page_index, char** out_text);
 int32_t rbd_document_search_json(RbdDocumentHandle doc, const char* query, int32_t case_sensitive, char** out_json);
 
 /* Annotations & Undo/Redo */
-int32_t rbd_document_add_annotation_json(RbdDocumentHandle doc, int32_t page_index, const char* annot_json);
-int32_t rbd_document_remove_annotation(RbdDocumentHandle doc, int32_t page_index, const char* annot_id);
-int32_t rbd_document_undo(RbdDocumentHandle doc);
-int32_t rbd_document_redo(RbdDocumentHandle doc);
-int32_t rbd_document_get_annotations_json(RbdDocumentHandle doc, int32_t page_index, char** out_json);
+int32_t rbd_document_add_annotation_json(RbdDocumentHandle doc, const char* annot_json);
+int32_t rbd_document_remove_annotation(RbdDocumentHandle doc, uint64_t annot_id);
+int32_t rbd_document_get_annotations_json(RbdDocumentHandle doc, uint32_t page_index, char** out_json);
+int32_t rbd_document_update_annotation_json(RbdDocumentHandle doc, const char* annot_json);
+int32_t rbd_document_undo(RbdDocumentHandle doc, int32_t* out_undone);
+int32_t rbd_document_redo(RbdDocumentHandle doc, int32_t* out_redone);
+int32_t rbd_document_can_undo(RbdDocumentHandle doc, int32_t* out_can_undo);
+int32_t rbd_document_can_redo(RbdDocumentHandle doc, int32_t* out_can_redo);
 int32_t rbd_document_save_annotations(RbdDocumentHandle doc, const char* out_path);
 int32_t rbd_document_save_annotations_to_path(RbdDocumentHandle doc, const char* in_path, const char* out_path);
 
@@ -76,6 +79,7 @@ int32_t rbd_document_save_annotations_to_path(RbdDocumentHandle doc, const char*
 int32_t rbd_free_string(char* text);
 const char* rbd_get_last_error(void);
 const char* rbd_version_string(void);
+int32_t rbd_simulate_panic(void);
 
 /* Page Operations */
 int32_t rbd_page_op_rotate(const char* in_path, const char* out_path, int32_t degrees);
@@ -111,6 +115,16 @@ int32_t rbd_ai_summarize_document(RbdDocumentHandle doc, uint32_t max_sentences,
 int32_t rbd_ai_ask_document(RbdDocumentHandle doc, const char* query, char* out_json_buf, size_t max_len);
 int32_t rbd_document_reflow_page_text(RbdDocumentHandle doc, uint32_t page_index, char* out_json_buf, size_t max_len);
 int32_t rbd_document_replace_paragraph_text(RbdDocumentHandle doc, const char* input_path, uint32_t page_index, float x0, float y0, float x1, float y1, const char* new_text, float font_size, const char* output_path);
+
+/* Direct Session Lifecycle & Rendering (Alternative C-ABI) */
+int32_t rbd_session_open_file(const char* path_utf8, const char* password_utf8, RbdSessionHandle* out_session);
+int32_t rbd_session_open_bytes(const uint8_t* bytes, size_t len, const char* password_utf8, RbdSessionHandle* out_session);
+int32_t rbd_session_close(RbdSessionHandle session);
+int32_t rbd_session_page_count(RbdSessionHandle session, uint32_t* out_count);
+int32_t rbd_session_page_dimensions(RbdSessionHandle session, uint32_t page, float* out_width, float* out_height);
+int32_t rbd_session_render_page(RbdSessionHandle session, uint32_t page, uint32_t width, uint32_t height, uint8_t* out_rgba, size_t out_len);
+int32_t rbd_session_render_tile_into_buffer(RbdSessionHandle session, uint32_t page, uint32_t tile_x, uint32_t tile_y, uint32_t tile_w, uint32_t tile_h, float scale_dpi, uint8_t* out_rgba, size_t out_len);
+int32_t rbd_session_extract_text(RbdSessionHandle session, uint32_t page, char** out_text);
 
 #ifdef __cplusplus
 }

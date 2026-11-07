@@ -4,6 +4,32 @@
 import SwiftUI
 import WebKit
 
+#if !SWIFT_PACKAGE
+private class BundleFinder {}
+extension Foundation.Bundle {
+    static var module: Bundle {
+        return Bundle(for: BundleFinder.self)
+    }
+}
+#endif
+
+private func locateOfficeHtml() -> URL? {
+    #if SWIFT_PACKAGE
+    if let url = Bundle.module.url(forResource: "index", withExtension: "html", subdirectory: "assets") {
+        return url
+    }
+    if let url = Bundle.module.url(forResource: "index", withExtension: "html") {
+        return url
+    }
+    #endif
+    if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "assets") {
+        return url
+    }
+    return Bundle.main.url(forResource: "index", withExtension: "html")
+}
+
+private let fallbackOfficeHtml = "<html><body style='font-family:sans-serif;padding:20px;'><h3>RBD OFİS</h3><p>Ofis editörü hazır.</p></body></html>"
+
 #if canImport(UIKit)
 import UIKit
 
@@ -30,11 +56,10 @@ public struct OfficeHostView: UIViewRepresentable {
     private func loadOfflineContent(into webView: WKWebView) {
         if let html = initialHtml {
             webView.loadHTMLString(html, baseURL: URL(string: "https://rbd-office.local/"))
-        } else if let resourceUrl = Bundle.module.url(forResource: "index", withExtension: "html", subdirectory: "assets") {
+        } else if let resourceUrl = locateOfficeHtml() {
             webView.loadFileURL(resourceUrl, allowingReadAccessTo: resourceUrl.deletingLastPathComponent())
         } else {
-            let fallbackHtml = "<html><body style='font-family:sans-serif;padding:20px;'><h3>RBD OFİS</h3><p>Ofis editörü hazır.</p></body></html>"
-            webView.loadHTMLString(fallbackHtml, baseURL: nil)
+            webView.loadHTMLString(fallbackOfficeHtml, baseURL: nil)
         }
     }
 }
@@ -62,9 +87,10 @@ public struct OfficeHostView: NSViewRepresentable {
     private func loadOfflineContent(into webView: WKWebView) {
         if let html = initialHtml {
             webView.loadHTMLString(html, baseURL: URL(string: "https://rbd-office.local/"))
+        } else if let resourceUrl = locateOfficeHtml() {
+            webView.loadFileURL(resourceUrl, allowingReadAccessTo: resourceUrl.deletingLastPathComponent())
         } else {
-            let fallbackHtml = "<html><body style='font-family:sans-serif;padding:20px;'><h3>RBD OFİS</h3><p>Ofis editörü hazır.</p></body></html>"
-            webView.loadHTMLString(fallbackHtml, baseURL: nil)
+            webView.loadHTMLString(fallbackOfficeHtml, baseURL: nil)
         }
     }
 }

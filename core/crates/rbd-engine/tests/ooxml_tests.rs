@@ -1,6 +1,6 @@
 use rbd_engine::ooxml::{
     OfficeDocType, create_simple_docx, create_simple_docx_bytes, extract_office_text,
-    extract_office_text_from_bytes, inspect_office_document,
+    extract_office_text_from_bytes, extract_xml_text, inspect_office_document,
 };
 use std::io::{Cursor, Write};
 use zip::ZipWriter;
@@ -119,4 +119,19 @@ fn test_extract_pptx_mock() {
     assert!(extracted.contains("--- Slayt 1 ---"));
     assert!(extracted.contains("RBD OFİS Sunum"));
     assert_eq!(words, 7); // "---", "Slayt", "1", "---", "RBD", "OFİS", "Sunum"
+}
+
+#[test]
+fn test_extract_xml_text_self_closing_tags_regression() {
+    let xml = r#"
+        <sst count="3">
+            <si><t/></si>
+            <si><t xml:space="preserve"/>First</si>
+            <si><t>Item One</t></si>
+            <si><t/></si>
+            <si><t>Item Two</t></si>
+        </sst>
+    "#;
+    let extracted = extract_xml_text(xml, &["t"]);
+    assert_eq!(extracted, vec!["Item One", "Item Two"]);
 }

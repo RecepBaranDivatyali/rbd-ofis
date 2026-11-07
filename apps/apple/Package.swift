@@ -24,7 +24,10 @@ let package = Package(
         .target(
             name: "RbdOfis",
             dependencies: ["CRbdFfi"],
-            path: "Sources/RbdOfis"
+            path: "Sources/RbdOfis",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "RbdOfisTests",

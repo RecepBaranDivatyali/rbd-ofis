@@ -70,4 +70,15 @@ class PdfDocumentRepositoryTest {
             repository.closeDocument()
         }
     }
+
+    @Test
+    fun testRepositoryReleaseClosesDocumentAndFreesEngine() = runTest(testDispatcher) {
+        val result = repository.openDocument("/tmp/document_release.pdf")
+        assertTrue(result.isSuccess)
+        assertTrue(repository.documentState.value.isOpen)
+
+        repository.release()
+        assertFalse(repository.documentState.value.isOpen)
+        assertEquals(0L, bridge.getEngineHandle())
+    }
 }

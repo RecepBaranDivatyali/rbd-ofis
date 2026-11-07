@@ -31,7 +31,7 @@ Tüm bağımlılıklar `docs/adr/0003-yayin-uyumlulugu.md` ve `AGENTS.md` Madde 
 | **clap** | 4.6.7 | Apache-2.0 OR MIT | CLI komut satırı argüman ayrıştırma | İzinli lisans |
 | **serde** / **serde_json** | 1.0.229 / 1.0.149 | Apache-2.0 OR MIT | Kıyaslama (benchmark) ve veri serileştirme | İzinli lisans |
 | **jni** | 0.21.1 | Apache-2.0 OR MIT | Android JNI köprüsü (`core/crates/rbd-ffi`) | İzinli lisans |
-| **zip** | 2.6.1 | MIT | OOXML (DOCX/XLSX/PPTX) arşiv ayrıştırma ve paketleme (`core/crates/rbd-engine`) | İzinli lisans |
+| **zip** | 9.4.1 | MIT | OOXML (DOCX/XLSX/PPTX) arşiv ayrıştırma ve paketleme (`core/crates/rbd-engine`) | İzinli lisans (RUSTSEC-2026-0369/0429 yamalı) |
 
 ---
 

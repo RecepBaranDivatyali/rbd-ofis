@@ -60,7 +60,7 @@ public partial class PageOrganizerWindow : Window
     private void InitializePages()
     {
         _pages.Clear();
-        int count = Math.Min(_document.PageCount, 100); // Visual organizer grid for up to 100 pages
+        int count = _document.PageCount; // Preserve all pages without truncation
         for (int i = 0; i < count; i++)
         {
             _pages.Add(new PageCardItem
@@ -332,13 +332,20 @@ public partial class PageOrganizerWindow : Window
                 workPath = reorderOut;
             }
 
-            // 2. Rotations
-            var rotated = _pages.Where(p => p.RotationDegrees != 0).ToList();
-            if (rotated.Count > 0)
+            // 2. Rotations (Rotate only relevant pages, not the entire document)
+            var pageRotations = new Dictionary<int, int>();
+            for (int i = 0; i < nonBlank.Count; i++)
             {
-                int deg = rotated[0].RotationDegrees;
+                if (nonBlank[i].RotationDegrees % 360 != 0)
+                {
+                    pageRotations[i + 1] = nonBlank[i].RotationDegrees;
+                }
+            }
+
+            if (pageRotations.Count > 0)
+            {
                 string rotateOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rotate_{Guid.NewGuid():N}.pdf");
-                _pageOps.Rotate(workPath, deg, rotateOut);
+                _pageOps.RotatePages(workPath, pageRotations, nonBlank.Count, rotateOut);
                 workPath = rotateOut;
             }
 
