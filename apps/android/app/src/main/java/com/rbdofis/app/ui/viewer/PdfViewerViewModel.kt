@@ -574,6 +574,8 @@ class PdfViewerViewModel(
         }
     }
 
+    fun getActiveDocHandle(): Long = repository.getActiveDocHandle()
+
     override fun onCleared() {
         super.onCleared()
         repository.release()

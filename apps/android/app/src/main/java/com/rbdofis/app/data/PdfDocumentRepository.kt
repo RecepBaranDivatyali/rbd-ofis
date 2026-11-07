@@ -55,6 +55,8 @@ class PdfDocumentRepository(
 
     private var currentDocHandle: Long = 0L
 
+    fun getActiveDocHandle(): Long = currentDocHandle
+
     // In-memory tile/thumbnail cache: max 128 items, LRU order, fully platform independent
     private val maxCacheEntries = 128
     private val tileCache = Collections.synchronizedMap(

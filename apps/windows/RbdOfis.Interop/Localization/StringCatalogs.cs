@@ -248,7 +248,33 @@ internal static class StringCatalogs
         ["OfficeWords"] = "sözcük",
         ["OfficeParagraphs"] = "paragraf",
         ["OfficeRows"] = "satır",
-        ["OfficeSlides"] = "slayt"
+        ["OfficeSlides"] = "slayt",
+
+        // Phase 4 Pro Tools Missing Keys
+        ["StampPosition"] = "Konum:",
+
+        // Phase 8 Offline AI & Fluid Reflow (Track 8C/8D)
+        ["AiTitle"] = "RBD OFİS Çevrimdışı Yapay Zeka",
+        ["AiBadgeOffline"] = "%100 Çevrimdışı ve Gizli",
+        ["AiSummarize"] = "Belgeyi Özetle",
+        ["AiSummaryTitle"] = "Belge Özeti",
+        ["AiAsk"] = "Belgeye Soru Sor",
+        ["AiAskTitle"] = "Belge Soru-Cevap",
+        ["AiAskPrompt"] = "Belge hakkında bir soru sorun...",
+        ["AiAskQueryEmpty"] = "Sorgu boş olamaz.",
+        ["AiNoAnswerFound"] = "Yanıt bulunamadı.",
+        ["AiWordCount"] = "Kelime Sayısı: {0}",
+        ["AiReadingTime"] = "Tahmini Okuma Süresi: ~{0:F1} dk",
+        ["AiKeySentences"] = "Önemli Cümleler",
+        ["AiConfidence"] = "Güven: %{0:F0}",
+        ["AiReflow"] = "Metin Yeniden Akışı (Reflow)",
+        ["AiReflowTitle"] = "Akışkan Paragraf Düzenleyici",
+        ["AiReflowParagraphSelect"] = "Düzenlenecek paragrafı seçin",
+        ["AiReflowOriginalText"] = "Orijinal Metin:",
+        ["AiReflowNewText"] = "Yeni Metin:",
+        ["AiReflowApply"] = "Paragrafı Güncelle",
+        ["AiReflowSuccess"] = "Paragraf metni başarıyla güncellendi.",
+        ["AiReflowFailed"] = "Metin yeniden akışı başarısız oldu: {0}"
     };
 
     public static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
@@ -491,6 +517,32 @@ internal static class StringCatalogs
         ["OfficeWords"] = "words",
         ["OfficeParagraphs"] = "paragraphs",
         ["OfficeRows"] = "rows",
-        ["OfficeSlides"] = "slides"
+        ["OfficeSlides"] = "slides",
+
+        // Phase 4 Pro Tools Missing Keys
+        ["StampPosition"] = "Position:",
+
+        // Phase 8 Offline AI & Fluid Reflow (Track 8C/8D)
+        ["AiTitle"] = "RBD OFİS Offline AI",
+        ["AiBadgeOffline"] = "100% Offline & Private",
+        ["AiSummarize"] = "Summarize Document",
+        ["AiSummaryTitle"] = "Document Summary",
+        ["AiAsk"] = "Ask Document",
+        ["AiAskTitle"] = "Document Q&A",
+        ["AiAskPrompt"] = "Ask a question about the document...",
+        ["AiAskQueryEmpty"] = "Query cannot be empty.",
+        ["AiNoAnswerFound"] = "No answer found.",
+        ["AiWordCount"] = "Word Count: {0}",
+        ["AiReadingTime"] = "Estimated Reading Time: ~{0:F1} min",
+        ["AiKeySentences"] = "Key Sentences",
+        ["AiConfidence"] = "Confidence: {0:F0}%",
+        ["AiReflow"] = "Text Reflow",
+        ["AiReflowTitle"] = "Fluid Paragraph Editor",
+        ["AiReflowParagraphSelect"] = "Select paragraph to edit",
+        ["AiReflowOriginalText"] = "Original Text:",
+        ["AiReflowNewText"] = "New Text:",
+        ["AiReflowApply"] = "Update Paragraph",
+        ["AiReflowSuccess"] = "Paragraph text updated successfully.",
+        ["AiReflowFailed"] = "Text reflow failed: {0}"
     };
 }

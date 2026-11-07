@@ -44,35 +44,80 @@ class LocalizationCompletenessTest {
     @Test
     fun testAllStringsLocalizedInTurkishAndEnglish() {
         val resDir = findProjectResDir()
-        val trStringsFile = File(resDir, "values/strings.xml")
+        val defaultStringsFile = File(resDir, "values/strings.xml")
+        val trStringsFile = File(resDir, "values-tr/strings.xml")
         val enStringsFile = File(resDir, "values-en/strings.xml")
 
-        assertTrue("Turkish strings file must exist", trStringsFile.exists())
-        assertTrue("English strings file must exist", enStringsFile.exists())
+        assertTrue("Default strings file must exist", defaultStringsFile.exists())
+        assertTrue("Turkish (values-tr) strings file must exist", trStringsFile.exists())
+        assertTrue("English (values-en) strings file must exist", enStringsFile.exists())
 
+        val defaultStrings = parseStringResources(defaultStringsFile)
         val trStrings = parseStringResources(trStringsFile)
         val enStrings = parseStringResources(enStringsFile)
 
+        assertFalse("Default strings should not be empty", defaultStrings.isEmpty())
         assertFalse("Turkish strings should not be empty", trStrings.isEmpty())
         assertFalse("English strings should not be empty", enStrings.isEmpty())
 
-        // 1. Verify every TR key is in EN
-        val missingInEn = trStrings.keys - enStrings.keys
-        assertTrue("Keys missing in English: $missingInEn", missingInEn.isEmpty())
+        // 1. Verify strict 3-way key parity: values == values-tr == values-en
+        val missingInEnFromDefault = defaultStrings.keys - enStrings.keys
+        assertTrue("Keys missing in English: $missingInEnFromDefault", missingInEnFromDefault.isEmpty())
 
-        // 2. Verify every EN key is in TR
-        val missingInTr = enStrings.keys - trStrings.keys
-        assertTrue("Keys missing in Turkish: $missingInTr", missingInTr.isEmpty())
+        val missingInDefaultFromEn = enStrings.keys - defaultStrings.keys
+        assertTrue("Keys missing in Default: $missingInDefaultFromEn", missingInDefaultFromEn.isEmpty())
 
-        // 3. Verify identical key set size
-        assertEquals("Key counts must match exactly", trStrings.size, enStrings.size)
+        val missingInTrFromDefault = defaultStrings.keys - trStrings.keys
+        assertTrue("Keys missing in values-tr: $missingInTrFromDefault", missingInTrFromDefault.isEmpty())
 
-        // 4. Verify no empty values
+        val missingInDefaultFromTr = trStrings.keys - defaultStrings.keys
+        assertTrue("Keys missing in Default from values-tr: $missingInDefaultFromTr", missingInDefaultFromTr.isEmpty())
+
+        // 2. Verify identical key set size
+        assertEquals("values and values-en key counts must match exactly", defaultStrings.size, enStrings.size)
+        assertEquals("values and values-tr key counts must match exactly", defaultStrings.size, trStrings.size)
+
+        // 3. Verify no empty values in all 3 catalogs
+        for ((key, value) in defaultStrings) {
+            assertFalse("Default string '$key' must not be blank", value.isBlank())
+        }
         for ((key, value) in trStrings) {
             assertFalse("TR string '$key' must not be blank", value.isBlank())
         }
         for ((key, value) in enStrings) {
             assertFalse("EN string '$key' must not be blank", value.isBlank())
+        }
+    }
+
+    @Test
+    fun testPhase8AiAndOfficeKeysPresent() {
+        val resDir = findProjectResDir()
+        val defaultStrings = parseStringResources(File(resDir, "values/strings.xml"))
+        val trStrings = parseStringResources(File(resDir, "values-tr/strings.xml"))
+        val enStrings = parseStringResources(File(resDir, "values-en/strings.xml"))
+
+        val requiredPhase8Keys = listOf(
+            "ai_title",
+            "ai_badge_offline",
+            "ai_tab_summary",
+            "ai_tab_ask",
+            "ai_word_count",
+            "ai_reading_time",
+            "ai_section_summary",
+            "ai_section_key_sentences",
+            "ai_query_placeholder",
+            "ai_page_indicator",
+            "ai_confidence_score",
+            "ai_summary_fallback",
+            "ai_answer_fallback",
+            "office_badge_offline",
+            "office_editor_placeholder"
+        )
+
+        for (key in requiredPhase8Keys) {
+            assertTrue("Default strings missing required key '$key'", defaultStrings.containsKey(key))
+            assertTrue("Turkish strings missing required key '$key'", trStrings.containsKey(key))
+            assertTrue("English strings missing required key '$key'", enStrings.containsKey(key))
         }
     }
 }

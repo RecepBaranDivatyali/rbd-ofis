@@ -1,0 +1,11 @@
+/* Localizable.strings (tr) - RBD OFİS Apple */
+"app_name" = "RBD OFİS";
+"app_subtitle" = "Açık Kaynak, Offline Ofis ve PDF Paketi";
+"page_indicator_format" = "Sayfa %d / %d";
+"loading_document" = "Yükleniyor...";
+"office_editor_ready" = "Ofis editörü hazır.";
+"pencilkit_unsupported" = "PencilKit yalnızca iPadOS ve iOS cihazlarda desteklenir.";
+"offline_badge" = "%100 Çevrimdışı ve Gizli";
+"document_summary" = "Belge Özeti";
+"ask_document" = "Belgeye Sor";
+"zoom_format" = "%%%d";

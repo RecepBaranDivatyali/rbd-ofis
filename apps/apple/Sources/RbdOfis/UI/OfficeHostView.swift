@@ -4,15 +4,6 @@
 import SwiftUI
 import WebKit
 
-#if !SWIFT_PACKAGE
-private class BundleFinder {}
-extension Foundation.Bundle {
-    static var module: Bundle {
-        return Bundle(for: BundleFinder.self)
-    }
-}
-#endif
-
 private func locateOfficeHtml() -> URL? {
     #if SWIFT_PACKAGE
     if let url = Bundle.module.url(forResource: "index", withExtension: "html", subdirectory: "assets") {
@@ -28,7 +19,11 @@ private func locateOfficeHtml() -> URL? {
     return Bundle.main.url(forResource: "index", withExtension: "html")
 }
 
-private let fallbackOfficeHtml = "<html><body style='font-family:sans-serif;padding:20px;'><h3>RBD OFİS</h3><p>Ofis editörü hazır.</p></body></html>"
+private func getFallbackOfficeHtml() -> String {
+    let appTitle = NSLocalizedString("app_name", bundle: .module, comment: "App Name")
+    let readyText = NSLocalizedString("office_editor_ready", bundle: .module, comment: "Office Editor Ready")
+    return "<html><body style='font-family:sans-serif;padding:20px;'><h3>\(appTitle)</h3><p>\(readyText)</p></body></html>"
+}
 
 #if canImport(UIKit)
 import UIKit
@@ -59,7 +54,7 @@ public struct OfficeHostView: UIViewRepresentable {
         } else if let resourceUrl = locateOfficeHtml() {
             webView.loadFileURL(resourceUrl, allowingReadAccessTo: resourceUrl.deletingLastPathComponent())
         } else {
-            webView.loadHTMLString(fallbackOfficeHtml, baseURL: nil)
+            webView.loadHTMLString(getFallbackOfficeHtml(), baseURL: nil)
         }
     }
 }
@@ -90,7 +85,7 @@ public struct OfficeHostView: NSViewRepresentable {
         } else if let resourceUrl = locateOfficeHtml() {
             webView.loadFileURL(resourceUrl, allowingReadAccessTo: resourceUrl.deletingLastPathComponent())
         } else {
-            webView.loadHTMLString(fallbackOfficeHtml, baseURL: nil)
+            webView.loadHTMLString(getFallbackOfficeHtml(), baseURL: nil)
         }
     }
 }

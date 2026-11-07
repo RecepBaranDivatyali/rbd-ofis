@@ -185,4 +185,21 @@
     <string name="office_items_count">%1$d öğe</string>
     <string name="office_save_success">Belge başarıyla kaydedildi.</string>
     <string name="office_export_success">PDF belgesi başarıyla oluşturuldu.</string>
+    <string name="office_badge_offline">🔒 Çevrimdışı (Sıfır Ağ)</string>
+    <string name="office_editor_placeholder">Belge içeriğini buraya yazın…</string>
+
+    <!-- Çevrimdışı Yapay Zeka (Phase 8 Track 8D) -->
+    <string name="ai_title">RBD OFİS Çevrimdışı Yapay Zeka</string>
+    <string name="ai_badge_offline">%100 Çevrimdışı ve Gizli</string>
+    <string name="ai_tab_summary">Özet &amp; Analiz</string>
+    <string name="ai_tab_ask">Belgeye Sor</string>
+    <string name="ai_word_count">Kelime: %1$d</string>
+    <string name="ai_reading_time">Okuma Süresi: ~%1$.1f dk</string>
+    <string name="ai_section_summary">Belge Özeti</string>
+    <string name="ai_section_key_sentences">Önemli Cümleler</string>
+    <string name="ai_query_placeholder">Belge hakkında bir soru sorun…</string>
+    <string name="ai_page_indicator">Sayfa %1$d</string>
+    <string name="ai_confidence_score">Güven: %%%1$d</string>
+    <string name="ai_summary_fallback">Belge özeti hazırlandı.</string>
+    <string name="ai_answer_fallback">Yanıt bulunamadı.</string>
 </resources>

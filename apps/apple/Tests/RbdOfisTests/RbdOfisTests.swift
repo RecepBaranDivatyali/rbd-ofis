@@ -50,4 +50,23 @@ final class RbdOfisTests: XCTestCase {
         let v = RbdEngine.version
         XCTAssertFalse(v.isEmpty)
     }
+
+    func testLocalizationParity() {
+        let keys = [
+            "app_name",
+            "app_subtitle",
+            "page_indicator_format",
+            "loading_document",
+            "office_editor_ready",
+            "pencilkit_unsupported",
+            "offline_badge",
+            "document_summary",
+            "ask_document",
+            "zoom_format"
+        ]
+        for key in keys {
+            let localized = NSLocalizedString(key, bundle: .module, comment: "")
+            XCTAssertFalse(localized.isEmpty, "Missing localization for \(key)")
+        }
+    }
 }

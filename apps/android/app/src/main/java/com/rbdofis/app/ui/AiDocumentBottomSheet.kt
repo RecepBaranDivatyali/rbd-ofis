@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.rbdofis.app.R
 import com.rbdofis.app.core.RbdNativeBridge
 
 data class AiSummaryState(
@@ -47,6 +49,8 @@ fun AiDocumentBottomSheet(
     onNavigateToPage: (Int) -> Unit = {}
 ) {
     val bridge = remember { RbdNativeBridge.getInstance() }
+    val defaultSummaryFallback = stringResource(R.string.ai_summary_fallback)
+    val defaultAnswerFallback = stringResource(R.string.ai_answer_fallback)
     var selectedTab by remember { mutableIntStateOf(0) }
     var summaryState by remember { mutableStateOf(AiSummaryState(isLoading = true)) }
     var answerState by remember { mutableStateOf(AiAnswerState()) }
@@ -58,7 +62,7 @@ fun AiDocumentBottomSheet(
         val wordsRegex = Regex("\"word_count\"\\s*:\\s*(\\d+)")
         val timeRegex = Regex("\"reading_time_minutes\"\\s*:\\s*([0-9.]+)")
 
-        val text = textRegex.find(json)?.groupValues?.get(1) ?: "Belge özeti hazırlandı."
+        val text = textRegex.find(json)?.groupValues?.get(1) ?: defaultSummaryFallback
         val words = wordsRegex.find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 120
         val time = timeRegex.find(json)?.groupValues?.get(1)?.toFloatOrNull() ?: 0.6f
 
@@ -94,7 +98,7 @@ fun AiDocumentBottomSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "RBD OFİS Çevrimdışı Yapay Zeka",
+                        text = stringResource(R.string.ai_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -107,7 +111,7 @@ fun AiDocumentBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "%100 Çevrimdışı ve Gizli",
+                            text = stringResource(R.string.ai_badge_offline),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF2E7D32)
                         )
@@ -121,13 +125,13 @@ fun AiDocumentBottomSheet(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Özet & Analiz") },
+                    text = { Text(stringResource(R.string.ai_tab_summary)) },
                     icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Belgeye Sor") },
+                    text = { Text(stringResource(R.string.ai_tab_ask)) },
                     icon = { Icon(Icons.Default.QuestionAnswer, contentDescription = null) }
                 )
             }
@@ -160,12 +164,18 @@ fun AiDocumentBottomSheet(
                                     .padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Kelime: ${summaryState.wordCount}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Okuma Süresi: ~${summaryState.readingTimeMinutes} dk", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = stringResource(R.string.ai_word_count, summaryState.wordCount),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = stringResource(R.string.ai_reading_time, summaryState.readingTimeMinutes),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Belge Özeti",
+                                text = stringResource(R.string.ai_section_summary),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -177,7 +187,7 @@ fun AiDocumentBottomSheet(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Önemli Cümleler",
+                                text = stringResource(R.string.ai_section_key_sentences),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -200,7 +210,7 @@ fun AiDocumentBottomSheet(
                         value = queryInput,
                         onValueChange = { queryInput = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Belge hakkında bir soru sorun...") },
+                        placeholder = { Text(stringResource(R.string.ai_query_placeholder)) },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
@@ -212,7 +222,7 @@ fun AiDocumentBottomSheet(
                                         val confRegex = Regex("\"confidence\"\\s*:\\s*([0-9.]+)")
                                         val foundRegex = Regex("\"found\"\\s*:\\s*(true|false)")
 
-                                        val ans = ansRegex.find(json)?.groupValues?.get(1) ?: "Yanıt bulunamadı."
+                                        val ans = ansRegex.find(json)?.groupValues?.get(1) ?: defaultAnswerFallback
                                         val page = pageRegex.find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 1
                                         val conf = confRegex.find(json)?.groupValues?.get(1)?.toFloatOrNull() ?: 0.9f
                                         val found = foundRegex.find(json)?.groupValues?.get(1) == "true"
@@ -228,7 +238,7 @@ fun AiDocumentBottomSheet(
                                     }
                                 }
                             ) {
-                                Icon(Icons.Default.Search, contentDescription = "Ara")
+                                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
                             }
                         },
                         singleLine = true
@@ -258,10 +268,10 @@ fun AiDocumentBottomSheet(
                                 ) {
                                     SuggestionChip(
                                         onClick = { onNavigateToPage(answerState.pageNumber) },
-                                        label = { Text("Sayfa ${answerState.pageNumber}") }
+                                        label = { Text(stringResource(R.string.ai_page_indicator, answerState.pageNumber)) }
                                     )
                                     Text(
-                                        text = "Güven: %${(answerState.confidence * 100).toInt()}",
+                                        text = stringResource(R.string.ai_confidence_score, (answerState.confidence * 100).toInt()),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (answerState.confidence > 0.5f) Color(0xFF2E7D32) else Color(0xFFE65100)
                                     )

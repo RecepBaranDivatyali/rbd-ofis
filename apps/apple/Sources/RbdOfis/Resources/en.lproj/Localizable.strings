@@ -1,0 +1,11 @@
+/* Localizable.strings (en) - RBD OFİS Apple */
+"app_name" = "RBD OFİS";
+"app_subtitle" = "Open Source, Offline Office & PDF Suite";
+"page_indicator_format" = "Page %d of %d";
+"loading_document" = "Loading...";
+"office_editor_ready" = "Office editor ready.";
+"pencilkit_unsupported" = "PencilKit is only supported on iPadOS and iOS devices.";
+"offline_badge" = "100% Offline & Private";
+"document_summary" = "Document Summary";
+"ask_document" = "Ask Document";
+"zoom_format" = "%d%%";

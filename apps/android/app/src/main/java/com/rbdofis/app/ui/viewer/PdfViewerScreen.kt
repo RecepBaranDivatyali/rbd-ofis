@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
@@ -48,6 +49,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +77,7 @@ fun PdfViewerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val docState = uiState.documentState
+    var isAiSheetOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -146,6 +151,17 @@ fun PdfViewerScreen(
                             Icon(
                                 imageVector = Icons.Default.Transform,
                                 contentDescription = stringResource(R.string.action_convert)
+                            )
+                        }
+
+                        // Offline AI Tools (Phase 8 Track 8D)
+                        IconButton(
+                            onClick = { isAiSheetOpen = true },
+                            enabled = docState.isOpen
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = stringResource(R.string.ai_title)
                             )
                         }
 
@@ -408,6 +424,18 @@ fun PdfViewerScreen(
                 onPdfToImages = { dpi, format, range -> viewModel.convertPdfToImages(context, dpi, format, range) },
                 onImagesToPdf = { paths, size, margin -> viewModel.convertImagesToPdf(context, paths, size, margin) },
                 onMarkdownToPdf = { md -> viewModel.convertMarkdownToPdf(context, md) }
+            )
+        }
+
+        // Document AI Bottom Sheet (Phase 8 Track 8D)
+        if (isAiSheetOpen) {
+            com.rbdofis.app.ui.AiDocumentBottomSheet(
+                docHandle = viewModel.getActiveDocHandle(),
+                onDismissRequest = { isAiSheetOpen = false },
+                onNavigateToPage = { page ->
+                    viewModel.goToPage(page - 1)
+                    isAiSheetOpen = false
+                }
             )
         }
     }

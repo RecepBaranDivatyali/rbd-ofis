@@ -44,6 +44,8 @@ fun OfficeEditorScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val bridge = remember { RbdNativeBridge.getInstance() }
+    val exportSuccessMessage = stringResource(R.string.office_export_success)
+    val saveSuccessMessage = stringResource(R.string.office_save_success)
 
     var metadata by remember { mutableStateOf<OfficeDocumentMetadata?>(null) }
     var textContent by remember { mutableStateOf("") }
@@ -124,7 +126,7 @@ fun OfficeEditorScreen(
                                 isSaving = false
                                 if (success) {
                                     snackbarHostState.showSnackbar(
-                                        message = "PDF belgesi oluşturuldu."
+                                        message = exportSuccessMessage
                                     )
                                     onPdfGenerated(outPdfPath)
                                 }
@@ -149,7 +151,7 @@ fun OfficeEditorScreen(
                                 isSaving = false
                                 if (success) {
                                     snackbarHostState.showSnackbar(
-                                        message = "Belge başarıyla kaydedildi."
+                                        message = saveSuccessMessage
                                     )
                                 }
                             }
@@ -188,7 +190,7 @@ fun OfficeEditorScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        text = "🔒 Çevrimdışı (Sıfır Ağ)",
+                        text = stringResource(R.string.office_badge_offline),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF107C41),
                         fontWeight = FontWeight.Bold
@@ -221,7 +223,7 @@ fun OfficeEditorScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(16.dp),
-                            placeholder = { Text("Belge içeriğini buraya yazın…") },
+                            placeholder = { Text(stringResource(R.string.office_editor_placeholder)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color.White

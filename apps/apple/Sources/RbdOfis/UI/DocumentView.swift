@@ -32,7 +32,7 @@ public struct DocumentView: View {
                 }
                 .disabled(currentPage <= 1)
 
-                Text("Sayfa \(currentPage) / \(document.pageCount)")
+                Text(String(format: NSLocalizedString("page_indicator_format", bundle: .module, comment: ""), currentPage, document.pageCount))
                     .font(.caption)
 
                 Button(action: { if currentPage < document.pageCount { currentPage += 1 } }) {
@@ -45,7 +45,7 @@ public struct DocumentView: View {
                 Button(action: { zoomScale = max(0.5, zoomScale - 0.25) }) {
                     Image(systemName: "minus.magnifyingglass")
                 }
-                Text("\(Int(zoomScale * 100))%")
+                Text(String(format: NSLocalizedString("zoom_format", bundle: .module, comment: ""), Int(zoomScale * 100)))
                     .font(.caption)
                 Button(action: { zoomScale = min(4.0, zoomScale + 0.25) }) {
                     Image(systemName: "plus.magnifyingglass")
@@ -72,7 +72,7 @@ public struct DocumentView: View {
                                height: CGFloat(document.height) * CGFloat(zoomScale))
                     #endif
                 } else {
-                    ProgressView("Yükleniyor...")
+                    ProgressView(NSLocalizedString("loading_document", bundle: .module, comment: ""))
                         .frame(width: 400, height: 600)
                 }
             }

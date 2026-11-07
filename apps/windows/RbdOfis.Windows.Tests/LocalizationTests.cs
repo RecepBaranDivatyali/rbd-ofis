@@ -333,6 +333,45 @@ public class LocalizationTests
     }
 
     [Fact]
+    public void Verify_Phase8_Ai_And_Reflow_Keys_Are_Present_And_Complete()
+    {
+        string[] requiredPhase8Keys =
+        [
+            "StampPosition",
+            "AiTitle",
+            "AiBadgeOffline",
+            "AiSummarize",
+            "AiSummaryTitle",
+            "AiAsk",
+            "AiAskTitle",
+            "AiAskPrompt",
+            "AiAskQueryEmpty",
+            "AiNoAnswerFound",
+            "AiWordCount",
+            "AiReadingTime",
+            "AiKeySentences",
+            "AiConfidence",
+            "AiReflow",
+            "AiReflowTitle",
+            "AiReflowParagraphSelect",
+            "AiReflowOriginalText",
+            "AiReflowNewText",
+            "AiReflowApply",
+            "AiReflowSuccess",
+            "AiReflowFailed"
+        ];
+
+        var turkish = LocalizationManager.GetCatalogForCulture("tr-TR");
+        var english = LocalizationManager.GetCatalogForCulture("en-US");
+
+        foreach (string key in requiredPhase8Keys)
+        {
+            Assert.True(turkish.ContainsKey(key), $"Turkish catalog missing Phase 8 key '{key}'.");
+            Assert.True(english.ContainsKey(key), $"English catalog missing Phase 8 key '{key}'.");
+        }
+    }
+
+    [Fact]
     public void Verify_Missing_Key_Returns_Key_Name_Without_Exception()
     {
         var manager = LocalizationManager.Instance;

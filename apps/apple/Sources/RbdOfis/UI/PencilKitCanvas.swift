@@ -36,7 +36,7 @@ public struct PencilKitCanvas: UIViewRepresentable {
 public struct PencilKitCanvas: View {
     public init() {}
     public var body: some View {
-        Text("PencilKit yalnızca iPadOS ve iOS cihazlarda desteklenir.")
+        Text(NSLocalizedString("pencilkit_unsupported", bundle: .module, comment: ""))
             .foregroundColor(.secondary)
             .padding()
     }
