@@ -9,6 +9,7 @@ pub mod ooxml;
 pub mod page_ops;
 pub mod redaction;
 pub mod reflow;
+pub mod scan;
 pub mod search;
 pub mod stamp;
 pub mod traits;
@@ -45,6 +46,9 @@ pub use redaction::{PageRedaction, redact_document, redact_document_bytes};
 pub use reflow::{
     BoundingBox, ReflowParagraph, TextLineSegment, cluster_lines_into_paragraphs,
     reflow_text_to_width, replace_paragraph_text, replace_paragraph_text_doc,
+};
+pub use scan::{
+    calculate_otsu_threshold, compute_luminance, scan_binarize, scan_generate_pdf, scan_grayscale,
 };
 pub use search::{PdfRect, SearchHit, find_matches, turkish_lowercase};
 pub use stamp::{

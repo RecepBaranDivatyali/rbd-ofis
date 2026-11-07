@@ -1683,6 +1683,193 @@ pub unsafe extern "C" fn rbd_convert_markdown_to_pdf(
 }
 
 // ---------------------------------------------------------------------------
+// Document Scanner & Image Processing Functions
+// ---------------------------------------------------------------------------
+
+/// Compute standard ITU-R BT.601 luminance for RGB channels.
+///
+/// # Safety
+/// `out_luminance` must point to valid writable memory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_scan_compute_luminance(
+    r: u8,
+    g: u8,
+    b: u8,
+    out_luminance: *mut u8,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if out_luminance.is_null() {
+            set_last_error("Null pointer passed to rbd_scan_compute_luminance");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        unsafe {
+            *out_luminance = rbd_core::compute_luminance(r, g, b);
+        }
+        Ok(())
+    }))
+}
+
+/// Calculate optimal Otsu threshold from a 256-bin histogram.
+///
+/// # Safety
+/// `histogram` must point to an array of 256 `uint32_t` elements.
+/// `out_threshold` must point to valid writable memory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_scan_calculate_otsu_threshold(
+    histogram: *const u32,
+    total_pixels: usize,
+    out_threshold: *mut u8,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if histogram.is_null() || out_threshold.is_null() {
+            set_last_error("Null pointer passed to rbd_scan_calculate_otsu_threshold");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        let hist_slice = unsafe { slice::from_raw_parts(histogram, 256) };
+        let mut hist_arr = [0u32; 256];
+        hist_arr.copy_from_slice(hist_slice);
+        unsafe {
+            *out_threshold = rbd_core::calculate_otsu_threshold(&hist_arr, total_pixels);
+        }
+        Ok(())
+    }))
+}
+
+/// Convert an RGBA pixel buffer to 8-bit grayscale in-place.
+///
+/// # Safety
+/// `buffer` must point to a writable buffer of at least `stride * (height - 1) + width * 4` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_scan_to_grayscale(
+    buffer: *mut u8,
+    width: i32,
+    height: i32,
+    stride: i32,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if buffer.is_null() {
+            set_last_error("Null pointer passed to rbd_scan_to_grayscale");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if width <= 0 || height <= 0 || stride <= 0 {
+            set_last_error("Invalid dimensions or stride in rbd_scan_to_grayscale");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+        let row_bytes = (width as usize).checked_mul(4).ok_or_else(|| {
+            set_last_error("Width overflow in rbd_scan_to_grayscale");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        if (stride as usize) < row_bytes {
+            set_last_error("Stride less than width * 4 in rbd_scan_to_grayscale");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+        let required_len = (stride as usize)
+            .checked_mul(height as usize - 1)
+            .and_then(|s| s.checked_add(row_bytes))
+            .ok_or_else(|| {
+                set_last_error("Buffer length overflow in rbd_scan_to_grayscale");
+                RBD_ERR_INVALID_PARAM
+            })?;
+        let buf_slice = unsafe { slice::from_raw_parts_mut(buffer, required_len) };
+        rbd_core::scan_grayscale(buf_slice, width as u32, height as u32, stride as usize)
+            .map_err(|e| map_engine_error(&e))?;
+        Ok(())
+    }))
+}
+
+/// Convert an RGBA pixel buffer to high-contrast binarized (black text, white paper) in-place.
+///
+/// # Safety
+/// `buffer` must point to a writable buffer of at least `stride * (height - 1) + width * 4` bytes.
+/// `out_threshold` may be null or point to a writable `uint8_t` for the calculated threshold.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_scan_to_binarized(
+    buffer: *mut u8,
+    width: i32,
+    height: i32,
+    stride: i32,
+    out_threshold: *mut u8,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if buffer.is_null() {
+            set_last_error("Null pointer passed to rbd_scan_to_binarized");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        if width <= 0 || height <= 0 || stride <= 0 {
+            set_last_error("Invalid dimensions or stride in rbd_scan_to_binarized");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+        let row_bytes = (width as usize).checked_mul(4).ok_or_else(|| {
+            set_last_error("Width overflow in rbd_scan_to_binarized");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        if (stride as usize) < row_bytes {
+            set_last_error("Stride less than width * 4 in rbd_scan_to_binarized");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+        let required_len = (stride as usize)
+            .checked_mul(height as usize - 1)
+            .and_then(|s| s.checked_add(row_bytes))
+            .ok_or_else(|| {
+                set_last_error("Buffer length overflow in rbd_scan_to_binarized");
+                RBD_ERR_INVALID_PARAM
+            })?;
+        let buf_slice = unsafe { slice::from_raw_parts_mut(buffer, required_len) };
+        let threshold =
+            rbd_core::scan_binarize(buf_slice, width as u32, height as u32, stride as usize)
+                .map_err(|e| map_engine_error(&e))?;
+        if !out_threshold.is_null() {
+            unsafe {
+                *out_threshold = threshold;
+            }
+        }
+        Ok(())
+    }))
+}
+
+/// Compile scanned images into a standard PDF document.
+///
+/// # Safety
+/// Pointers must be valid null-terminated UTF-8 strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rbd_scan_generate_pdf(
+    images_json: *const c_char,
+    out_path: *const c_char,
+) -> i32 {
+    ffi_boundary(AssertUnwindSafe(|| {
+        if images_json.is_null() || out_path.is_null() {
+            set_last_error("Null pointer passed to rbd_scan_generate_pdf");
+            return Err(RBD_ERR_NULL_PTR);
+        }
+        let out_str = unsafe { CStr::from_ptr(out_path) }.to_str().map_err(|_| {
+            set_last_error("Invalid UTF-8 in out_path");
+            RBD_ERR_INVALID_PARAM
+        })?;
+        let json_str = unsafe { CStr::from_ptr(images_json) }
+            .to_str()
+            .map_err(|_| {
+                set_last_error("Invalid UTF-8 in images_json");
+                RBD_ERR_INVALID_PARAM
+            })?;
+        let image_path_strings: Vec<String> = serde_json::from_str(json_str).map_err(|e| {
+            set_last_error(&format!("Failed to parse images_json: {e}"));
+            RBD_ERR_INVALID_PARAM
+        })?;
+        if image_path_strings.is_empty() {
+            set_last_error("No image paths provided in images_json");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+        let image_paths: Vec<std::path::PathBuf> = image_path_strings
+            .into_iter()
+            .map(std::path::PathBuf::from)
+            .collect();
+        rbd_core::scan_generate_pdf(&image_paths, Path::new(out_str))
+            .map_err(|e| map_engine_error(&e))?;
+        Ok(())
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Office Document Functions (DOCX, XLSX, PPTX inspection, extraction & creation)
 // ---------------------------------------------------------------------------
 
@@ -3169,6 +3356,108 @@ mod tests {
 
             rbd_document_free(doc);
             rbd_engine_free(engine);
+        }
+    }
+
+    #[test]
+    fn test_ffi_scanner() {
+        unsafe {
+            // Null pointer checks
+            assert_eq!(
+                rbd_scan_compute_luminance(255, 255, 255, std::ptr::null_mut()),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_scan_calculate_otsu_threshold(std::ptr::null(), 100, std::ptr::null_mut()),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_scan_to_grayscale(std::ptr::null_mut(), 10, 10, 40),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_scan_to_binarized(std::ptr::null_mut(), 10, 10, 40, std::ptr::null_mut()),
+                RBD_ERR_NULL_PTR
+            );
+            assert_eq!(
+                rbd_scan_generate_pdf(std::ptr::null(), std::ptr::null()),
+                RBD_ERR_NULL_PTR
+            );
+
+            // 1. Luminance computation
+            let mut lum = 0u8;
+            assert_eq!(rbd_scan_compute_luminance(255, 255, 255, &mut lum), RBD_OK);
+            assert_eq!(lum, 255);
+            assert_eq!(rbd_scan_compute_luminance(255, 0, 0, &mut lum), RBD_OK);
+            assert_eq!(lum, 76);
+            assert_eq!(rbd_scan_compute_luminance(0, 255, 0, &mut lum), RBD_OK);
+            assert_eq!(lum, 149);
+            assert_eq!(rbd_scan_compute_luminance(0, 0, 255, &mut lum), RBD_OK);
+            assert_eq!(lum, 29);
+
+            // 2. Otsu threshold calculation
+            let mut histogram = [0u32; 256];
+            histogram[40] = 500;
+            histogram[220] = 1000;
+            let mut threshold = 0u8;
+            assert_eq!(
+                rbd_scan_calculate_otsu_threshold(histogram.as_ptr(), 1500, &mut threshold),
+                RBD_OK
+            );
+            assert!(threshold > 40 && threshold < 220);
+
+            // 3. Grayscale conversion on 2x2 RGBA buffer
+            let mut buf = vec![
+                255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255,
+            ];
+            assert_eq!(rbd_scan_to_grayscale(buf.as_mut_ptr(), 2, 2, 8), RBD_OK);
+            assert_eq!(buf[0..4], [76, 76, 76, 255]);
+            assert_eq!(buf[4..8], [149, 149, 149, 255]);
+            assert_eq!(buf[8..12], [0, 0, 0, 255]);
+            assert_eq!(buf[12..16], [255, 255, 255, 255]);
+
+            // 4. Binarization on 2x2 RGBA buffer
+            let mut bin_buf = vec![
+                255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255,
+            ];
+            let mut bin_threshold = 0u8;
+            assert_eq!(
+                rbd_scan_to_binarized(bin_buf.as_mut_ptr(), 2, 2, 8, &mut bin_threshold),
+                RBD_OK
+            );
+            assert!(bin_threshold > 0);
+            for chunk in bin_buf.chunks_exact(4) {
+                assert!(chunk[0] == 0 || chunk[0] == 255);
+                assert_eq!(chunk[0], chunk[1]);
+                assert_eq!(chunk[1], chunk[2]);
+                assert_eq!(chunk[3], 255);
+            }
+
+            // 5. Invalid arguments
+            assert_eq!(
+                rbd_scan_to_grayscale(buf.as_mut_ptr(), 0, 2, 8),
+                RBD_ERR_INVALID_PARAM
+            );
+            assert_eq!(
+                rbd_scan_to_grayscale(buf.as_mut_ptr(), 2, 2, 4),
+                RBD_ERR_INVALID_PARAM
+            );
+            assert_eq!(
+                rbd_scan_to_binarized(buf.as_mut_ptr(), 2, 0, 8, std::ptr::null_mut()),
+                RBD_ERR_INVALID_PARAM
+            );
+            assert_eq!(
+                rbd_scan_to_binarized(buf.as_mut_ptr(), 2, 2, 4, std::ptr::null_mut()),
+                RBD_ERR_INVALID_PARAM
+            );
+
+            // 6. PDF generation with empty paths
+            let empty_json = CString::new("[]").unwrap();
+            let out_pdf = CString::new("out.pdf").unwrap();
+            assert_eq!(
+                rbd_scan_generate_pdf(empty_json.as_ptr(), out_pdf.as_ptr()),
+                RBD_ERR_INVALID_PARAM
+            );
         }
     }
 }

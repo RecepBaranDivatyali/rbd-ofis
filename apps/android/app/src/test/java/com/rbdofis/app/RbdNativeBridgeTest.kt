@@ -182,4 +182,22 @@ class RbdNativeBridgeTest {
         assertTrue(removed)
         bridge.closeDocument(handle)
     }
+
+    @Test
+    fun testScanBridgeOperations() {
+        val histogram = IntArray(256)
+        histogram[40] = 500
+        histogram[220] = 1000
+        val threshold = bridge.scanCalculateOtsuThreshold(histogram, 1500)
+        assertTrue(threshold in 41..219)
+
+        val tempOut = File.createTempFile("rbd_scan_out", ".pdf")
+        try {
+            val generated = bridge.scanGeneratePdf(listOf("/mock/img1.png"), tempOut.absolutePath)
+            assertTrue(generated)
+            assertTrue(tempOut.exists())
+        } finally {
+            tempOut.delete()
+        }
+    }
 }

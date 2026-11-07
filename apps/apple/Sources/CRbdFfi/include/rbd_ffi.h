@@ -105,6 +105,13 @@ int32_t rbd_convert_pdf_to_images(const char* in_path, const char* out_dir, uint
 int32_t rbd_convert_images_to_pdf(const char* images_json, int32_t page_size, float margin_pt, const char* out_path);
 int32_t rbd_convert_markdown_to_pdf(const char* markdown_text, const char* out_path);
 
+/* Document Scanner & Image Enhancement */
+int32_t rbd_scan_compute_luminance(uint8_t r, uint8_t g, uint8_t b, uint8_t* out_luminance);
+int32_t rbd_scan_calculate_otsu_threshold(const uint32_t* histogram_256, size_t total_pixels, uint8_t* out_threshold);
+int32_t rbd_scan_to_grayscale(uint8_t* buffer, int32_t width, int32_t height, int32_t stride);
+int32_t rbd_scan_to_binarized(uint8_t* buffer, int32_t width, int32_t height, int32_t stride, uint8_t* out_threshold);
+int32_t rbd_scan_generate_pdf(const char* images_json, const char* out_path);
+
 /* Office Documents (DOCX, XLSX, PPTX) */
 int32_t rbd_office_extract_text(const char* in_path, char* out_text_buf, size_t max_len);
 int32_t rbd_office_inspect(const char* in_path, char* out_json_buf, size_t max_len);

@@ -1064,6 +1064,170 @@ class RbdNativeBridge private constructor() {
         }
     }
 
+    // =========================================================================
+    // Document Scanner & Image Enhancement
+    // =========================================================================
+
+    fun scanToGrayscale(bitmap: Bitmap): Bitmap? {
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width <= 0 || height <= 0) return null
+
+        if (isNativeAvailable()) {
+            try {
+                val stride = width * 4
+                val bufferSize = stride * height
+                val directBuffer = ByteBuffer.allocateDirect(bufferSize)
+                bitmap.copyPixelsToBuffer(directBuffer)
+                directBuffer.rewind()
+
+                val status = nativeScanToGrayscale(directBuffer, width, height, stride)
+                if (status == 0) {
+                    val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    directBuffer.rewind()
+                    output.copyPixelsFromBuffer(directBuffer)
+                    return output
+                }
+            } catch (e: Throwable) {
+                logW(TAG, "Native scanToGrayscale failed", e)
+            }
+        }
+
+        // Mock fallback implementation
+        return try {
+            val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val pixels = IntArray(width * height)
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+            for (i in pixels.indices) {
+                val pixel = pixels[i]
+                val r = (pixel shr 16) and 0xFF
+                val g = (pixel shr 8) and 0xFF
+                val b = pixel and 0xFF
+                val gray = ((299 * r + 587 * g + 114 * b) / 1000).coerceIn(0, 255)
+                pixels[i] = -0x1000000 or (gray shl 16) or (gray shl 8) or gray
+            }
+            output.setPixels(pixels, 0, width, 0, 0, width, height)
+            output
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun scanToBinarized(bitmap: Bitmap): Bitmap? {
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width <= 0 || height <= 0) return null
+
+        if (isNativeAvailable()) {
+            try {
+                val stride = width * 4
+                val bufferSize = stride * height
+                val directBuffer = ByteBuffer.allocateDirect(bufferSize)
+                bitmap.copyPixelsToBuffer(directBuffer)
+                directBuffer.rewind()
+
+                val status = nativeScanToBinarized(directBuffer, width, height, stride)
+                if (status == 0) {
+                    val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    directBuffer.rewind()
+                    output.copyPixelsFromBuffer(directBuffer)
+                    return output
+                }
+            } catch (e: Throwable) {
+                logW(TAG, "Native scanToBinarized failed", e)
+            }
+        }
+
+        // Mock fallback implementation
+        return try {
+            val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val pixels = IntArray(width * height)
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+            val histogram = IntArray(256)
+            val grays = IntArray(pixels.size)
+            for (i in pixels.indices) {
+                val pixel = pixels[i]
+                val r = (pixel shr 16) and 0xFF
+                val g = (pixel shr 8) and 0xFF
+                val b = pixel and 0xFF
+                val gray = ((299 * r + 587 * g + 114 * b) / 1000).coerceIn(0, 255)
+                grays[i] = gray
+                histogram[gray]++
+            }
+
+            val threshold = scanCalculateOtsuThreshold(histogram, pixels.size)
+            val white = -0x1
+            val black = -0x1000000
+            for (i in pixels.indices) {
+                pixels[i] = if (grays[i] <= threshold) black else white
+            }
+            output.setPixels(pixels, 0, width, 0, 0, width, height)
+            output
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun scanCalculateOtsuThreshold(histogram: IntArray, totalPixels: Int): Int {
+        if (totalPixels <= 0) return 128
+        if (isNativeAvailable()) {
+            val result = nativeScanCalculateOtsuThreshold(histogram, totalPixels)
+            if (result >= 0) return result
+        }
+
+        // Pure algorithmic fallback
+        var sum = 0.0
+        for (i in 0 until 256) {
+            sum += i.toDouble() * histogram[i]
+        }
+
+        var sumB = 0.0
+        var weightB = 0L
+        var maxVariance = -1.0
+        var firstBest = 128
+        var lastBest = 128
+
+        for (t in 0 until 256) {
+            weightB += histogram[t]
+            if (weightB == 0L) continue
+
+            val weightF = totalPixels - weightB
+            if (weightF == 0L) break
+
+            sumB += t.toDouble() * histogram[t]
+            val meanB = sumB / weightB
+            val meanF = (sum - sumB) / weightF
+
+            val betweenVariance = weightB.toDouble() * weightF.toDouble() * (meanB - meanF) * (meanB - meanF)
+            if (betweenVariance > maxVariance + 1e-5) {
+                maxVariance = betweenVariance
+                firstBest = t
+                lastBest = t
+            } else if (kotlin.math.abs(betweenVariance - maxVariance) <= 1e-5) {
+                lastBest = t
+            }
+        }
+
+        return (firstBest + lastBest) / 2
+    }
+
+    fun scanGeneratePdf(imagePaths: List<String>, outPath: String): Boolean {
+        if (imagePaths.isEmpty()) return false
+        if (isNativeAvailable()) {
+            val imagesJson = "[" + imagePaths.joinToString(",") { "\"$it\"" } + "]"
+            return nativeScanGeneratePdf(imagesJson, outPath) == 0
+        }
+        return try {
+            val outFile = File(outPath)
+            outFile.parentFile?.mkdirs()
+            outFile.writeText("%PDF-1.7 mock scanned pdf count=${imagePaths.size}\n%%EOF\n")
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
     private fun parseOfficeMetadataJson(json: String): OfficeDocumentMetadata? {
         return try {
             val type = Regex("\"doc_type\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1) ?: "DOCX"
@@ -1204,6 +1368,12 @@ class RbdNativeBridge private constructor() {
         fontSize: Float,
         outputPath: String
     ): Int
+
+    // Document Scanner & Image Enhancement
+    private external fun nativeScanToGrayscale(directByteBuffer: ByteBuffer, width: Int, height: Int, stride: Int): Int
+    private external fun nativeScanToBinarized(directByteBuffer: ByteBuffer, width: Int, height: Int, stride: Int): Int
+    private external fun nativeScanCalculateOtsuThreshold(histogram: IntArray, totalPixels: Int): Int
+    private external fun nativeScanGeneratePdf(imagesJson: String, outPath: String): Int
 
     // =========================================================================
     // In-memory Mock Data Structures

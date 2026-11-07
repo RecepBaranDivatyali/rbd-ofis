@@ -19,13 +19,14 @@ use crate::{
     rbd_page_op_reorder, rbd_page_op_rotate, rbd_page_op_split, rbd_pro_apply_bates_stamp,
     rbd_pro_apply_page_numbers, rbd_pro_apply_watermark, rbd_pro_compress_document,
     rbd_pro_fill_form_fields, rbd_pro_read_form_fields, rbd_pro_redact_document,
-    rbd_render_tile_into_buffer,
+    rbd_render_tile_into_buffer, rbd_scan_calculate_otsu_threshold, rbd_scan_generate_pdf,
+    rbd_scan_to_binarized, rbd_scan_to_grayscale,
 };
 use jni::JNIEnv;
-use jni::objects::{JByteArray, JByteBuffer, JClass, JString};
+use jni::objects::{JByteArray, JByteBuffer, JClass, JIntArray, JString};
 use jni::sys::{
-    JNI_FALSE, JNI_TRUE, jboolean, jbyteArray, jdouble, jdoubleArray, jfloat, jint, jlong, jobject,
-    jstring,
+    JNI_FALSE, JNI_TRUE, jboolean, jbyteArray, jdouble, jdoubleArray, jfloat, jint, jintArray,
+    jlong, jobject, jstring,
 };
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -1232,6 +1233,178 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeMarkdow
     })
 }
 
+/// Convert an RGBA direct byte buffer to 8-bit grayscale in-place via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanToGrayscale(
+    env: JNIEnv,
+    _class: JClass,
+    direct_byte_buffer: jobject,
+    width: jint,
+    height: jint,
+    stride: jint,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if direct_byte_buffer.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+        if width <= 0 || height <= 0 || stride <= 0 {
+            return RBD_ERR_INVALID_PARAM;
+        }
+
+        let jbuf = unsafe { JByteBuffer::from_raw(direct_byte_buffer) };
+        let buf_ptr = match env.get_direct_buffer_address(&jbuf) {
+            Ok(p) => p,
+            Err(_) => return RBD_ERR_INVALID_PARAM,
+        };
+        let capacity = match env.get_direct_buffer_capacity(&jbuf) {
+            Ok(c) => c,
+            Err(_) => return RBD_ERR_INVALID_PARAM,
+        };
+
+        let row_bytes = match (width as usize).checked_mul(4) {
+            Some(rb) => rb,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        if (stride as usize) < row_bytes {
+            return RBD_ERR_INVALID_PARAM;
+        }
+        let required = match (stride as usize)
+            .checked_mul(height as usize - 1)
+            .and_then(|s| s.checked_add(row_bytes))
+        {
+            Some(r) => r,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        if capacity < required {
+            return RBD_ERR_BUFFER_TOO_SMALL;
+        }
+
+        unsafe { rbd_scan_to_grayscale(buf_ptr, width, height, stride) }
+    })
+}
+
+/// Convert an RGBA direct byte buffer to high-contrast binarized in-place via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanToBinarized(
+    env: JNIEnv,
+    _class: JClass,
+    direct_byte_buffer: jobject,
+    width: jint,
+    height: jint,
+    stride: jint,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if direct_byte_buffer.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+        if width <= 0 || height <= 0 || stride <= 0 {
+            return RBD_ERR_INVALID_PARAM;
+        }
+
+        let jbuf = unsafe { JByteBuffer::from_raw(direct_byte_buffer) };
+        let buf_ptr = match env.get_direct_buffer_address(&jbuf) {
+            Ok(p) => p,
+            Err(_) => return RBD_ERR_INVALID_PARAM,
+        };
+        let capacity = match env.get_direct_buffer_capacity(&jbuf) {
+            Ok(c) => c,
+            Err(_) => return RBD_ERR_INVALID_PARAM,
+        };
+
+        let row_bytes = match (width as usize).checked_mul(4) {
+            Some(rb) => rb,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        if (stride as usize) < row_bytes {
+            return RBD_ERR_INVALID_PARAM;
+        }
+        let required = match (stride as usize)
+            .checked_mul(height as usize - 1)
+            .and_then(|s| s.checked_add(row_bytes))
+        {
+            Some(r) => r,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        if capacity < required {
+            return RBD_ERR_BUFFER_TOO_SMALL;
+        }
+
+        unsafe { rbd_scan_to_binarized(buf_ptr, width, height, stride, ptr::null_mut()) }
+    })
+}
+
+/// Calculate optimal Otsu threshold from a 256-element integer histogram via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanCalculateOtsuThreshold(
+    env: JNIEnv,
+    _class: JClass,
+    histogram: jintArray,
+    total_pixels: jint,
+) -> jint {
+    jni_boundary(-1, || {
+        if histogram.is_null() {
+            return -1;
+        }
+        let j_hist = unsafe { JIntArray::from_raw(histogram) };
+        let len = match env.get_array_length(&j_hist) {
+            Ok(l) => l,
+            Err(_) => return -1,
+        };
+        if len < 256 {
+            return -1;
+        }
+        let mut rust_hist = [0i32; 256];
+        if env
+            .get_int_array_region(&j_hist, 0, &mut rust_hist)
+            .is_err()
+        {
+            return -1;
+        }
+        let mut u32_hist = [0u32; 256];
+        for i in 0..256 {
+            u32_hist[i] = rust_hist[i].max(0) as u32;
+        }
+        let tot = if total_pixels < 0 {
+            0
+        } else {
+            total_pixels as usize
+        };
+        let mut out_threshold = 0u8;
+        let status = unsafe {
+            rbd_scan_calculate_otsu_threshold(u32_hist.as_ptr(), tot, &mut out_threshold)
+        };
+        if status == RBD_OK {
+            out_threshold as jint
+        } else {
+            -1
+        }
+    })
+}
+
+/// Compile scanned images into a PDF document via JNI.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanGeneratePdf(
+    mut env: JNIEnv,
+    _class: JClass,
+    images_json: jstring,
+    out_path: jstring,
+) -> jint {
+    jni_boundary(RBD_ERR_PANIC, || {
+        if images_json.is_null() || out_path.is_null() {
+            return RBD_ERR_NULL_PTR;
+        }
+        let img_c = match unsafe { jstring_to_cstring(&mut env, images_json) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        let out_c = match unsafe { jstring_to_cstring(&mut env, out_path) } {
+            Some(p) => p,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
+        unsafe { rbd_scan_generate_pdf(img_c.as_ptr(), out_c.as_ptr()) }
+    })
+}
+
 /// Extract text from Office document (DOCX, XLSX, PPTX) via JNI.
 /// Returns text string or null on failure.
 #[unsafe(no_mangle)]
@@ -1848,6 +2021,56 @@ mod tests {
 
             assert_eq!(
                 Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeCreateDocx(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                ),
+                RBD_ERR_NULL_PTR
+            );
+        }
+    }
+
+    #[test]
+    fn test_jni_scanner() {
+        unsafe {
+            // Null pointer safety checks
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanToGrayscale(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    10,
+                    10,
+                    40,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanToBinarized(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    10,
+                    10,
+                    40,
+                ),
+                RBD_ERR_NULL_PTR
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanCalculateOtsuThreshold(
+                    fake_env(),
+                    fake_class(),
+                    ptr::null_mut(),
+                    100,
+                ),
+                -1
+            );
+
+            assert_eq!(
+                Java_com_rbdofis_app_core_RbdNativeBridge_nativeScanGeneratePdf(
                     fake_env(),
                     fake_class(),
                     ptr::null_mut(),
