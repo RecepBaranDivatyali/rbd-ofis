@@ -71,8 +71,8 @@ flowchart TD
 > [!NOTE]
 > **Yapay Zeka ve Metin Analitiği Gerçeği:** Uygulamada ağır üretken yapay zeka modelleri (LLM, llama.cpp, sinir ağı tabanlı RAG) yer almamaktadır. Bunun yerine tamamen cihaz üzerinde, sıfır ek bellek yüküyle çalışan istatistiksel doğal dil işleme (TF-ISF cümle skorlama ve anahtar sözcük tabanlı soru-cevap) kullanılmıştır.
 
-> [!WARNING]
-> **PDF Reflow Türkçe Karakter Kısıtı:** PDF sayfa metin akışı düzenleme (reflow) ve paragraf değiştirme işlemlerinde, Type 1 / WinAnsi karakter kodlaması kısıtları nedeniyle Türkçe karakterler (`ı, ş, ğ, İ, Ş, Ğ`) ASCII karşılıklarına (`i, s, g, I, S, G`) düşmektedir (fallback).
+> [!NOTE]
+> **PDF Reflow Türkçe Karakter Desteği:** PDF reflow ve paragraf değiştirme işlemlerinde tüm Türkçe karakterler (`ı, ş, ğ, İ, Ş, Ğ, ç, ö, ü, Ç, Ö, Ü`), Helvetica Type 1 fontuna eklenen `/Differences` ve `/ToUnicode` CMap kodlama eşlemesiyle ASCII fallback olmaksızın tam olarak desteklenmektedir. Harici font gömülmediği için Kiril/Arapça/CJK alfabeleri reflow için henüz desteklenmemektedir.
 
 ---
 
@@ -138,7 +138,7 @@ flowchart LR
 1. **OCR Henüz Uygulanmadı:** Belge tarama mevcuttur ancak optik karakter tanıma (OCR) özelliği henüz uygulanmamıştır; çevrimdışı bir OCR motorunun (ör. Tesseract/RapidOCR) entegrasyonu planlanmaktadır.
 2. **Ofis Yetenekleri Sınırı:** Ofis düzenleyici WPS Office veya Microsoft Office seviyesinde tam bir ofis paketi değildir; hafif HTML tabanlı zengin metin düzenleme, saf Rust OOXML metin çıkarma ve temel DOCX dosyası üretimi ile sınırlıdır.
 3. **Yapay Zeka Kapsamı:** Ağır üretken yapay zeka modelleri (LLM, llama.cpp, RAG) kullanılmamaktadır; yerel ve hafif istatistiksel (TF-ISF) çıkarımsal özetleme ve anahtar kelime araması ile sınırlıdır.
-4. **PDF Reflow Türkçe Karakter Kısıtı:** PDF reflow ve metin enjeksiyonu işlemlerinde Type 1 / WinAnsi sınırlaması nedeniyle Türkçe karakterler (`ı, ş, ğ, İ, Ş, Ğ`) ASCII eşdeğerlerine (`i, s, g, I, S, G`) düşmektedir (bilinen sınırlama).
+4. **PDF Reflow Latin-Dışı Alfabe Kapsamı:** PDF reflow ve metin enjeksiyonu işlemlerinde Türkçe karakterlerin tümü (`ı, ş, ğ, İ, Ş, Ğ, ç, ö, ü, Ç, Ö, Ü`) Type 1 WinAnsi `/Differences` ve `/ToUnicode` eşlemesiyle çözülmüştür; harici lisanslı font gömülmediğinden Latin-dışı alfabeler (Kiril, Arapça, CJK vb.) reflow kapsamında henüz desteklenmemektedir.
 5. **core/benches Yokluğu:** Rust çekirdeğinde `core/benches` performans kıyaslama (benchmark) paketi henüz oluşturulmamıştır; performans testleri ve regresyon takibi için kurulması yapılacaklar listesindedir.
 
 ---

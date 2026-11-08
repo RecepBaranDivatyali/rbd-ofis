@@ -522,3 +522,77 @@ fn test_phase4_form_filling_and_flattening_end_to_end() {
 
     let _ = std::fs::remove_file(&out_path);
 }
+
+#[test]
+fn test_reflow_turkish_characters_roundtrip_and_pdfium_render_extract() {
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let out_path = temp_dir.join(format!("test_reflow_turkish_{}.pdf", std::process::id()));
+
+    let turkish_text = "Türkçe ışık Ğöçü İŞ ve çağlayanlar";
+    rbd_engine::replace_paragraph_text(
+        &in_path,
+        0,
+        [20.0, 50.0, 180.0, 150.0],
+        turkish_text,
+        12.0,
+        &out_path,
+    )
+    .expect("Replace paragraph text");
+
+    // 1. Re-open with lopdf
+    let lopdf_doc = lopdf::Document::load(&out_path).expect("lopdf reload");
+    assert_eq!(lopdf_doc.get_pages().len(), 1);
+
+    // 2. Open with PDFium
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let doc = engine.open_from_file(&out_path, None).expect("PDFium open");
+    let page = doc.page(0).expect("Get page 0");
+
+    // 3. Render to RGBA with PDFium
+    let mut buf = vec![0u8; 100 * 100 * 4];
+    page.render_to_rgba(100, 100, &mut buf)
+        .expect("Render to RGBA");
+    let non_zero_count = buf.iter().filter(|&&b| b != 0).count();
+    assert!(
+        non_zero_count > 0,
+        "Buffer should contain non-zero pixel data"
+    );
+
+    // 4. Extract text & search with PDFium
+    let extracted = page.extract_text().expect("Extract text");
+    assert!(
+        extracted.contains("Türkçe")
+            && extracted.contains("ışık")
+            && extracted.contains("Ğöçü")
+            && extracted.contains("İŞ")
+            && extracted.contains("çağlayanlar"),
+        "Extracted text missing Turkish characters: {extracted}"
+    );
+
+    let search_all = page.search_text(0, "Türkçe", true).expect("Search Türkçe");
+    assert!(!search_all.is_empty());
+    let search_isik = page.search_text(0, "ışık", true).expect("Search ışık");
+    assert!(!search_isik.is_empty());
+    let search_is = page.search_text(0, "İŞ", true).expect("Search İŞ");
+    assert!(!search_is.is_empty());
+    let search_gocu = page.search_text(0, "Ğöçü", true).expect("Search Ğöçü");
+    assert!(!search_gocu.is_empty());
+
+    // 5. Open and render with Hayro (Pure-Rust engine)
+    let hayro_engine = create_engine(EngineType::PureRust).expect("Hayro engine");
+    let hayro_doc = hayro_engine
+        .open_from_file(&out_path, None)
+        .expect("Hayro open");
+    let hayro_page = hayro_doc.page(0).expect("Hayro page 0");
+    let mut hbuf = vec![0u8; 100 * 100 * 4];
+    hayro_page
+        .render_to_rgba(100, 100, &mut hbuf)
+        .expect("Hayro render");
+    let h_non_zero = hbuf.iter().filter(|&&b| b != 0).count();
+    assert!(h_non_zero > 0, "Hayro rendered buffer should have pixels");
+
+    let _ = std::fs::remove_file(&out_path);
+}

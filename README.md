@@ -26,7 +26,7 @@ Uygulamanın iş mantığı platformlar arası ortak **Rust çekirdeğinde (`cor
 1. **OCR Henüz Uygulanmadı:** Belge tarama ve PDF görüntüleme mevcuttur; optik karakter tanıma (OCR) özelliği henüz uygulanmamış olup gelecek sürümlerde planlanmaktadır.
 2. **Ofis Düzenleme Kapsamı:** Ofis düzenleyici WPS Office veya Microsoft Office düzeyinde tam teşekküllü bir kelime işlemci değildir; hafif HTML tabanlı zengin metin düzenleme, saf Rust OOXML metin çıkarma ve temel DOCX dosyası üretimi ile sınırlıdır.
 3. **Yapay Zeka Yetenekleri:** Yapay zeka özellikleri üretken LLM (Large Language Model) veya sinir ağı tabanlı RAG içermez; yerel istatistiksel (TF-ISF) çıkarımsal özetleme ve anahtar sözcük tabanlı soru-cevap ile sınırlıdır.
-4. **PDF Reflow Türkçe Karakter Kısıtı:** PDF sayfa metin akışı düzenleme (reflow) ve paragraf değiştirme işlemlerinde Type 1 / WinAnsi karakter kodlaması kısıtları nedeniyle Türkçe karakterler (`ı, ş, ğ, İ, Ş, Ğ`) ASCII karşılıklarına (`i, s, g, I, S, G`) dönüştürülmektedir.
+4. **PDF Reflow Yazı Tipi Kapsamı:** PDF reflow ve paragraf değiştirme işlemlerinde tüm Türkçe karakterler (`ı, ş, ğ, İ, Ş, Ğ, ç, ö, ü, Ç, Ö, Ü`) standart Type 1 Helvetica fontuna eklenen `/Differences` ve `/ToUnicode` CMap eşlemesiyle tam olarak desteklenmektedir; harici font gömülmediğinden Kiril, Arapça veya CJK gibi Latin-dışı alfabeler reflow için henüz desteklenmemektedir.
 5. **core/benches Eksikliği:** Rust çekirdeğinde bağımsız `core/benches` performans kıyaslama test paketi henüz oluşturulmamıştır; performans regresyon testleri için bu paketin kurulması yapılacaklar arasındadır.
 
 ## Gizlilik ve Güvenlik

@@ -7,9 +7,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 static PDFIUM: OnceLock<Pdfium> = OnceLock::new();
+static INIT_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Discover and initialize the global Pdfium library instance.
 pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
+    if let Some(pdfium) = PDFIUM.get() {
+        return Ok(pdfium);
+    }
+
+    let _lock = INIT_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(pdfium) = PDFIUM.get() {
         return Ok(pdfium);
     }
@@ -80,6 +86,9 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
                     });
                 }
                 Err(err) => {
+                    if let Some(pdfium) = PDFIUM.get() {
+                        return Ok(pdfium);
+                    }
                     load_error = Some(err);
                 }
             }
@@ -96,6 +105,9 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
             })
         }
         Err(err) => {
+            if let Some(pdfium) = PDFIUM.get() {
+                return Ok(pdfium);
+            }
             let detail = if let Some(first_err) = load_error {
                 format!("{first_err:?} / {err:?}")
             } else {
