@@ -3426,7 +3426,7 @@ mod tests {
                 RBD_OK
             );
             assert!(bin_threshold > 0);
-            for chunk in bin_buf.chunks_exact(4) {
+            for chunk in bin_buf.as_chunks::<4>().0 {
                 assert!(chunk[0] == 0 || chunk[0] == 255);
                 assert_eq!(chunk[0], chunk[1]);
                 assert_eq!(chunk[1], chunk[2]);

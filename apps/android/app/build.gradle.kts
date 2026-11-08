@@ -106,7 +106,22 @@ dependencies {
 }
 
 tasks.withType<Test> {
-    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US")
+    val coreReleaseDir = rootProject.file("../../core/target/release")
+    val dllFile = File(coreReleaseDir, "rbd_ffi.dll")
+    val corpusDir = rootProject.file("../../corpus")
+
+    systemProperty("java.library.path", coreReleaseDir.absolutePath)
+    systemProperty("rbd.native.path", dllFile.absolutePath)
+    systemProperty("rbd.corpus.dir", corpusDir.absolutePath)
+
+    jvmArgs(
+        "-Djava.library.path=${coreReleaseDir.absolutePath}",
+        "-Drbd.native.path=${dllFile.absolutePath}",
+        "-Drbd.corpus.dir=${corpusDir.absolutePath}",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.language=en",
+        "-Duser.country=US"
+    )
     testLogging {
         events("passed", "skipped", "failed", "standardOut", "standardError")
     }
@@ -119,6 +134,10 @@ tasks.register<JavaExec>("runUnitTests") {
 
     val testClassesDir = layout.buildDirectory.dir("tmp/kotlin-classes/debugUnitTest")
     val appClassesDir = layout.buildDirectory.dir("tmp/kotlin-classes/debug")
+
+    val coreReleaseDir = rootProject.file("../../core/target/release")
+    val dllFile = File(coreReleaseDir, "rbd_ffi.dll")
+    val corpusDir = rootProject.file("../../corpus")
 
     classpath = files(
         testClassesDir,
@@ -135,8 +154,20 @@ tasks.register<JavaExec>("runUnitTests") {
         "com.rbdofis.app.ProToolsTest",
         "com.rbdofis.app.DocumentConverterTest",
         "com.rbdofis.app.OfficeDocumentTest",
-        "com.rbdofis.app.DocumentAiTest"
+        "com.rbdofis.app.DocumentAiTest",
+        "com.rbdofis.app.NativeCoreIntegrationTest"
     )
-    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US")
+    systemProperty("java.library.path", coreReleaseDir.absolutePath)
+    systemProperty("rbd.native.path", dllFile.absolutePath)
+    systemProperty("rbd.corpus.dir", corpusDir.absolutePath)
+
+    jvmArgs(
+        "-Djava.library.path=${coreReleaseDir.absolutePath}",
+        "-Drbd.native.path=${dllFile.absolutePath}",
+        "-Drbd.corpus.dir=${corpusDir.absolutePath}",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.language=en",
+        "-Duser.country=US"
+    )
 }
 

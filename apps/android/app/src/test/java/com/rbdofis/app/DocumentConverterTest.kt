@@ -14,6 +14,10 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 
+/**
+ * Mock-based unit test verifying document conversion orchestration and error flows in simulation mode.
+ * Forces mock mode via setForceMockMode(true).
+ */
 class DocumentConverterTest {
 
     private lateinit var bridge: RbdNativeBridge

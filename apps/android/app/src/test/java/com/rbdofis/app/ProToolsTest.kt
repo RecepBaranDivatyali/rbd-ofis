@@ -12,6 +12,10 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 
+/**
+ * Mock-based unit test verifying PDF Professional Tools UI/Presenter integration in simulation mode.
+ * Forces mock mode via setForceMockMode(true).
+ */
 class ProToolsTest {
 
     private lateinit var bridge: RbdNativeBridge

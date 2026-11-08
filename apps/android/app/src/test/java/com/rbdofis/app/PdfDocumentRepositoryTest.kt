@@ -12,6 +12,10 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 
+/**
+ * Mock-based unit test verifying [PdfDocumentRepository] business logic in simulation mode.
+ * Forces mock mode via setForceMockMode(true).
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PdfDocumentRepositoryTest {
 

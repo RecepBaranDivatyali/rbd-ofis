@@ -8,7 +8,8 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Unit tests for Phase 6 Office document capabilities on Android.
+ * Mock-based unit tests for Phase 6 Office document capabilities on Android in simulation mode.
+ * Forces mock mode via setForceMockMode(true).
  */
 class OfficeDocumentTest {
 

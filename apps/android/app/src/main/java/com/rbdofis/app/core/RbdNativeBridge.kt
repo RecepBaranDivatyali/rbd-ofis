@@ -202,16 +202,25 @@ class RbdNativeBridge private constructor() {
     private val docPaths = ConcurrentHashMap<Long, String>()
 
     init {
-        try {
+        val loaded = try {
             System.loadLibrary(LIB_NAME)
+            true
+        } catch (_: UnsatisfiedLinkError) {
+            false
+        } catch (_: Throwable) {
+            false
+        }
+
+        if (loaded) {
             nativeLoaded = true
-            logI(TAG, "Native library '$LIB_NAME' loaded successfully.")
-        } catch (e: UnsatisfiedLinkError) {
-            nativeLoaded = false
-            logW(TAG, "Native library '$LIB_NAME' not found. Using fallback mock implementation. (${e.message})")
-        } catch (e: Throwable) {
-            nativeLoaded = false
-            logW(TAG, "Failed to load '$LIB_NAME'. Using fallback mock implementation.", e)
+            logI(TAG, "Native library '$LIB_NAME' loaded successfully via standard path.")
+        } else {
+            if (loadNativeLibrary()) {
+                logI(TAG, "Native library '$LIB_NAME' loaded successfully via candidate search.")
+            } else {
+                nativeLoaded = false
+                logW(TAG, "Native library '$LIB_NAME' not found. Using fallback mock implementation.")
+            }
         }
     }
 
@@ -219,6 +228,62 @@ class RbdNativeBridge private constructor() {
 
     fun setForceMockMode(enabled: Boolean) {
         forceMock = enabled
+    }
+
+    fun loadNativeLibrary(file: File): Boolean {
+        return try {
+            System.load(file.absolutePath)
+            nativeLoaded = true
+            forceMock = false
+            logI(TAG, "Native library loaded successfully from ${file.absolutePath}")
+            true
+        } catch (e: Throwable) {
+            logW(TAG, "Failed to load library from ${file.absolutePath}", e)
+            false
+        }
+    }
+
+    fun loadNativeLibrary(): Boolean {
+        if (nativeLoaded && !forceMock) return true
+
+        // 1. Try explicit system property
+        val customPath = System.getProperty("rbd.native.path")
+        if (!customPath.isNullOrBlank()) {
+            val f = File(customPath)
+            if (f.exists() && loadNativeLibrary(f)) return true
+        }
+
+        // 2. Try candidate relative paths
+        val isWindows = System.getProperty("os.name")?.lowercase()?.contains("win") == true
+        val libFileName = if (isWindows) "rbd_ffi.dll" else "librbd_ffi.so"
+
+        val searchDirs = listOf(
+            File("../../core/target/release"),
+            File("../core/target/release"),
+            File("core/target/release"),
+            File("../../../core/target/release"),
+            File("../../core/target/debug"),
+            File("../core/target/debug"),
+            File("core/target/debug"),
+            File("../../../core/target/debug")
+        )
+
+        for (dir in searchDirs) {
+            val candidate = File(dir, libFileName)
+            if (candidate.exists()) {
+                if (loadNativeLibrary(candidate)) return true
+            }
+        }
+
+        // 3. Fallback to standard System.loadLibrary
+        return try {
+            System.loadLibrary(LIB_NAME)
+            nativeLoaded = true
+            forceMock = false
+            true
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     @Synchronized
@@ -382,9 +447,13 @@ class RbdNativeBridge private constructor() {
         return mockCopy(inPath, outPath)
     }
 
+    private fun escapePathForJson(path: String): String {
+        return "\"" + path.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    }
+
     fun pageOpMerge(outPath: String, inPaths: List<String>): Boolean {
         if (isNativeAvailable()) {
-            val json = "[" + inPaths.joinToString(",") { "\"$it\"" } + "]"
+            val json = "[" + inPaths.joinToString(",") { escapePathForJson(it) } + "]"
             return nativePageOpMerge(outPath, json) == 0
         }
         return mockCopy(inPaths.firstOrNull() ?: "", outPath)
@@ -929,7 +998,7 @@ class RbdNativeBridge private constructor() {
     ): Boolean {
         if (imagePaths.isEmpty()) return false
         if (isNativeAvailable()) {
-            val imagesJson = "[" + imagePaths.joinToString(",") { "\"$it\"" } + "]"
+            val imagesJson = "[" + imagePaths.joinToString(",") { escapePathForJson(it) } + "]"
             return nativeImagesToPdf(imagesJson, pageSize.value, marginPt, outPath) == 0
         }
         return try {
@@ -1169,6 +1238,28 @@ class RbdNativeBridge private constructor() {
         }
     }
 
+    /**
+     * Direct buffer variant of scanToGrayscale for headless tests and high-performance zero-copy pipelines.
+     */
+    fun scanToGrayscaleBuffer(directBuffer: ByteBuffer, width: Int, height: Int, stride: Int): Int {
+        return if (isNativeAvailable()) {
+            nativeScanToGrayscale(directBuffer, width, height, stride)
+        } else {
+            -1
+        }
+    }
+
+    /**
+     * Direct buffer variant of scanToBinarized for headless tests and high-performance zero-copy pipelines.
+     */
+    fun scanToBinarizedBuffer(directBuffer: ByteBuffer, width: Int, height: Int, stride: Int): Int {
+        return if (isNativeAvailable()) {
+            nativeScanToBinarized(directBuffer, width, height, stride)
+        } else {
+            -1
+        }
+    }
+
     fun scanCalculateOtsuThreshold(histogram: IntArray, totalPixels: Int): Int {
         if (totalPixels <= 0) return 128
         if (isNativeAvailable()) {
@@ -1215,7 +1306,7 @@ class RbdNativeBridge private constructor() {
     fun scanGeneratePdf(imagePaths: List<String>, outPath: String): Boolean {
         if (imagePaths.isEmpty()) return false
         if (isNativeAvailable()) {
-            val imagesJson = "[" + imagePaths.joinToString(",") { "\"$it\"" } + "]"
+            val imagesJson = "[" + imagePaths.joinToString(",") { escapePathForJson(it) } + "]"
             return nativeScanGeneratePdf(imagesJson, outPath) == 0
         }
         return try {

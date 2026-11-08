@@ -11,6 +11,12 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 
+/**
+ * Mock-based fallback unit tests for [RbdNativeBridge].
+ * These tests force mock mode via `bridge.setForceMockMode(true)` and verify
+ * in-memory fallback/simulation behavior when the native Rust core library is disabled or unavailable.
+ * They do NOT assert real native Rust core behavior. Real native behavior is tested in [NativeCoreIntegrationTest].
+ */
 class RbdNativeBridgeTest {
 
     private lateinit var bridge: RbdNativeBridge
@@ -22,19 +28,19 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testOpenDocumentReturnsValidHandle() {
+    fun testMockOpenDocumentReturnsValidHandle() {
         val handle = bridge.openDocument("/tmp/sample.pdf")
-        assertTrue("Handle should be a positive non-zero value", handle > 0L)
+        assertTrue("Handle should be a positive non-zero value in mock mode", handle > 0L)
 
         val pageCount = bridge.getPageCount(handle)
-        assertTrue("Page count should be positive", pageCount > 0)
+        assertTrue("Page count should be positive in mock mode", pageCount > 0)
 
         bridge.closeDocument(handle)
         assertEquals(0, bridge.getPageCount(handle))
     }
 
     @Test
-    fun testOpenDocumentFromBytes() {
+    fun testMockOpenDocumentFromBytes() {
         val sampleBytes = "%PDF-1.7 mock content".toByteArray(Charsets.UTF_8)
         val handle = bridge.openDocumentFromBytes(sampleBytes)
         assertTrue(handle > 0L)
@@ -46,13 +52,13 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testPageDimensionsAndRotation() {
+    fun testMockPageDimensionsAndRotation() {
         val handle = bridge.openDocument("/test/a4.pdf")
         val initialSize = bridge.getPageSize(handle, 0)
         assertEquals(595.28f, initialSize.width, 0.1f)
         assertEquals(841.89f, initialSize.height, 0.1f)
 
-        // Rotate 90 degrees clockwise -> width and height swap
+        // Rotate 90 degrees clockwise -> width and height swap in mock mode
         val rotated = bridge.rotatePage(handle, 0, 90)
         assertTrue(rotated)
 
@@ -70,7 +76,7 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testDeletePage() {
+    fun testMockDeletePage() {
         val handle = bridge.openDocument("/test/multi.pdf")
         val initialCount = bridge.getPageCount(handle)
         assertTrue(initialCount >= 2)
@@ -87,7 +93,7 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testReorderPage() {
+    fun testMockReorderPage() {
         val handle = bridge.openDocument("/test/reorder.pdf")
         val count = bridge.getPageCount(handle)
         assertTrue(count >= 3)
@@ -100,7 +106,7 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testSearchText() {
+    fun testMockSearchText() {
         val handle = bridge.openDocument("/test/search.pdf")
         val results = bridge.searchText(handle, "test")
         assertNotNull(results)
@@ -113,7 +119,7 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testAnnotations() {
+    fun testMockAnnotations() {
         val handle = bridge.openDocument("/test/annot.pdf")
         val annotation = PdfAnnotation.Highlight(
             id = "highlight-1",
@@ -132,9 +138,9 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testSaveDocument() {
+    fun testMockSaveDocument() {
         val handle = bridge.openDocument("/test/save.pdf")
-        val tempFile = File.createTempFile("rbd_test_save", ".pdf")
+        val tempFile = File.createTempFile("rbd_test_save_mock", ".pdf")
         try {
             val saved = bridge.saveDocument(handle, tempFile.absolutePath)
             assertTrue(saved)
@@ -147,11 +153,11 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testFileBasedPageOperations() {
-        val tempIn = File.createTempFile("rbd_op_in", ".pdf")
-        val tempOut = File.createTempFile("rbd_op_out", ".pdf")
+    fun testMockFileBasedPageOperations() {
+        val tempIn = File.createTempFile("rbd_op_in_mock", ".pdf")
+        val tempOut = File.createTempFile("rbd_op_out_mock", ".pdf")
         try {
-            tempIn.writeText("%PDF-1.7 input")
+            tempIn.writeText("%PDF-1.7 input mock")
 
             assertTrue(bridge.pageOpRotate(tempIn.absolutePath, tempOut.absolutePath, 90))
             assertTrue(bridge.pageOpDeletePages(tempIn.absolutePath, tempOut.absolutePath, listOf(1)))
@@ -168,13 +174,13 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testEngineLifecycle() {
+    fun testMockEngineLifecycle() {
         bridge.freeEngine()
         assertEquals(0L, bridge.getEngineHandle())
     }
 
     @Test
-    fun testNumericAnnotationRemoval() {
+    fun testMockNumericAnnotationRemoval() {
         val handle = bridge.openDocument("/test/annot_num.pdf")
         val added = bridge.addAnnotationJson(handle, """{"id":999,"page_index":0,"kind":"Highlight","rect":{"x0":0,"y0":0,"x1":10,"y1":10},"color_rgba":[255,0,0,255],"contents":""}""")
         assertTrue(added)
@@ -184,14 +190,14 @@ class RbdNativeBridgeTest {
     }
 
     @Test
-    fun testScanBridgeOperations() {
+    fun testMockScanBridgeOperations() {
         val histogram = IntArray(256)
         histogram[40] = 500
         histogram[220] = 1000
         val threshold = bridge.scanCalculateOtsuThreshold(histogram, 1500)
         assertTrue(threshold in 41..219)
 
-        val tempOut = File.createTempFile("rbd_scan_out", ".pdf")
+        val tempOut = File.createTempFile("rbd_scan_out_mock", ".pdf")
         try {
             val generated = bridge.scanGeneratePdf(listOf("/mock/img1.png"), tempOut.absolutePath)
             assertTrue(generated)

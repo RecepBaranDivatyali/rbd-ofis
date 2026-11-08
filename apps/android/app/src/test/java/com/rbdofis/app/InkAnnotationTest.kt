@@ -11,6 +11,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+/**
+ * Mock-based unit test verifying Ink annotation geometric math and undo/redo stacks in simulation mode.
+ * Forces mock mode via setForceMockMode(true).
+ */
 class InkAnnotationTest {
 
     private lateinit var bridge: RbdNativeBridge
