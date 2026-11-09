@@ -54,8 +54,49 @@ class PdfDocumentRepository(
     val documentState: StateFlow<DocumentState> = _documentState.asStateFlow()
 
     private var currentDocHandle: Long = 0L
+    private var workingTempFile: File? = null
 
     fun getActiveDocHandle(): Long = currentDocHandle
+
+    private fun getCurrentDiskPath(): String? {
+        workingTempFile?.let { if (it.exists()) return it.absolutePath }
+        val statePath = _documentState.value.filePath
+        if (statePath.isNotBlank() && File(statePath).exists()) {
+            return statePath
+        }
+        val bridgePath = nativeBridge.getDocumentPath(currentDocHandle)
+        if (!bridgePath.isNullOrBlank() && File(bridgePath).exists()) {
+            return bridgePath
+        }
+        val tempDump = File.createTempFile("rbd_dump_", ".pdf")
+        if (nativeBridge.saveDocument(currentDocHandle, tempDump.absolutePath) && tempDump.exists() && tempDump.length() > 0L) {
+            workingTempFile = tempDump
+            return tempDump.absolutePath
+        }
+        tempDump.delete()
+        return null
+    }
+
+    private fun renewActiveDocument(newTempFile: File): Long {
+        val oldHandle = currentDocHandle
+        val newHandle = nativeBridge.openDocument(newTempFile.absolutePath)
+        if (newHandle > 0L) {
+            if (oldHandle != 0L) {
+                nativeBridge.closeDocument(oldHandle)
+            }
+            workingTempFile?.let {
+                if (it.absolutePath != newTempFile.absolutePath) {
+                    try { it.delete() } catch (_: Throwable) {}
+                }
+            }
+            workingTempFile = newTempFile
+            currentDocHandle = newHandle
+            return newHandle
+        } else {
+            try { newTempFile.delete() } catch (_: Throwable) {}
+            return 0L
+        }
+    }
 
     // In-memory tile/thumbnail cache: max 128 items, LRU order, fully platform independent
     private val maxCacheEntries = 128
@@ -75,11 +116,7 @@ class PdfDocumentRepository(
             _documentState.value = _documentState.value.copy(isLoading = true, errorMessage = null)
 
             // Close existing document if one is open
-            if (currentDocHandle != 0L) {
-                nativeBridge.closeDocument(currentDocHandle)
-                tileCache.clear()
-                currentDocHandle = 0L
-            }
+            closeDocumentSync()
 
             val handle = nativeBridge.openDocument(filePath)
             if (handle <= 0L) {
@@ -91,6 +128,7 @@ class PdfDocumentRepository(
             }
 
             currentDocHandle = handle
+            workingTempFile = null
             val pageCount = nativeBridge.getPageCount(handle)
             val fileName = File(filePath).name
 
@@ -121,11 +159,7 @@ class PdfDocumentRepository(
         try {
             _documentState.value = _documentState.value.copy(isLoading = true, errorMessage = null)
 
-            if (currentDocHandle != 0L) {
-                nativeBridge.closeDocument(currentDocHandle)
-                tileCache.clear()
-                currentDocHandle = 0L
-            }
+            closeDocumentSync()
 
             val handle = nativeBridge.openDocumentFromBytes(bytes)
             if (handle <= 0L) {
@@ -137,6 +171,7 @@ class PdfDocumentRepository(
             }
 
             currentDocHandle = handle
+            workingTempFile = null
             val pageCount = nativeBridge.getPageCount(handle)
 
             _documentState.value = DocumentState(
@@ -174,6 +209,10 @@ class PdfDocumentRepository(
             nativeBridge.closeDocument(currentDocHandle)
             currentDocHandle = 0L
         }
+        workingTempFile?.let {
+            try { it.delete() } catch (_: Throwable) {}
+        }
+        workingTempFile = null
         tileCache.clear()
         _documentState.value = DocumentState()
     }
@@ -243,6 +282,36 @@ class PdfDocumentRepository(
      */
     suspend fun rotatePage(pageIndex: Int, degrees: Int): Boolean = withContext(ioDispatcher) {
         if (currentDocHandle == 0L) return@withContext false
+
+        if (nativeBridge.isNativeAvailable() && !nativeBridge.isMockDocument(currentDocHandle)) {
+            val totalPages = nativeBridge.getPageCount(currentDocHandle)
+            if (pageIndex !in 0 until totalPages) return@withContext false
+
+            val currentPath = getCurrentDiskPath() ?: return@withContext false
+            val tempOut = File.createTempFile("rbd_rot_", ".pdf")
+            val opSuccess = nativeBridge.rotatePageOnDisk(
+                inPath = currentPath,
+                outPath = tempOut.absolutePath,
+                pageIndex = pageIndex,
+                degrees = degrees,
+                totalPages = totalPages
+            )
+            if (!opSuccess) {
+                tempOut.delete()
+                return@withContext false
+            }
+
+            val newHandle = renewActiveDocument(tempOut)
+            if (newHandle <= 0L) return@withContext false
+
+            clearPageCache(pageIndex)
+            _documentState.value = _documentState.value.copy(
+                isModified = true,
+                pageCount = nativeBridge.getPageCount(newHandle)
+            )
+            return@withContext true
+        }
+
         val success = nativeBridge.rotatePage(currentDocHandle, pageIndex, degrees)
         if (success) {
             clearPageCache(pageIndex)
@@ -252,11 +321,40 @@ class PdfDocumentRepository(
     }
 
     /**
-     * Deletes a page from the document.
+     * Deletes multiple pages from the document.
      */
-    suspend fun deletePage(pageIndex: Int): Boolean = withContext(ioDispatcher) {
-        if (currentDocHandle == 0L) return@withContext false
-        val success = nativeBridge.deletePage(currentDocHandle, pageIndex)
+    suspend fun deletePages(pageIndices: List<Int>): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L || pageIndices.isEmpty()) return@withContext false
+
+        if (nativeBridge.isNativeAvailable() && !nativeBridge.isMockDocument(currentDocHandle)) {
+            val totalPages = nativeBridge.getPageCount(currentDocHandle)
+            val valid = pageIndices.filter { it in 0 until totalPages }.distinct()
+            if (valid.isEmpty() || valid.size >= totalPages) return@withContext false
+
+            val currentPath = getCurrentDiskPath() ?: return@withContext false
+            val tempOut = File.createTempFile("rbd_del_", ".pdf")
+            val oneBased = valid.map { it + 1 }
+            val opSuccess = nativeBridge.pageOpDeletePages(currentPath, tempOut.absolutePath, oneBased)
+            if (!opSuccess) {
+                tempOut.delete()
+                return@withContext false
+            }
+
+            val newHandle = renewActiveDocument(tempOut)
+            if (newHandle <= 0L) return@withContext false
+
+            tileCache.clear()
+            val newCount = nativeBridge.getPageCount(newHandle)
+            val nextIndex = _documentState.value.currentPageIndex.coerceAtMost((newCount - 1).coerceAtLeast(0))
+            _documentState.value = _documentState.value.copy(
+                pageCount = newCount,
+                currentPageIndex = nextIndex,
+                isModified = true
+            )
+            return@withContext true
+        }
+
+        val success = nativeBridge.deletePages(currentDocHandle, pageIndices)
         if (success) {
             tileCache.clear()
             val newCount = nativeBridge.getPageCount(currentDocHandle)
@@ -271,16 +369,60 @@ class PdfDocumentRepository(
     }
 
     /**
-     * Reorders a page from one position to another.
+     * Deletes a page from the document.
      */
-    suspend fun reorderPage(fromIndex: Int, toIndex: Int): Boolean = withContext(ioDispatcher) {
-        if (currentDocHandle == 0L) return@withContext false
-        val success = nativeBridge.reorderPage(currentDocHandle, fromIndex, toIndex)
+    suspend fun deletePage(pageIndex: Int): Boolean = deletePages(listOf(pageIndex))
+
+    /**
+     * Reorders pages to the specified new 0-based page order.
+     */
+    suspend fun reorderPages(newOrder: List<Int>): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L || newOrder.isEmpty()) return@withContext false
+
+        if (nativeBridge.isNativeAvailable() && !nativeBridge.isMockDocument(currentDocHandle)) {
+            val totalPages = nativeBridge.getPageCount(currentDocHandle)
+            if (newOrder.size != totalPages || newOrder.toSet().size != totalPages || newOrder.any { it !in 0 until totalPages }) {
+                return@withContext false
+            }
+
+            val currentPath = getCurrentDiskPath() ?: return@withContext false
+            val tempOut = File.createTempFile("rbd_reorder_", ".pdf")
+            val oneBased = newOrder.map { it + 1 }
+            val opSuccess = nativeBridge.pageOpReorder(currentPath, tempOut.absolutePath, oneBased)
+            if (!opSuccess) {
+                tempOut.delete()
+                return@withContext false
+            }
+
+            val newHandle = renewActiveDocument(tempOut)
+            if (newHandle <= 0L) return@withContext false
+
+            tileCache.clear()
+            _documentState.value = _documentState.value.copy(isModified = true)
+            return@withContext true
+        }
+
+        val success = nativeBridge.reorderPages(currentDocHandle, newOrder)
         if (success) {
             tileCache.clear()
             _documentState.value = _documentState.value.copy(isModified = true)
         }
         success
+    }
+
+    /**
+     * Reorders a page from one position to another.
+     */
+    suspend fun reorderPage(fromIndex: Int, toIndex: Int): Boolean = withContext(ioDispatcher) {
+        if (currentDocHandle == 0L) return@withContext false
+        val count = nativeBridge.getPageCount(currentDocHandle)
+        if (fromIndex !in 0 until count || toIndex !in 0 until count || fromIndex == toIndex) {
+            return@withContext false
+        }
+        val order = (0 until count).toMutableList()
+        val item = order.removeAt(fromIndex)
+        order.add(toIndex, item)
+        reorderPages(order)
     }
 
     /**
@@ -290,7 +432,15 @@ class PdfDocumentRepository(
         if (currentDocHandle == 0L) return@withContext false
         val success = nativeBridge.saveDocument(currentDocHandle, targetPath)
         if (success) {
-            _documentState.value = _documentState.value.copy(isModified = false, filePath = targetPath)
+            val targetFile = File(targetPath)
+            if (targetFile.exists() && nativeBridge.isNativeAvailable() && !nativeBridge.isMockDocument(currentDocHandle)) {
+                renewActiveDocument(targetFile)
+            }
+            _documentState.value = _documentState.value.copy(
+                isModified = false,
+                filePath = targetPath,
+                fileName = targetFile.name
+            )
         }
         success
     }

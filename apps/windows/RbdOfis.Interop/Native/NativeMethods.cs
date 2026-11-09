@@ -314,7 +314,7 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "rbd_ai_summarize_document", StringMarshalling = StringMarshalling.Utf8)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int rbd_ai_summarize_document(
-        IntPtr doc,
+        SafeDocumentHandle doc,
         uint maxSentences,
         IntPtr outJsonBuf,
         nuint maxLen);
@@ -322,7 +322,7 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "rbd_ai_ask_document", StringMarshalling = StringMarshalling.Utf8)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int rbd_ai_ask_document(
-        IntPtr doc,
+        SafeDocumentHandle doc,
         string query,
         IntPtr outJsonBuf,
         nuint maxLen);
@@ -330,7 +330,7 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "rbd_document_reflow_page_text", StringMarshalling = StringMarshalling.Utf8)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int rbd_document_reflow_page_text(
-        IntPtr doc,
+        SafeDocumentHandle doc,
         uint pageIndex,
         IntPtr outJsonBuf,
         nuint maxLen);
@@ -338,7 +338,7 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "rbd_document_replace_paragraph_text", StringMarshalling = StringMarshalling.Utf8)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int rbd_document_replace_paragraph_text(
-        IntPtr doc,
+        SafeDocumentHandle doc,
         string inputPath,
         uint pageIndex,
         float x0,

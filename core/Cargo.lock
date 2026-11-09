@@ -1315,6 +1315,7 @@ dependencies = [
  "hayro",
  "image",
  "lopdf",
+ "parking_lot",
  "pdfium-render",
  "serde",
  "thiserror 2.0.21",
@@ -1326,6 +1327,7 @@ name = "rbd-ffi"
 version = "0.1.0"
 dependencies = [
  "jni",
+ "parking_lot",
  "rbd-core",
  "rbd-engine",
  "serde_json",

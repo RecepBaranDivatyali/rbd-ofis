@@ -206,4 +206,24 @@ class RbdNativeBridgeTest {
             tempOut.delete()
         }
     }
+
+    @Test
+    fun testMockDeletePagesAndReorderPages() {
+        val handle = bridge.openDocument("/test/multi_pages.pdf")
+        val initialCount = bridge.getPageCount(handle)
+        assertEquals(6, initialCount)
+        assertTrue(bridge.isMockDocument(handle))
+        assertEquals("/test/multi_pages.pdf", bridge.getDocumentPath(handle))
+
+        val deleted = bridge.deletePages(handle, listOf(0, 2))
+        assertTrue(deleted)
+        assertEquals(4, bridge.getPageCount(handle))
+
+        val reordered = bridge.reorderPages(handle, listOf(3, 2, 1, 0))
+        assertTrue(reordered)
+        assertEquals(4, bridge.getPageCount(handle))
+
+        bridge.closeDocument(handle)
+        assertFalse(bridge.isMockDocument(handle))
+    }
 }

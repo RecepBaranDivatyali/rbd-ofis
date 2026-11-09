@@ -226,6 +226,12 @@ class RbdNativeBridge private constructor() {
 
     fun isNativeAvailable(): Boolean = nativeLoaded && !forceMock
 
+    fun isForceMockMode(): Boolean = forceMock
+
+    fun isMockDocument(docHandle: Long): Boolean = mockDocuments.containsKey(docHandle)
+
+    fun getDocumentPath(docHandle: Long): String? = docPaths[docHandle]
+
     fun setForceMockMode(enabled: Boolean) {
         forceMock = enabled
     }
@@ -311,52 +317,54 @@ class RbdNativeBridge private constructor() {
     // =========================================================================
 
     fun openDocument(filePath: String): Long {
-        val handle: Long
         if (isNativeAvailable()) {
             val eng = ensureEngine()
             val nativeDoc = if (eng != 0L) nativeDocumentOpenFile(eng, filePath) else 0L
-            handle = if (nativeDoc != 0L) nativeDoc else mockHandleSequence.incrementAndGet()
-        } else {
-            handle = mockHandleSequence.incrementAndGet()
+            if (nativeDoc == 0L) {
+                // If nativeDocumentOpenFile returns 0 (corrupt, encrypted, 0-byte file, etc.),
+                // NEVER silently create a fake MockDocument! Only generate mock if force mock mode is active
+                // or native library is unavailable. Otherwise return 0L directly so errors are not suppressed.
+                return 0L
+            }
+            docPaths[nativeDoc] = filePath
+            return nativeDoc
         }
+        val handle = mockHandleSequence.incrementAndGet()
         docPaths[handle] = filePath
-        val pageCount = if (isNativeAvailable() && handle != 0L) {
-            val c = nativeDocumentGetPageCount(handle)
-            if (c > 0) c else 6
-        } else 6
-        mockDocuments[handle] = MockDocument(filePath = filePath, initialPageCount = pageCount)
+        mockDocuments[handle] = MockDocument(filePath = filePath, initialPageCount = 6)
         return handle
     }
 
     fun openDocumentFromBytes(bytes: ByteArray): Long {
-        val handle: Long
         if (isNativeAvailable()) {
             val eng = ensureEngine()
             val nativeDoc = if (eng != 0L) nativeDocumentOpenMemory(eng, bytes) else 0L
-            handle = if (nativeDoc != 0L) nativeDoc else mockHandleSequence.incrementAndGet()
-        } else {
-            handle = mockHandleSequence.incrementAndGet()
+            if (nativeDoc == 0L) {
+                return 0L
+            }
+            val memoryPath = "memory://${nativeDoc}.pdf"
+            docPaths[nativeDoc] = memoryPath
+            return nativeDoc
         }
+        val handle = mockHandleSequence.incrementAndGet()
         val memoryPath = "memory://${handle}.pdf"
         docPaths[handle] = memoryPath
-        val pageCount = if (isNativeAvailable() && handle != 0L) {
-            val c = nativeDocumentGetPageCount(handle)
-            if (c > 0) c else 5
-        } else 5
-        mockDocuments[handle] = MockDocument(filePath = memoryPath, initialPageCount = pageCount)
+        mockDocuments[handle] = MockDocument(filePath = memoryPath, initialPageCount = 5)
         return handle
     }
 
     fun closeDocument(docHandle: Long) {
-        if (isNativeAvailable()) {
+        if (docHandle == 0L) return
+        if (mockDocuments.containsKey(docHandle)) {
+            mockDocuments.remove(docHandle)
+        } else if (isNativeAvailable()) {
             nativeDocumentFree(docHandle)
         }
-        mockDocuments.remove(docHandle)
         docPaths.remove(docHandle)
     }
 
     fun saveDocument(docHandle: Long, targetPath: String): Boolean {
-        if (isNativeAvailable()) {
+        if (isNativeAvailable() && !mockDocuments.containsKey(docHandle)) {
             // Flush annotations to the target document via nativeDocumentSaveAnnotations(docHandle, outPath)
             return nativeDocumentSaveAnnotations(docHandle, targetPath) == 0
         }
@@ -372,7 +380,7 @@ class RbdNativeBridge private constructor() {
     // =========================================================================
 
     fun getPageCount(docHandle: Long): Int {
-        if (isNativeAvailable()) {
+        if (isNativeAvailable() && !mockDocuments.containsKey(docHandle)) {
             val count = nativeDocumentGetPageCount(docHandle)
             return if (count >= 0) count else 0
         }
@@ -380,7 +388,7 @@ class RbdNativeBridge private constructor() {
     }
 
     fun getPageSize(docHandle: Long, pageIndex: Int): PageDimensions {
-        if (isNativeAvailable()) {
+        if (isNativeAvailable() && !mockDocuments.containsKey(docHandle)) {
             val arr = nativeDocumentGetPageSize(docHandle, pageIndex)
             if (arr != null && arr.size >= 2) {
                 return PageDimensions(arr[0].toFloat(), arr[1].toFloat())
@@ -410,12 +418,20 @@ class RbdNativeBridge private constructor() {
     }
 
     fun deletePage(docHandle: Long, pageIndex: Int): Boolean {
+        return deletePages(docHandle, listOf(pageIndex))
+    }
+
+    fun deletePages(docHandle: Long, pages: List<Int>): Boolean {
         val doc = mockDocuments[docHandle] ?: return false
-        if (pageIndex in doc.pages.indices) {
-            doc.pages.removeAt(pageIndex)
-            return true
+        val sorted = pages.sortedDescending()
+        var changed = false
+        for (p in sorted) {
+            if (p in doc.pages.indices) {
+                doc.pages.removeAt(p)
+                changed = true
+            }
         }
-        return false
+        return changed
     }
 
     fun reorderPage(docHandle: Long, fromIndex: Int, toIndex: Int): Boolean {
@@ -426,6 +442,73 @@ class RbdNativeBridge private constructor() {
             return true
         }
         return false
+    }
+
+    fun reorderPages(docHandle: Long, order: List<Int>): Boolean {
+        val doc = mockDocuments[docHandle] ?: return false
+        if (order.size != doc.pages.size) return false
+        val reordered = mutableListOf<MockPage>()
+        for (idx in order) {
+            if (idx !in doc.pages.indices) return false
+            reordered.add(doc.pages[idx])
+        }
+        doc.pages.clear()
+        doc.pages.addAll(reordered)
+        return true
+    }
+
+    fun rotatePageOnDisk(
+        inPath: String,
+        outPath: String,
+        pageIndex: Int,
+        degrees: Int,
+        totalPages: Int
+    ): Boolean {
+        if (degrees % 360 == 0) {
+            return mockCopy(inPath, outPath)
+        }
+        if (totalPages <= 1) {
+            return pageOpRotate(inPath, outPath, degrees)
+        }
+        val tempFiles = mutableListOf<File>()
+        return try {
+            val partFiles = mutableListOf<String>()
+            val p1 = pageIndex + 1 // 1-based index
+
+            // 1. Pages before target
+            if (pageIndex > 0) {
+                val pre = File.createTempFile("rbd_rot_pre_", ".pdf")
+                tempFiles.add(pre)
+                if (!pageOpSplit(inPath, pre.absolutePath, 1, pageIndex)) return false
+                partFiles.add(pre.absolutePath)
+            }
+
+            // 2. Target page rotated
+            val target = File.createTempFile("rbd_rot_tgt_", ".pdf")
+            tempFiles.add(target)
+            if (!pageOpSplit(inPath, target.absolutePath, p1, p1)) return false
+
+            val targetRot = File.createTempFile("rbd_rot_done_", ".pdf")
+            tempFiles.add(targetRot)
+            if (!pageOpRotate(target.absolutePath, targetRot.absolutePath, degrees)) return false
+            partFiles.add(targetRot.absolutePath)
+
+            // 3. Pages after target
+            if (pageIndex < totalPages - 1) {
+                val post = File.createTempFile("rbd_rot_post_", ".pdf")
+                tempFiles.add(post)
+                if (!pageOpSplit(inPath, post.absolutePath, p1 + 1, totalPages)) return false
+                partFiles.add(post.absolutePath)
+            }
+
+            pageOpMerge(outPath, partFiles)
+        } catch (_: Throwable) {
+            false
+        } finally {
+            for (f in tempFiles) {
+                try { f.delete() } catch (_: Throwable) {}
+            }
+        }
     }
 
     // =========================================================================

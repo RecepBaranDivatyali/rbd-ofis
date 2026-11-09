@@ -225,3 +225,42 @@ fn test_core_page_ops_crop_reorder_insert_blank() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_regression_item5_tile_cache_and_session_max_dimensions() {
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let pdf_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    let session = DocumentSession::open_file(&pdf_path, None, engine.as_ref(), None).unwrap();
+
+    let mut buf = vec![0u8; 100];
+
+    // 1. Tile dimensions exceeding MAX_TILE_DIMENSION (2048) must be rejected with InvalidParameter
+    let res_oversize = session.render_tile_into_rgba(0, 0, 0, 4000, 4000, 150.0, &mut buf);
+    assert!(res_oversize.is_err());
+    match res_oversize.err().unwrap() {
+        rbd_core::CoreError::Engine(rbd_engine::EngineError::InvalidParameter(_)) => {}
+        other => panic!("Expected EngineError::InvalidParameter, got: {:?}", other),
+    }
+
+    // 2. Zero-dimension tiles must be rejected
+    let res_zero = session.render_tile_into_rgba(0, 0, 0, 0, 256, 150.0, &mut buf);
+    assert!(res_zero.is_err());
+
+    // 3. TileCache rejecting payloads larger than MAX_TILE_PAYLOAD_BYTES
+    let cache = rbd_core::TileCache::default();
+    let key = rbd_core::TileKey {
+        doc_id: 1,
+        page: 0,
+        zoom_bucket: 100,
+        tile_x: 0,
+        tile_y: 0,
+        pixel_format: 0,
+    };
+    // 17 MB payload (> 16 MB max)
+    let huge_data = std::sync::Arc::new(vec![0u8; rbd_core::MAX_TILE_PAYLOAD_BYTES + 1024]);
+    cache.insert(key, huge_data);
+    assert!(
+        cache.get(&key).is_none(),
+        "Oversized tile payload must not be cached"
+    );
+}

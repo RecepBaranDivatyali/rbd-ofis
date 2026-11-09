@@ -56,6 +56,30 @@ where
     }
 }
 
+pub(crate) const MAX_DYNAMIC_BUFFER_BYTES: usize = 32 * 1024 * 1024; // 32 MB
+
+/// Repeatedly call `op(&mut buffer)` starting at `initial_capacity`.
+/// If `RBD_ERR_BUFFER_TOO_SMALL` is returned, double the buffer capacity up to 32 MB
+/// and retry. Returns `Some(buffer)` on `RBD_OK`, or `None` on unrecoverable failure.
+pub(crate) fn call_with_dynamic_buffer<F>(initial_capacity: usize, mut op: F) -> Option<Vec<u8>>
+where
+    F: FnMut(&mut [u8]) -> i32,
+{
+    let mut cap = initial_capacity.clamp(1024, MAX_DYNAMIC_BUFFER_BYTES);
+    loop {
+        let mut buffer = vec![0u8; cap];
+        let status = op(&mut buffer);
+        if status == RBD_OK {
+            return Some(buffer);
+        }
+        if status == RBD_ERR_BUFFER_TOO_SMALL && cap < MAX_DYNAMIC_BUFFER_BYTES {
+            cap = cap.saturating_mul(2).min(MAX_DYNAMIC_BUFFER_BYTES);
+            continue;
+        }
+        return None;
+    }
+}
+
 /// Initialize the native RBD engine instance.
 /// Returns pointer handle as `jlong`, or `0` on failure.
 #[unsafe(no_mangle)]
@@ -1059,18 +1083,12 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReadFor
             None => return ptr::null_mut(),
         };
 
-        let mut buffer = vec![0u8; 65536];
-        let status = unsafe {
-            rbd_pro_read_form_fields(
-                in_c.as_ptr(),
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
-            )
+        let buffer = match call_with_dynamic_buffer(65536, |buf| unsafe {
+            rbd_pro_read_form_fields(in_c.as_ptr(), buf.as_mut_ptr() as *mut c_char, buf.len())
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("[]");
@@ -1153,22 +1171,20 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativePdfToIm
 
         let pr_ptr = pr_c.as_ref().map(|c| c.as_ptr()).unwrap_or(ptr::null());
 
-        let mut buffer = vec![0u8; 65536];
-        let status = unsafe {
+        let buffer = match call_with_dynamic_buffer(65536, |buf| unsafe {
             rbd_convert_pdf_to_images(
                 in_c.as_ptr(),
                 out_c.as_ptr(),
                 dpi as u32,
                 format,
                 pr_ptr,
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
+                buf.as_mut_ptr() as *mut c_char,
+                buf.len(),
             )
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("[]");
@@ -1422,18 +1438,12 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeE
             None => return ptr::null_mut(),
         };
 
-        let mut buffer = vec![0u8; 131072]; // 128 KB initial buffer
-        let status = unsafe {
-            rbd_office_extract_text(
-                in_c.as_ptr(),
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
-            )
+        let buffer = match call_with_dynamic_buffer(131072, |buf| unsafe {
+            rbd_office_extract_text(in_c.as_ptr(), buf.as_mut_ptr() as *mut c_char, buf.len())
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("");
@@ -1461,18 +1471,12 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeOfficeI
             None => return ptr::null_mut(),
         };
 
-        let mut buffer = vec![0u8; 16384];
-        let status = unsafe {
-            rbd_office_inspect(
-                in_c.as_ptr(),
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
-            )
+        let buffer = match call_with_dynamic_buffer(16384, |buf| unsafe {
+            rbd_office_inspect(in_c.as_ptr(), buf.as_mut_ptr() as *mut c_char, buf.len())
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("{}");
@@ -1523,19 +1527,17 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeSummari
             return ptr::null_mut();
         }
 
-        let mut buffer = vec![0u8; 65536]; // 64 KB buffer
-        let status = unsafe {
+        let buffer = match call_with_dynamic_buffer(65536, |buf| unsafe {
             crate::rbd_ai_summarize_document(
                 doc_handle as *mut c_void,
                 max_sentences as u32,
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
+                buf.as_mut_ptr() as *mut c_char,
+                buf.len(),
             )
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("{}");
@@ -1565,19 +1567,17 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeAskDocu
             None => return ptr::null_mut(),
         };
 
-        let mut buffer = vec![0u8; 65536];
-        let status = unsafe {
+        let buffer = match call_with_dynamic_buffer(65536, |buf| unsafe {
             crate::rbd_ai_ask_document(
                 doc_handle as *mut c_void,
                 query_c.as_ptr(),
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
+                buf.as_mut_ptr() as *mut c_char,
+                buf.len(),
             )
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("{}");
@@ -1602,19 +1602,17 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReflowP
             return ptr::null_mut();
         }
 
-        let mut buffer = vec![0u8; 65536];
-        let status = unsafe {
+        let buffer = match call_with_dynamic_buffer(65536, |buf| unsafe {
             crate::rbd_document_reflow_page_text(
                 doc_handle as *mut c_void,
                 page_index as u32,
-                buffer.as_mut_ptr() as *mut c_char,
-                buffer.len(),
+                buf.as_mut_ptr() as *mut c_char,
+                buf.len(),
             )
+        }) {
+            Some(b) => b,
+            None => return ptr::null_mut(),
         };
-
-        if status != RBD_OK {
-            return ptr::null_mut();
-        }
 
         let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         let rust_str = c_str.to_str().unwrap_or("[]");
@@ -2079,5 +2077,35 @@ mod tests {
                 RBD_ERR_NULL_PTR
             );
         }
+    }
+
+    #[test]
+    fn test_regression_item7_dynamic_buffer_retry_doubling() {
+        let mut attempts = 0;
+        let result = call_with_dynamic_buffer(1024, |buf| {
+            attempts += 1;
+            if buf.len() < 4096 {
+                crate::RBD_ERR_BUFFER_TOO_SMALL
+            } else {
+                buf[0..4].copy_from_slice(b"OK!\0");
+                crate::RBD_OK
+            }
+        });
+
+        assert!(result.is_some());
+        let buf = result.unwrap();
+        assert_eq!(&buf[0..4], b"OK!\0");
+        // 1024 (too small) -> 2048 (too small) -> 4096 (success): 3 attempts
+        assert_eq!(attempts, 3);
+        assert_eq!(buf.len(), 4096);
+
+        // Test failure when exceeding max dynamic buffer limit
+        let mut exceed_attempts = 0;
+        let fail_result = call_with_dynamic_buffer(16 * 1024 * 1024, |_buf| {
+            exceed_attempts += 1;
+            crate::RBD_ERR_BUFFER_TOO_SMALL
+        });
+        assert!(fail_result.is_none());
+        assert_eq!(exceed_attempts, 2);
     }
 }

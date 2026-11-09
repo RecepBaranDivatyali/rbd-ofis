@@ -1419,13 +1419,20 @@ public partial class MainWindow : Window
             string assetsFolder = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "OfficeHost");
             if (!Directory.Exists(assetsFolder))
             {
-                assetsFolder = AppContext.BaseDirectory;
+                string emptyFallback = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "RbdOfis", "EmptyAssets");
+                Directory.CreateDirectory(emptyFallback);
+                assetsFolder = emptyFallback;
             }
 
             OfficeWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 OfflineSecurityPolicy.AllowedHost,
                 assetsFolder,
                 CoreWebView2HostResourceAccessKind.Allow);
+
+            OfficeWebView.CoreWebView2.NewWindowRequested += (_, args) =>
+            {
+                args.Handled = true;
+            };
 
             OfficeWebView.CoreWebView2.NavigationStarting += (_, args) =>
             {

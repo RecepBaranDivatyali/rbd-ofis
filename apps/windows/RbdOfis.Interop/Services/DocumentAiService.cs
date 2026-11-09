@@ -52,11 +52,11 @@ public sealed class DocumentAiService
         _nativeApi = nativeApi ?? NativeRbdApi.Instance;
     }
 
-    public Task<DocumentSummaryDto> SummarizeDocumentAsync(IntPtr docHandle, uint maxSentences = 5)
+    public Task<DocumentSummaryDto> SummarizeDocumentAsync(SafeDocumentHandle doc, uint maxSentences = 5)
     {
         return Task.Run(() =>
         {
-            int status = _nativeApi.SummarizeDocument(docHandle, maxSentences, out string json);
+            int status = _nativeApi.SummarizeDocument(doc, maxSentences, out string json);
             if (status != 0)
             {
                 throw new InvalidOperationException($"Document summarization failed with native error code {status}");
@@ -67,7 +67,7 @@ public sealed class DocumentAiService
         });
     }
 
-    public Task<DocumentAnswerDto> AskDocumentAsync(IntPtr docHandle, string query)
+    public Task<DocumentAnswerDto> AskDocumentAsync(SafeDocumentHandle doc, string query)
     {
         return Task.Run(() =>
         {
@@ -76,7 +76,7 @@ public sealed class DocumentAiService
                 return new DocumentAnswerDto(string.Empty, "Sorgu boş olamaz.", string.Empty, 1, 0f, false);
             }
 
-            int status = _nativeApi.AskDocument(docHandle, query, out string json);
+            int status = _nativeApi.AskDocument(doc, query, out string json);
             if (status != 0)
             {
                 throw new InvalidOperationException($"Document question answering failed with native error code {status}");
@@ -87,11 +87,11 @@ public sealed class DocumentAiService
         });
     }
 
-    public Task<List<ReflowParagraphDto>> GetReflowParagraphsAsync(IntPtr docHandle, uint pageIndex)
+    public Task<List<ReflowParagraphDto>> GetReflowParagraphsAsync(SafeDocumentHandle doc, uint pageIndex)
     {
         return Task.Run(() =>
         {
-            int status = _nativeApi.ReflowPageText(docHandle, pageIndex, out string json);
+            int status = _nativeApi.ReflowPageText(doc, pageIndex, out string json);
             if (status != 0)
             {
                 throw new InvalidOperationException($"Reflow paragraph extraction failed with native error code {status}");
@@ -103,7 +103,7 @@ public sealed class DocumentAiService
     }
 
     public Task ReplaceParagraphTextAsync(
-        IntPtr docHandle,
+        SafeDocumentHandle doc,
         string inputPath,
         uint pageIndex,
         float x0,
@@ -117,7 +117,7 @@ public sealed class DocumentAiService
         return Task.Run(() =>
         {
             int status = _nativeApi.ReplaceParagraphText(
-                docHandle,
+                doc,
                 inputPath,
                 pageIndex,
                 x0,

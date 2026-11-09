@@ -92,7 +92,7 @@ pub struct RbdEngineHandle {
 }
 
 pub struct RbdDocumentHandle {
-    pub session: DocumentSession,
+    pub session: parking_lot::RwLock<DocumentSession>,
 }
 
 /// Initialize the native RBD engine instance.
@@ -165,7 +165,9 @@ pub unsafe extern "C" fn rbd_document_open_file(
         )
         .map_err(|e| map_core_error(&e))?;
 
-        let doc_handle = Box::new(RbdDocumentHandle { session });
+        let doc_handle = Box::new(RbdDocumentHandle {
+            session: parking_lot::RwLock::new(session),
+        });
         unsafe {
             *out_doc = Box::into_raw(doc_handle) as *mut c_void;
         }
@@ -200,7 +202,9 @@ pub unsafe extern "C" fn rbd_document_open_memory(
         let session = DocumentSession::open_bytes(slice, None, engine_handle.engine.as_ref(), None)
             .map_err(|e| map_core_error(&e))?;
 
-        let doc_handle = Box::new(RbdDocumentHandle { session });
+        let doc_handle = Box::new(RbdDocumentHandle {
+            session: parking_lot::RwLock::new(session),
+        });
         unsafe {
             *out_doc = Box::into_raw(doc_handle) as *mut c_void;
         }
@@ -240,6 +244,7 @@ pub unsafe extern "C" fn rbd_document_get_page_count(
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let count = doc_handle
             .session
+            .read()
             .page_count()
             .map_err(|e| map_core_error(&e))?;
 
@@ -275,6 +280,7 @@ pub unsafe extern "C" fn rbd_document_get_page_size(
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let (w, h) = doc_handle
             .session
+            .read()
             .page_dimensions(page_index as u32)
             .map_err(|e| map_core_error(&e))?;
 
@@ -322,12 +328,26 @@ pub unsafe extern "C" fn rbd_render_tile_into_buffer(
             return Err(RBD_ERR_INVALID_PARAM);
         }
 
-        if buffer_stride <= 0 {
-            set_last_error("buffer_stride must be positive");
+        const MAX_BUFFER_STRIDE: i32 = 1024 * 1024;
+        if buffer_stride <= 0 || buffer_stride > MAX_BUFFER_STRIDE {
+            set_last_error("buffer_stride must be positive and within valid range");
             return Err(RBD_ERR_INVALID_PARAM);
         }
 
-        let row_bytes = (tile_width as usize) * 4;
+        if tile_width > (rbd_core::MAX_TILE_DIMENSION as i32)
+            || tile_height > (rbd_core::MAX_TILE_DIMENSION as i32)
+        {
+            set_last_error("Tile dimension exceeds maximum allowed dimension");
+            return Err(RBD_ERR_INVALID_PARAM);
+        }
+
+        let row_bytes = match (tile_width as usize).checked_mul(4) {
+            Some(rb) => rb,
+            None => {
+                set_last_error("Buffer size overflow in tile_width * 4");
+                return Err(RBD_ERR_INVALID_PARAM);
+            }
+        };
         if (buffer_stride as usize) < row_bytes {
             set_last_error("buffer_stride is smaller than tile_width * 4");
             return Err(RBD_ERR_INVALID_PARAM);
@@ -335,13 +355,20 @@ pub unsafe extern "C" fn rbd_render_tile_into_buffer(
 
         let format = PixelFormat::try_from(pixel_format).map_err(|e| map_engine_error(&e))?;
         let scale_dpi = (zoom * 72.0) as f32;
-        let total_bytes = (buffer_stride as usize) * (tile_height as usize);
+        let total_bytes = match (buffer_stride as usize).checked_mul(tile_height as usize) {
+            Some(tb) => tb,
+            None => {
+                set_last_error("Buffer size overflow in buffer_stride * tile_height");
+                return Err(RBD_ERR_INVALID_PARAM);
+            }
+        };
 
         let slice = unsafe { slice::from_raw_parts_mut(destination_buffer, total_bytes) };
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
 
         doc_handle
             .session
+            .read()
             .render_tile_into_buffer(
                 page_index as u32,
                 tile_x as u32,
@@ -397,6 +424,7 @@ pub unsafe extern "C" fn rbd_document_extract_page_text(
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let text = doc_handle
             .session
+            .read()
             .extract_text(page_index)
             .map_err(|e| map_core_error(&e))?;
 
@@ -441,6 +469,7 @@ pub unsafe extern "C" fn rbd_document_search_json(
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let hits = doc_handle
             .session
+            .read()
             .search_document(query, case_sensitive != 0)
             .map_err(|e| map_core_error(&e))?;
 
@@ -492,9 +521,10 @@ pub unsafe extern "C" fn rbd_document_add_annotation_json(
             RBD_ERR_INVALID_PARAM
         })?;
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         doc_handle
             .session
+            .write()
             .add_annotation_undoable(annotation)
             .map_err(|e| map_core_error(&e))?;
 
@@ -517,9 +547,10 @@ pub unsafe extern "C" fn rbd_document_remove_annotation(
             return Err(RBD_ERR_NULL_PTR);
         }
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         doc_handle
             .session
+            .write()
             .remove_annotation_undoable(annotation_id)
             .map_err(|e| map_core_error(&e))?;
 
@@ -545,7 +576,7 @@ pub unsafe extern "C" fn rbd_document_get_annotations_json(
         }
 
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
-        let annotations = doc_handle.session.annotations_for_page(page_index);
+        let annotations = doc_handle.session.read().annotations_for_page(page_index);
 
         let json = serde_json::to_string(&annotations).map_err(|e| {
             set_last_error(&format!("Failed to serialize annotations: {e}"));
@@ -591,9 +622,10 @@ pub unsafe extern "C" fn rbd_document_update_annotation_json(
             RBD_ERR_INVALID_PARAM
         })?;
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         doc_handle
             .session
+            .write()
             .update_annotation_undoable(annotation)
             .map_err(|e| map_core_error(&e))?;
 
@@ -614,8 +646,12 @@ pub unsafe extern "C" fn rbd_document_undo(doc: *mut c_void, out_undone: *mut i3
             return Err(RBD_ERR_NULL_PTR);
         }
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
-        let undone = doc_handle.session.undo().map_err(|e| map_core_error(&e))?;
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        let undone = doc_handle
+            .session
+            .write()
+            .undo()
+            .map_err(|e| map_core_error(&e))?;
 
         unsafe {
             *out_undone = if undone { 1 } else { 0 };
@@ -637,8 +673,12 @@ pub unsafe extern "C" fn rbd_document_redo(doc: *mut c_void, out_redone: *mut i3
             return Err(RBD_ERR_NULL_PTR);
         }
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
-        let redone = doc_handle.session.redo().map_err(|e| map_core_error(&e))?;
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        let redone = doc_handle
+            .session
+            .write()
+            .redo()
+            .map_err(|e| map_core_error(&e))?;
 
         unsafe {
             *out_redone = if redone { 1 } else { 0 };
@@ -661,7 +701,11 @@ pub unsafe extern "C" fn rbd_document_can_undo(doc: *mut c_void, out_can_undo: *
 
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         unsafe {
-            *out_can_undo = if doc_handle.session.can_undo() { 1 } else { 0 };
+            *out_can_undo = if doc_handle.session.read().can_undo() {
+                1
+            } else {
+                0
+            };
         }
         Ok(())
     }))
@@ -681,7 +725,11 @@ pub unsafe extern "C" fn rbd_document_can_redo(doc: *mut c_void, out_can_redo: *
 
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         unsafe {
-            *out_can_redo = if doc_handle.session.can_redo() { 1 } else { 0 };
+            *out_can_redo = if doc_handle.session.read().can_redo() {
+                1
+            } else {
+                0
+            };
         }
         Ok(())
     }))
@@ -712,12 +760,13 @@ pub unsafe extern "C" fn rbd_document_save_annotations(
 
         let out_path = Path::new(out_str);
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
+        let session = doc_handle.session.read();
 
-        let in_path = match doc_handle.session.source_path() {
-            Some(p) => p,
+        let in_path_buf = match session.source_path() {
+            Some(p) => p.to_path_buf(),
             None => {
                 if out_path.exists() {
-                    out_path
+                    out_path.to_path_buf()
                 } else {
                     set_last_error("Source file path unknown and output file does not exist");
                     return Err(RBD_ERR_FILE_IO);
@@ -725,9 +774,8 @@ pub unsafe extern "C" fn rbd_document_save_annotations(
             }
         };
 
-        doc_handle
-            .session
-            .save_annotations_to_pdf(in_path, out_path)
+        session
+            .save_annotations_to_pdf(&in_path_buf, out_path)
             .map_err(|e| map_core_error(&e))?;
 
         Ok(())
@@ -766,6 +814,7 @@ pub unsafe extern "C" fn rbd_document_save_annotations_to_path(
         let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         doc_handle
             .session
+            .read()
             .save_annotations_to_pdf(Path::new(in_str), Path::new(out_str))
             .map_err(|e| map_core_error(&e))?;
 
@@ -2031,9 +2080,10 @@ pub unsafe extern "C" fn rbd_ai_summarize_document(
             return Err(RBD_ERR_INVALID_PARAM);
         }
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let summary = doc_handle
             .session
+            .write()
             .summarize_document(max_sentences as usize)
             .map_err(|e| map_core_error(&e))?;
 
@@ -2073,9 +2123,10 @@ pub unsafe extern "C" fn rbd_ai_ask_document(
             RBD_ERR_INVALID_PARAM
         })?;
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let answer = doc_handle
             .session
+            .write()
             .ask_document(query_str)
             .map_err(|e| map_core_error(&e))?;
 
@@ -2110,9 +2161,10 @@ pub unsafe extern "C" fn rbd_document_reflow_page_text(
             return Err(RBD_ERR_INVALID_PARAM);
         }
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         let paragraphs = doc_handle
             .session
+            .write()
             .extract_page_paragraphs(page_index)
             .map_err(|e| map_core_error(&e))?;
 
@@ -2166,9 +2218,10 @@ pub unsafe extern "C" fn rbd_document_replace_paragraph_text(
                 RBD_ERR_INVALID_PARAM
             })?;
 
-        let doc_handle = unsafe { &mut *(doc as *mut RbdDocumentHandle) };
+        let doc_handle = unsafe { &*(doc as *const RbdDocumentHandle) };
         doc_handle
             .session
+            .write()
             .replace_paragraph_text(
                 Path::new(in_str),
                 page_index,
@@ -2362,7 +2415,16 @@ pub unsafe extern "C" fn rbd_session_render_page(
         if session.is_null() || out_rgba.is_null() {
             return Err(RBD_ERR_NULL_PTR);
         }
-        let required = (width as usize) * (height as usize) * 4;
+        let required = match (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|wh| wh.checked_mul(4))
+        {
+            Some(req) => req,
+            None => {
+                set_last_error("Buffer size overflow in width * height * 4");
+                return Err(RBD_ERR_INVALID_PARAM);
+            }
+        };
         if out_len < required {
             return Err(RBD_ERR_BUFFER_TOO_SMALL);
         }
@@ -2397,7 +2459,16 @@ pub unsafe extern "C" fn rbd_session_render_tile_into_buffer(
         if session.is_null() || out_rgba.is_null() {
             return Err(RBD_ERR_NULL_PTR);
         }
-        let required = (tile_w as usize) * (tile_h as usize) * 4;
+        let required = match (tile_w as usize)
+            .checked_mul(tile_h as usize)
+            .and_then(|wh| wh.checked_mul(4))
+        {
+            Some(req) => req,
+            None => {
+                set_last_error("Buffer size overflow in tile_w * tile_h * 4");
+                return Err(RBD_ERR_INVALID_PARAM);
+            }
+        };
         if out_len < required {
             return Err(RBD_ERR_BUFFER_TOO_SMALL);
         }
@@ -3458,6 +3529,190 @@ mod tests {
                 rbd_scan_generate_pdf(empty_json.as_ptr(), out_pdf.as_ptr()),
                 RBD_ERR_INVALID_PARAM
             );
+        }
+    }
+
+    #[test]
+    fn test_regression_item1_rbd_document_handle_rwlock_concurrency() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let pdf_path = manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        assert!(pdf_path.exists(), "Test PDF must exist");
+
+        let c_path = CString::new(pdf_path.to_str().unwrap()).unwrap();
+
+        unsafe {
+            let mut engine: *mut c_void = ptr::null_mut();
+            assert_eq!(rbd_engine_init(&mut engine), RBD_OK);
+            let mut doc: *mut c_void = ptr::null_mut();
+            assert_eq!(
+                rbd_document_open_file(engine, c_path.as_ptr(), &mut doc),
+                RBD_OK
+            );
+
+            // Transmit raw pointer as usize across threads
+            let doc_addr = doc as usize;
+
+            let handle_read1 = std::thread::spawn(move || {
+                let doc = doc_addr as *mut c_void;
+                for _ in 0..50 {
+                    let mut count = 0i32;
+                    let res = rbd_document_get_page_count(doc, &mut count);
+                    assert_eq!(res, RBD_OK);
+                    assert!(count >= 1);
+
+                    let mut w = 0.0f64;
+                    let mut h = 0.0f64;
+                    let res_dim = rbd_document_get_page_size(doc, 0, &mut w, &mut h);
+                    assert_eq!(res_dim, RBD_OK);
+                }
+            });
+
+            let handle_read2 = std::thread::spawn(move || {
+                let doc = doc_addr as *mut c_void;
+                let mut tile_buf = vec![0u8; 128 * 128 * 4];
+                for _ in 0..20 {
+                    let res = rbd_render_tile_into_buffer(
+                        doc,
+                        0,
+                        0,
+                        0,
+                        128,
+                        128,
+                        1.0,
+                        tile_buf.as_mut_ptr(),
+                        128 * 4,
+                        1,
+                    );
+                    assert_eq!(res, RBD_OK);
+                }
+            });
+
+            let handle_write = std::thread::spawn(move || {
+                let doc = doc_addr as *mut c_void;
+                let annot_json = CString::new(
+                    r#"{
+                    "id": 9999,
+                    "page_index": 0,
+                    "kind": "Highlight",
+                    "rect": { "x0": 50.0, "y0": 50.0, "x1": 150.0, "y1": 70.0 },
+                    "color_rgba": [255, 255, 0, 128],
+                    "contents": "Thread test"
+                }"#,
+                )
+                .unwrap();
+
+                for _ in 0..10 {
+                    let res_add = rbd_document_add_annotation_json(doc, annot_json.as_ptr());
+                    assert_eq!(res_add, RBD_OK);
+
+                    let mut undone = 0i32;
+                    let res_undo = rbd_document_undo(doc, &mut undone);
+                    assert_eq!(res_undo, RBD_OK);
+                }
+            });
+
+            let handle_extract = std::thread::spawn(move || {
+                let doc = doc_addr as *mut c_void;
+                for _ in 0..30 {
+                    let mut text_ptr: *mut c_char = ptr::null_mut();
+                    let res = rbd_document_extract_page_text(doc, 0, &mut text_ptr);
+                    assert_eq!(res, RBD_OK);
+                    assert!(!text_ptr.is_null());
+                    rbd_free_string(text_ptr);
+                }
+            });
+
+            handle_read1.join().expect("Reader 1 failed");
+            handle_read2.join().expect("Reader 2 failed");
+            handle_write.join().expect("Writer failed");
+            handle_extract.join().expect("Extractor failed");
+
+            rbd_document_free(doc);
+            rbd_engine_free(engine);
+        }
+    }
+
+    #[test]
+    fn test_regression_item3_buffer_checked_arithmetic_overflow() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let pdf_path = manifest_dir.join("../../../corpus/files/pdf-basic/pdfium-hello-world.pdf");
+        let c_path = CString::new(pdf_path.to_str().unwrap()).unwrap();
+
+        unsafe {
+            let mut engine: *mut c_void = ptr::null_mut();
+            assert_eq!(rbd_engine_init(&mut engine), RBD_OK);
+            let mut doc: *mut c_void = ptr::null_mut();
+            assert_eq!(
+                rbd_document_open_file(engine, c_path.as_ptr(), &mut doc),
+                RBD_OK
+            );
+
+            let mut dummy_buf = [0u8; 128];
+
+            // 1. tile_width / tile_height causing multiplication overflow
+            let res = rbd_render_tile_into_buffer(
+                doc,
+                0,
+                0,
+                0,
+                i32::MAX,
+                i32::MAX,
+                1.0,
+                dummy_buf.as_mut_ptr(),
+                128,
+                0,
+            );
+            assert_eq!(res, RBD_ERR_INVALID_PARAM);
+
+            // 2. buffer_stride overflow
+            let res_stride = rbd_render_tile_into_buffer(
+                doc,
+                0,
+                0,
+                0,
+                64,
+                64,
+                1.0,
+                dummy_buf.as_mut_ptr(),
+                i32::MAX,
+                0,
+            );
+            assert_eq!(res_stride, RBD_ERR_INVALID_PARAM);
+
+            // 3. rbd_session_render_page with overflowing dimensions
+            let mut session: *mut RbdSession = ptr::null_mut();
+            assert_eq!(
+                rbd_session_open_file(c_path.as_ptr(), ptr::null(), &mut session),
+                RBD_OK
+            );
+
+            let res_sess_overflow = rbd_session_render_page(
+                session,
+                0,
+                u32::MAX,
+                u32::MAX,
+                dummy_buf.as_mut_ptr(),
+                dummy_buf.len(),
+            );
+            assert_eq!(res_sess_overflow, RBD_ERR_INVALID_PARAM);
+
+            // 4. rbd_session_render_tile_into_buffer with overflowing dimensions
+            let res_tile_overflow = rbd_session_render_tile_into_buffer(
+                session,
+                0,
+                0,
+                0,
+                u32::MAX,
+                u32::MAX,
+                72.0,
+                dummy_buf.as_mut_ptr(),
+                dummy_buf.len(),
+            );
+            assert_eq!(res_tile_overflow, RBD_ERR_INVALID_PARAM);
+
+            rbd_session_close(session);
+            rbd_document_free(doc);
+            rbd_engine_free(engine);
         }
     }
 }

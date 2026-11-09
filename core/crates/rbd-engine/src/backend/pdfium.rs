@@ -160,9 +160,12 @@ impl PdfEngine for PdfiumEngine {
             .and_then(|bytes| lopdf::Document::load_mem(&bytes).ok())
             .map(Arc::new);
 
+        let render_lock = Arc::new(parking_lot::Mutex::new(()));
+
         Ok(Box::new(PdfiumDocumentWrapper {
             doc: Arc::new(doc),
             lopdf_doc,
+            render_lock,
         }))
     }
 
@@ -177,10 +180,12 @@ impl PdfEngine for PdfiumEngine {
             .map_err(map_pdfium_error)?;
 
         let lopdf_doc = lopdf::Document::load_mem(bytes).ok().map(Arc::new);
+        let render_lock = Arc::new(parking_lot::Mutex::new(()));
 
         Ok(Box::new(PdfiumDocumentWrapper {
             doc: Arc::new(doc),
             lopdf_doc,
+            render_lock,
         }))
     }
 }
@@ -188,6 +193,7 @@ impl PdfEngine for PdfiumEngine {
 struct PdfiumDocumentWrapper {
     doc: Arc<pdfium_render::prelude::PdfDocument<'static>>,
     lopdf_doc: Option<Arc<lopdf::Document>>,
+    render_lock: Arc<parking_lot::Mutex<()>>,
 }
 
 impl PdfDocument for PdfiumDocumentWrapper {
@@ -204,6 +210,7 @@ impl PdfDocument for PdfiumDocumentWrapper {
             });
         }
 
+        let _guard = self.render_lock.lock();
         let page = self
             .doc
             .pages()
@@ -215,6 +222,7 @@ impl PdfDocument for PdfiumDocumentWrapper {
             page,
             page_index: index,
             lopdf_doc: self.lopdf_doc.clone(),
+            render_lock: self.render_lock.clone(),
         }))
     }
 
@@ -244,6 +252,7 @@ struct PdfiumPageWrapper {
     page: pdfium_render::prelude::PdfPage<'static>,
     page_index: u32,
     lopdf_doc: Option<Arc<lopdf::Document>>,
+    render_lock: Arc<parking_lot::Mutex<()>>,
 }
 
 impl PdfPage for PdfiumPageWrapper {
@@ -259,6 +268,7 @@ impl PdfPage for PdfiumPageWrapper {
         height_px: u32,
         out_buf: &mut [u8],
     ) -> Result<(), EngineError> {
+        let _guard = self.render_lock.lock();
         let required_len = (width_px as usize) * (height_px as usize) * 4;
         if out_buf.len() < required_len {
             return Err(EngineError::RenderError(format!(
@@ -298,6 +308,7 @@ impl PdfPage for PdfiumPageWrapper {
         stride: usize,
         out_buf: &mut [u8],
     ) -> Result<(), EngineError> {
+        let _guard = self.render_lock.lock();
         let row_bytes = (tile_width as usize) * 4;
         if stride < row_bytes {
             return Err(EngineError::InvalidParameter(format!(
@@ -380,6 +391,7 @@ impl PdfPage for PdfiumPageWrapper {
     }
 
     fn extract_text(&self) -> Result<String, EngineError> {
+        let _guard = self.render_lock.lock();
         let text_page = self.page.text().map_err(map_pdfium_error)?;
         Ok(text_page.all())
     }
@@ -390,6 +402,7 @@ impl PdfPage for PdfiumPageWrapper {
         query: &str,
         case_sensitive: bool,
     ) -> Result<Vec<SearchHit>, EngineError> {
+        let _guard = self.render_lock.lock();
         let text_page = self.page.text().map_err(map_pdfium_error)?;
         let chars = text_page.chars();
         let total_chars = chars.len();

@@ -268,7 +268,13 @@ pub fn crop_page(
         )));
     }
 
-    let page_id = pages[&page_num];
+    let page_id = pages
+        .get(&page_num)
+        .copied()
+        .ok_or(EngineError::PageOutOfRange {
+            index: page_num,
+            total_pages,
+        })?;
     let page_dict = doc.get_dictionary_mut(page_id)?;
 
     let box_arr = Object::Array(vec![
@@ -347,7 +353,11 @@ pub fn insert_blank_page(
     // Collect existing kids and insert at appropriate index
     let mut current_kids = Vec::new();
     for p in 1..=total_pages {
-        current_kids.push(Object::Reference(pages[&p]));
+        let kid_id = pages.get(&p).copied().ok_or(EngineError::PageOutOfRange {
+            index: p,
+            total_pages,
+        })?;
+        current_kids.push(Object::Reference(kid_id));
     }
 
     let insert_pos = after_page as usize;

@@ -14,6 +14,13 @@ pub struct TileKey {
     pub pixel_format: u8,
 }
 
+/// Maximum allowed tile width and height (2048x2048) to prevent memory exhaustion / OOM attacks.
+pub const MAX_TILE_DIMENSION: u32 = 2048;
+
+/// Maximum allowed single tile payload byte size (16 MB = 2048 * 2048 * 4).
+pub const MAX_TILE_PAYLOAD_BYTES: usize =
+    (MAX_TILE_DIMENSION as usize) * (MAX_TILE_DIMENSION as usize) * 4;
+
 /// Thread-safe LRU cache for rendered bitmap tiles.
 pub struct TileCache {
     cache: Mutex<LruCache<TileKey, Arc<Vec<u8>>>>,
@@ -40,6 +47,9 @@ impl TileCache {
 
     /// Insert or update a rendered tile in the cache.
     pub fn insert(&self, key: TileKey, data: Arc<Vec<u8>>) {
+        if data.len() > MAX_TILE_PAYLOAD_BYTES {
+            return;
+        }
         let mut guard = self.cache.lock();
         guard.put(key, data);
     }

@@ -27,4 +27,4 @@ pub use rbd_engine::{
     scan_grayscale, split_sentences, summarize_document, tokenize_words,
 };
 pub use session::DocumentSession;
-pub use tile_cache::{TileCache, TileKey};
+pub use tile_cache::{MAX_TILE_DIMENSION, MAX_TILE_PAYLOAD_BYTES, TileCache, TileKey};

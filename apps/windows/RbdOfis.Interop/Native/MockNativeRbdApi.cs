@@ -611,7 +611,7 @@ public sealed class MockNativeRbdApi : INativeRbdApi
         }
     }
 
-    public int SummarizeDocument(IntPtr docHandle, uint maxSentences, out string summaryJson)
+    public int SummarizeDocument(SafeDocumentHandle doc, uint maxSentences, out string summaryJson)
     {
         summaryJson = JsonSerializer.Serialize(new
         {
@@ -625,7 +625,7 @@ public sealed class MockNativeRbdApi : INativeRbdApi
         return (int)RbdStatusCode.Success;
     }
 
-    public int AskDocument(IntPtr docHandle, string query, out string answerJson)
+    public int AskDocument(SafeDocumentHandle doc, string query, out string answerJson)
     {
         answerJson = JsonSerializer.Serialize(new
         {
@@ -639,7 +639,7 @@ public sealed class MockNativeRbdApi : INativeRbdApi
         return (int)RbdStatusCode.Success;
     }
 
-    public int ReflowPageText(IntPtr docHandle, uint pageIndex, out string paragraphsJson)
+    public int ReflowPageText(SafeDocumentHandle doc, uint pageIndex, out string paragraphsJson)
     {
         paragraphsJson = JsonSerializer.Serialize(new[]
         {
@@ -657,7 +657,7 @@ public sealed class MockNativeRbdApi : INativeRbdApi
     }
 
     public int ReplaceParagraphText(
-        IntPtr docHandle,
+        SafeDocumentHandle doc,
         string inputPath,
         uint pageIndex,
         float x0,

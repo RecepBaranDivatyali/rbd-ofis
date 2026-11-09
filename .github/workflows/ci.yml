@@ -181,7 +181,7 @@ jobs:
         working-directory: core
         run: |
           cargo build --release -p rbd-ffi
-          cp -f vendor/pdfium/lib/libpdfium.dylib target/release/libpdfium.dylib || true
+          cp -f vendor/pdfium/lib/libpdfium.dylib target/release/libpdfium.dylib
       - name: Build Swift Package
         working-directory: apps/apple
         run: |

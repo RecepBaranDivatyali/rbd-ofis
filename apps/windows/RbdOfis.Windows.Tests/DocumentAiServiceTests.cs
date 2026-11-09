@@ -20,7 +20,8 @@ public class DocumentAiServiceTests
     [Fact]
     public async Task SummarizeDocument_Returns_Valid_Summary()
     {
-        var summary = await _service.SummarizeDocumentAsync(new IntPtr(123), 5);
+        using var handle = new SafeDocumentHandle(new IntPtr(123), ownsHandle: false);
+        var summary = await _service.SummarizeDocumentAsync(handle, 5);
         Assert.NotNull(summary);
         Assert.False(string.IsNullOrWhiteSpace(summary.SummaryText));
         Assert.NotEmpty(summary.KeySentences);
@@ -31,7 +32,8 @@ public class DocumentAiServiceTests
     [Fact]
     public async Task AskDocument_Returns_Answer_With_Citation()
     {
-        var answer = await _service.AskDocumentAsync(new IntPtr(123), "Proje lisansı nedir?");
+        using var handle = new SafeDocumentHandle(new IntPtr(123), ownsHandle: false);
+        var answer = await _service.AskDocumentAsync(handle, "Proje lisansı nedir?");
         Assert.NotNull(answer);
         Assert.True(answer.Found);
         Assert.False(string.IsNullOrWhiteSpace(answer.AnswerText));
@@ -42,7 +44,8 @@ public class DocumentAiServiceTests
     [Fact]
     public async Task AskDocument_EmptyQuery_Returns_EmptyAnswer()
     {
-        var answer = await _service.AskDocumentAsync(new IntPtr(123), "   ");
+        using var handle = new SafeDocumentHandle(new IntPtr(123), ownsHandle: false);
+        var answer = await _service.AskDocumentAsync(handle, "   ");
         Assert.NotNull(answer);
         Assert.False(answer.Found);
     }
@@ -50,7 +53,8 @@ public class DocumentAiServiceTests
     [Fact]
     public async Task GetReflowParagraphs_Returns_Paragraph_Candidates()
     {
-        var paragraphs = await _service.GetReflowParagraphsAsync(new IntPtr(123), 0);
+        using var handle = new SafeDocumentHandle(new IntPtr(123), ownsHandle: false);
+        var paragraphs = await _service.GetReflowParagraphsAsync(handle, 0);
         Assert.NotNull(paragraphs);
         Assert.NotEmpty(paragraphs);
         Assert.Equal(0u, paragraphs[0].PageIndex);
@@ -61,13 +65,14 @@ public class DocumentAiServiceTests
     [Fact]
     public async Task ReplaceParagraphText_Creates_Output()
     {
+        using var handle = new SafeDocumentHandle(new IntPtr(123), ownsHandle: false);
         string tmpIn = Path.GetTempFileName();
         string tmpOut = Path.GetTempFileName();
         try
         {
             File.WriteAllText(tmpIn, "%PDF-1.7 initial content");
             await _service.ReplaceParagraphTextAsync(
-                new IntPtr(123),
+                handle,
                 tmpIn,
                 0,
                 72f, 600f, 400f, 650f,

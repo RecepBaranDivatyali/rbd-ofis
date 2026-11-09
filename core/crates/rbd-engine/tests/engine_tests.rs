@@ -596,3 +596,64 @@ fn test_reflow_turkish_characters_roundtrip_and_pdfium_render_extract() {
 
     let _ = std::fs::remove_file(&out_path);
 }
+
+#[test]
+fn test_regression_item2_pdfium_thread_safety_serialized_render_extract() {
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists());
+
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let doc = std::sync::Arc::new(engine.open_from_file(&in_path, None).expect("PDFium open"));
+
+    let mut handles = Vec::new();
+
+    for t in 0..8 {
+        let doc_clone = doc.clone();
+        handles.push(std::thread::spawn(move || {
+            let page = doc_clone.page(0).expect("Get page 0");
+            for i in 0..15 {
+                if (t + i) % 2 == 0 {
+                    let mut buf = vec![0u8; 128 * 128 * 4];
+                    page.render_to_rgba(128, 128, &mut buf)
+                        .expect("Render to RGBA");
+                    assert!(buf.iter().any(|&b| b != 0));
+                } else {
+                    let txt = page.extract_text().expect("Extract text");
+                    assert!(txt.contains("Hello") || !txt.is_empty());
+                }
+            }
+        }));
+    }
+
+    for h in handles {
+        h.join().expect("Worker thread panicked");
+    }
+}
+
+#[test]
+fn test_regression_item4_crop_page_and_insert_blank_missing_page_no_panic() {
+    let in_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(in_path.exists());
+
+    let temp_dir = std::env::temp_dir();
+    let out_crop = temp_dir.join(format!("test_crop_oor_{}.pdf", std::process::id()));
+    let out_insert = temp_dir.join(format!("test_insert_oor_{}.pdf", std::process::id()));
+
+    // 1. crop_page with page_num exceeding total pages or missing key
+    let crop_err = rbd_engine::crop_page(&in_path, &out_crop, 999, [0.0, 0.0, 100.0, 100.0]);
+    assert!(crop_err.is_err());
+    match crop_err.err().unwrap() {
+        rbd_engine::EngineError::InvalidParameter(_)
+        | rbd_engine::EngineError::PageOutOfRange { .. } => {}
+        other => panic!("Unexpected error variant: {:?}", other),
+    }
+
+    // 2. insert_blank_page with after_page exceeding total pages
+    let insert_err = rbd_engine::insert_blank_page(&in_path, &out_insert, 999, 612.0, 792.0);
+    assert!(insert_err.is_err());
+    match insert_err.err().unwrap() {
+        rbd_engine::EngineError::InvalidParameter(_)
+        | rbd_engine::EngineError::PageOutOfRange { .. } => {}
+        other => panic!("Unexpected error variant: {:?}", other),
+    }
+}

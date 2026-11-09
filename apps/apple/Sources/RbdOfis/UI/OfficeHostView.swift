@@ -25,6 +25,38 @@ private func getFallbackOfficeHtml() -> String {
     return "<html><body style='font-family:sans-serif;padding:20px;'><h3>\(appTitle)</h3><p>\(readyText)</p></body></html>"
 }
 
+/// Enforces strict offline zero-network isolation for WKWebView.
+/// Only permits local file URLs, local virtual host (https://rbd-office.local/), and about:blank.
+public final class OfficeNavigationDelegate: NSObject, WKNavigationDelegate {
+    public static let shared = OfficeNavigationDelegate()
+
+    public static func isAllowed(url: URL?) -> Bool {
+        guard let url = url else { return false }
+        if url.absoluteString == "about:blank" {
+            return true
+        }
+        if url.isFileURL {
+            return true
+        }
+        if url.scheme?.lowercased() == "https" && url.host?.lowercased() == "rbd-office.local" {
+            return true
+        }
+        return false
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        if Self.isAllowed(url: navigationAction.request.url) {
+            decisionHandler(.allow)
+        } else {
+            decisionHandler(.cancel)
+        }
+    }
+}
+
 #if canImport(UIKit)
 import UIKit
 
@@ -35,6 +67,10 @@ public struct OfficeHostView: UIViewRepresentable {
         self.initialHtml = initialHtml
     }
 
+    public func makeCoordinator() -> OfficeNavigationDelegate {
+        OfficeNavigationDelegate.shared
+    }
+
     public func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         // Strict Offline Policy: Zero network access
@@ -42,6 +78,7 @@ public struct OfficeHostView: UIViewRepresentable {
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
         loadOfflineContent(into: webView)
         return webView
     }
@@ -68,11 +105,16 @@ public struct OfficeHostView: NSViewRepresentable {
         self.initialHtml = initialHtml
     }
 
+    public func makeCoordinator() -> OfficeNavigationDelegate {
+        OfficeNavigationDelegate.shared
+    }
+
     public func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
         loadOfflineContent(into: webView)
         return webView
     }

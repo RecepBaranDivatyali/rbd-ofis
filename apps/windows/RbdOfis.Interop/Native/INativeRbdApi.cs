@@ -80,8 +80,8 @@ public interface INativeRbdApi
     int OfficeCreateDocx(string text, string outPath);
 
     // Offline AI & Reflow Editing (Phase 8 Track 8C/8D)
-    int SummarizeDocument(IntPtr docHandle, uint maxSentences, out string summaryJson);
-    int AskDocument(IntPtr docHandle, string query, out string answerJson);
-    int ReflowPageText(IntPtr docHandle, uint pageIndex, out string paragraphsJson);
-    int ReplaceParagraphText(IntPtr docHandle, string inputPath, uint pageIndex, float x0, float y0, float x1, float y1, string newText, float fontSize, string outputPath);
+    int SummarizeDocument(SafeDocumentHandle doc, uint maxSentences, out string summaryJson);
+    int AskDocument(SafeDocumentHandle doc, string query, out string answerJson);
+    int ReflowPageText(SafeDocumentHandle doc, uint pageIndex, out string paragraphsJson);
+    int ReplaceParagraphText(SafeDocumentHandle doc, string inputPath, uint pageIndex, float x0, float y0, float x1, float y1, string newText, float fontSize, string outputPath);
 }

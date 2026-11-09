@@ -2,8 +2,10 @@ use crate::command::{
     AddAnnotationCommand, Command, CommandStack, RemoveAnnotationCommand, UpdateAnnotationCommand,
 };
 use crate::error::CoreError;
-use crate::tile_cache::{TileCache, TileKey};
-use rbd_engine::{Annotation, DocumentMetadata, PdfDocument, PdfEngine, PixelFormat, SearchHit};
+use crate::tile_cache::{MAX_TILE_DIMENSION, TileCache, TileKey};
+use rbd_engine::{
+    Annotation, DocumentMetadata, EngineError, PdfDocument, PdfEngine, PixelFormat, SearchHit,
+};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -130,6 +132,20 @@ impl DocumentSession {
         height: u32,
         out_buf: &mut [u8],
     ) -> Result<(), CoreError> {
+        let required_len = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|wh| wh.checked_mul(4))
+            .ok_or_else(|| {
+                CoreError::Engine(EngineError::InvalidParameter(
+                    "Page buffer size overflow".into(),
+                ))
+            })?;
+        if out_buf.len() < required_len {
+            return Err(CoreError::BufferTooSmall {
+                provided: out_buf.len(),
+                required: required_len,
+            });
+        }
         let page_obj = self.doc.page(page)?;
         page_obj.render_to_rgba(width, height, out_buf)?;
         Ok(())
@@ -152,13 +168,30 @@ impl DocumentSession {
         stride: usize,
         out_buf: &mut [u8],
     ) -> Result<(), CoreError> {
-        let row_bytes = (tile_w as usize) * 4;
+        if tile_w == 0 || tile_h == 0 {
+            return Err(CoreError::Engine(EngineError::InvalidParameter(
+                "Tile width and height must be positive".into(),
+            )));
+        }
+        if tile_w > MAX_TILE_DIMENSION || tile_h > MAX_TILE_DIMENSION {
+            return Err(CoreError::Engine(EngineError::InvalidParameter(format!(
+                "Tile dimensions ({tile_w}x{tile_h}) exceed maximum allowed dimension ({MAX_TILE_DIMENSION})"
+            ))));
+        }
+
+        let row_bytes = (tile_w as usize).checked_mul(4).ok_or_else(|| {
+            CoreError::Engine(EngineError::InvalidParameter("Tile width overflow".into()))
+        })?;
         if stride < row_bytes {
             return Err(CoreError::Internal(format!(
                 "Stride {stride} is smaller than row bytes {row_bytes}"
             )));
         }
-        let total_required = stride * (tile_h as usize);
+        let total_required = stride.checked_mul(tile_h as usize).ok_or_else(|| {
+            CoreError::Engine(EngineError::InvalidParameter(
+                "Tile buffer size overflow".into(),
+            ))
+        })?;
         if out_buf.len() < total_required {
             return Err(CoreError::BufferTooSmall {
                 provided: out_buf.len(),
@@ -178,7 +211,11 @@ impl DocumentSession {
             pixel_format: format as u8,
         };
 
-        let contiguous_bytes = row_bytes * (tile_h as usize);
+        let contiguous_bytes = row_bytes.checked_mul(tile_h as usize).ok_or_else(|| {
+            CoreError::Engine(EngineError::InvalidParameter(
+                "Contiguous bytes overflow".into(),
+            ))
+        })?;
 
         // Cache hit: copy cached pixels into out_buf (respecting stride)
         if let Some(cached_pixels) = self.tile_cache.get(&key)

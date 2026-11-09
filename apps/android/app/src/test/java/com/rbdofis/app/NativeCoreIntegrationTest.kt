@@ -3,8 +3,12 @@ package com.rbdofis.app
 import com.rbdofis.app.core.PageRect
 import com.rbdofis.app.core.PdfAnnotation
 import com.rbdofis.app.core.RbdNativeBridge
+import com.rbdofis.app.data.PdfDocumentRepository
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -420,5 +424,90 @@ class NativeCoreIntegrationTest {
         assertTrue(extractedText!!.contains("RBD OFİS"))
 
         bridge.closeDocument(handle)
+    }
+
+    @Test
+    fun testCorruptOrZeroByteFileReturnsZeroHandleWithoutMock() {
+        val zeroByteFile = File(tempDir, "zero_byte.pdf")
+        zeroByteFile.writeBytes(ByteArray(0))
+
+        val handleZero = bridge.openDocument(zeroByteFile.absolutePath)
+        assertEquals("0-byte file must return 0L without silently producing a mock", 0L, handleZero)
+        assertFalse("0-byte file must not exist in mock documents", bridge.isMockDocument(handleZero))
+
+        val corruptFile = File(tempDir, "corrupt.pdf")
+        corruptFile.writeText("NOT A REAL PDF CONTENT AT ALL")
+
+        val handleCorrupt = bridge.openDocument(corruptFile.absolutePath)
+        assertEquals("Corrupt PDF file must return 0L without silently producing a mock", 0L, handleCorrupt)
+
+        val corruptBytesHandle = bridge.openDocumentFromBytes("NOT A PDF".toByteArray())
+        assertEquals("Corrupt byte array must return 0L without silently producing a mock", 0L, corruptBytesHandle)
+    }
+
+    @Test
+    fun testCloseDocumentDoesNotSendMockHandleToNativeFree() {
+        // Force mock to obtain a mock handle
+        bridge.setForceMockMode(true)
+        val mockHandle = bridge.openDocument("/test/mock_lifecycle.pdf")
+        assertTrue("Mock handle should be positive non-zero", mockHandle > 0L)
+        assertTrue("Handle must be tracked as mock", bridge.isMockDocument(mockHandle))
+
+        // Re-enable native library
+        bridge.setForceMockMode(false)
+        assertTrue("Native library must be available", bridge.isNativeAvailable())
+
+        // Closing mock handle while native is active must NEVER call nativeDocumentFree (avoids SIGSEGV)
+        bridge.closeDocument(mockHandle)
+        assertFalse("Mock document must be removed from tracking", bridge.isMockDocument(mockHandle))
+    }
+
+    @Test
+    fun testNativeRepositoryPageOperationsRenewActiveHandleAndPersistOnDisk() = runBlocking {
+        val twoPagePdf = getCorpusFile("files/pdf-basic/pdfium-hello-world-2-pages.pdf")
+        val workPdf = File(tempDir, "work_two_page.pdf")
+        twoPagePdf.copyTo(workPdf, overwrite = true)
+
+        val repository = PdfDocumentRepository(bridge)
+        try {
+            val openResult = repository.openDocument(workPdf.absolutePath)
+            assertTrue("Document open must succeed", openResult.isSuccess)
+            assertEquals(2, openResult.getOrNull())
+
+            val initialHandle = repository.getActiveDocHandle()
+            assertTrue("Initial handle must be positive non-zero", initialHandle > 0L)
+            assertFalse("Handle must be a real native handle, not mock", bridge.isMockDocument(initialHandle))
+
+            // 1. Rotate page 0 by 90 degrees
+            val rotateSuccess = repository.rotatePage(0, 90)
+            assertTrue("rotatePage must succeed natively", rotateSuccess)
+            val rotatedHandle = repository.getActiveDocHandle()
+            assertTrue("Rotated handle must be valid", rotatedHandle > 0L)
+            assertNotEquals("Active document handle must be renewed after rotate operation", initialHandle, rotatedHandle)
+            assertTrue("Document state must be marked modified", repository.documentState.value.isModified)
+
+            // 2. Delete page 1 (now 1 page remains)
+            val deleteSuccess = repository.deletePage(1)
+            assertTrue("deletePage must succeed natively", deleteSuccess)
+            val deletedHandle = repository.getActiveDocHandle()
+            assertTrue("Deleted handle must be valid", deletedHandle > 0L)
+            assertNotEquals("Active document handle must be renewed after delete operation", rotatedHandle, deletedHandle)
+            assertEquals("Page count must be 1 after deletion", 1, repository.documentState.value.pageCount)
+
+            // 3. Save modified document to a new target path
+            val savedPdf = File(tempDir, "persisted_result.pdf")
+            val saveSuccess = repository.saveDocument(savedPdf.absolutePath)
+            assertTrue("saveDocument must succeed", saveSuccess)
+            assertFalse("isModified must be cleared after save", repository.documentState.value.isModified)
+            assertTrue("Saved PDF file must exist on disk", savedPdf.exists() && savedPdf.length() > 0)
+
+            // 4. Verify saved file natively
+            val checkHandle = bridge.openDocument(savedPdf.absolutePath)
+            assertTrue("Saved PDF must be openable natively", checkHandle > 0L)
+            assertEquals("Saved PDF must have exactly 1 page", 1, bridge.getPageCount(checkHandle))
+            bridge.closeDocument(checkHandle)
+        } finally {
+            repository.closeDocument()
+        }
     }
 }

@@ -1226,7 +1226,7 @@ fn handle_bench(
 
     // Select tiles across different pages
     for i in 0..num_tiles {
-        let page = (i as u32) % total_pages;
+        let page = (i as u32) % total_pages.max(1);
         let tile_x = ((i * 128) % 512) as u32;
         let tile_y = ((i * 128) % 512) as u32;
 
@@ -1352,5 +1352,15 @@ mod tests {
         // Must not panic with total_cmp when comparing NaN values
         tile_latencies_ms.sort_by(|a, b| a.total_cmp(b));
         assert_eq!(tile_latencies_ms.len(), 5);
+    }
+
+    #[test]
+    fn test_regression_item6_cli_total_pages_zero_divide_prevented() {
+        let total_pages = 0u32;
+        let num_tiles = 10usize;
+        for i in 0..num_tiles {
+            let page = (i as u32) % total_pages.max(1);
+            assert_eq!(page, 0);
+        }
     }
 }

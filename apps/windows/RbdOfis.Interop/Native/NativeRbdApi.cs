@@ -65,8 +65,14 @@ public sealed class NativeRbdApi : INativeRbdApi
         int status = NativeMethods.rbd_document_extract_page_text(doc, pageIndex, out IntPtr outPtr);
         if (status == (int)RbdStatusCode.Success && outPtr != IntPtr.Zero)
         {
-            text = Marshal.PtrToStringUTF8(outPtr) ?? string.Empty;
-            NativeMethods.rbd_free_string(outPtr);
+            try
+            {
+                text = Marshal.PtrToStringUTF8(outPtr) ?? string.Empty;
+            }
+            finally
+            {
+                NativeMethods.rbd_free_string(outPtr);
+            }
             return status;
         }
         text = string.Empty;
@@ -78,8 +84,14 @@ public sealed class NativeRbdApi : INativeRbdApi
         int status = NativeMethods.rbd_document_search_json(doc, query, caseSensitive ? 1 : 0, out IntPtr outPtr);
         if (status == (int)RbdStatusCode.Success && outPtr != IntPtr.Zero)
         {
-            json = Marshal.PtrToStringUTF8(outPtr) ?? "[]";
-            NativeMethods.rbd_free_string(outPtr);
+            try
+            {
+                json = Marshal.PtrToStringUTF8(outPtr) ?? "[]";
+            }
+            finally
+            {
+                NativeMethods.rbd_free_string(outPtr);
+            }
             return status;
         }
         json = "[]";
@@ -91,8 +103,14 @@ public sealed class NativeRbdApi : INativeRbdApi
         int status = NativeMethods.rbd_document_get_annotations_json(doc, pageIndex, out IntPtr outPtr);
         if (status == (int)RbdStatusCode.Success && outPtr != IntPtr.Zero)
         {
-            json = Marshal.PtrToStringUTF8(outPtr) ?? "[]";
-            NativeMethods.rbd_free_string(outPtr);
+            try
+            {
+                json = Marshal.PtrToStringUTF8(outPtr) ?? "[]";
+            }
+            finally
+            {
+                NativeMethods.rbd_free_string(outPtr);
+            }
             return status;
         }
         json = "[]";
@@ -349,7 +367,7 @@ public sealed class NativeRbdApi : INativeRbdApi
     public int OfficeCreateDocx(string text, string outPath) =>
         NativeMethods.rbd_office_create_docx(text, outPath);
 
-    public int SummarizeDocument(IntPtr docHandle, uint maxSentences, out string summaryJson)
+    public int SummarizeDocument(SafeDocumentHandle doc, uint maxSentences, out string summaryJson)
     {
         summaryJson = "{}";
         int bufSize = 65536;
@@ -358,7 +376,7 @@ public sealed class NativeRbdApi : INativeRbdApi
         {
             fixed (byte* p = buffer)
             {
-                int status = NativeMethods.rbd_ai_summarize_document(docHandle, maxSentences, (IntPtr)p, (nuint)buffer.Length);
+                int status = NativeMethods.rbd_ai_summarize_document(doc, maxSentences, (IntPtr)p, (nuint)buffer.Length);
                 if (status == 0)
                 {
                     int nullIdx = Array.IndexOf(buffer, (byte)0);
@@ -371,7 +389,7 @@ public sealed class NativeRbdApi : INativeRbdApi
         }
     }
 
-    public int AskDocument(IntPtr docHandle, string query, out string answerJson)
+    public int AskDocument(SafeDocumentHandle doc, string query, out string answerJson)
     {
         answerJson = "{}";
         int bufSize = 65536;
@@ -380,7 +398,7 @@ public sealed class NativeRbdApi : INativeRbdApi
         {
             fixed (byte* p = buffer)
             {
-                int status = NativeMethods.rbd_ai_ask_document(docHandle, query, (IntPtr)p, (nuint)buffer.Length);
+                int status = NativeMethods.rbd_ai_ask_document(doc, query, (IntPtr)p, (nuint)buffer.Length);
                 if (status == 0)
                 {
                     int nullIdx = Array.IndexOf(buffer, (byte)0);
@@ -393,7 +411,7 @@ public sealed class NativeRbdApi : INativeRbdApi
         }
     }
 
-    public int ReflowPageText(IntPtr docHandle, uint pageIndex, out string paragraphsJson)
+    public int ReflowPageText(SafeDocumentHandle doc, uint pageIndex, out string paragraphsJson)
     {
         paragraphsJson = "[]";
         int bufSize = 65536;
@@ -402,7 +420,7 @@ public sealed class NativeRbdApi : INativeRbdApi
         {
             fixed (byte* p = buffer)
             {
-                int status = NativeMethods.rbd_document_reflow_page_text(docHandle, pageIndex, (IntPtr)p, (nuint)buffer.Length);
+                int status = NativeMethods.rbd_document_reflow_page_text(doc, pageIndex, (IntPtr)p, (nuint)buffer.Length);
                 if (status == 0)
                 {
                     int nullIdx = Array.IndexOf(buffer, (byte)0);
@@ -416,7 +434,7 @@ public sealed class NativeRbdApi : INativeRbdApi
     }
 
     public int ReplaceParagraphText(
-        IntPtr docHandle,
+        SafeDocumentHandle doc,
         string inputPath,
         uint pageIndex,
         float x0,
@@ -427,7 +445,7 @@ public sealed class NativeRbdApi : INativeRbdApi
         float fontSize,
         string outputPath) =>
         NativeMethods.rbd_document_replace_paragraph_text(
-            docHandle,
+            doc,
             inputPath,
             pageIndex,
             x0,

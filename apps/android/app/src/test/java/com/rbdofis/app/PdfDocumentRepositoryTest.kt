@@ -85,4 +85,21 @@ class PdfDocumentRepositoryTest {
         assertFalse(repository.documentState.value.isOpen)
         assertEquals(0L, bridge.getEngineHandle())
     }
+
+    @Test
+    fun testReorderAndMultiPageDeleteFlow() = runTest(testDispatcher) {
+        repository.openDocument("/tmp/document_reorder.pdf")
+        val initialCount = repository.documentState.value.pageCount
+        assertTrue(initialCount >= 3)
+
+        val reordered = repository.reorderPage(0, 2)
+        assertTrue(reordered)
+        assertTrue(repository.documentState.value.isModified)
+
+        val deleteMulti = repository.deletePages(listOf(0, 1))
+        assertTrue(deleteMulti)
+        assertEquals(initialCount - 2, repository.documentState.value.pageCount)
+
+        repository.closeDocument()
+    }
 }

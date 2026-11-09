@@ -69,4 +69,13 @@ final class RbdOfisTests: XCTestCase {
             XCTAssertFalse(localized.isEmpty, "Missing localization for \(key)")
         }
     }
+
+    func testOfficeNavigationDelegateZeroNetwork() {
+        XCTAssertTrue(OfficeNavigationDelegate.isAllowed(url: URL(string: "about:blank")))
+        XCTAssertTrue(OfficeNavigationDelegate.isAllowed(url: URL(fileURLWithPath: "/tmp/index.html")))
+        XCTAssertTrue(OfficeNavigationDelegate.isAllowed(url: URL(string: "https://rbd-office.local/index.html")))
+        XCTAssertFalse(OfficeNavigationDelegate.isAllowed(url: URL(string: "https://google.com")))
+        XCTAssertFalse(OfficeNavigationDelegate.isAllowed(url: URL(string: "http://malicious.com")))
+        XCTAssertFalse(OfficeNavigationDelegate.isAllowed(url: nil))
+    }
 }
