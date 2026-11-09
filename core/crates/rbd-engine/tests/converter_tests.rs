@@ -110,6 +110,22 @@ fn test_pdf_to_images_invalid_args() {
     let res = pdf_to_images(&pdf_path, &out_of_range, &out_dir);
     assert!(res.is_err(), "Page 999 must return PageOutOfRange");
 
+    // 4. DPI > MAX_DPI (600) OOM protection
+    let excessive_dpi = PdfToImageOptions {
+        dpi: 601,
+        ..Default::default()
+    };
+    let res = pdf_to_images(&pdf_path, &excessive_dpi, &out_dir);
+    assert!(
+        res.is_err(),
+        "DPI > MAX_DPI (600) must return InvalidParameter"
+    );
+    if let Err(rbd_engine::EngineError::InvalidParameter(msg)) = res {
+        assert!(msg.contains("exceeds maximum allowed limit of 600"));
+    } else {
+        panic!("Expected InvalidParameter for excessive DPI");
+    }
+
     let _ = std::fs::remove_dir_all(&out_dir);
 }
 

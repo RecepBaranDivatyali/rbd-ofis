@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,7 +49,8 @@ fun OfficeEditorScreen(
     val saveSuccessMessage = stringResource(R.string.office_save_success)
 
     var metadata by remember { mutableStateOf<OfficeDocumentMetadata?>(null) }
-    var textContent by remember { mutableStateOf("") }
+    var textContent by rememberSaveable { mutableStateOf("") }
+    var isContentInitialized by rememberSaveable { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var isSaving by remember { mutableStateOf(false) }
 
@@ -56,6 +58,13 @@ fun OfficeEditorScreen(
         val ext = filePath.substringAfterLast('.', "docx").uppercase()
         if (ext in listOf("DOCX", "DOC", "XLSX", "XLS", "PPTX", "PPT")) ext else "DOCX"
     }
+
+    val isDocx = remember(filePath) {
+        val ext = filePath.substringAfterLast('.', "").lowercase()
+        ext == "docx" || ext == "doc"
+    }
+
+    val readonlyWarningMessage = stringResource(R.string.office_readonly_warning, docType)
 
     val typeColor = when (docType) {
         "XLSX", "XLS" -> Color(0xFF217346)
@@ -70,7 +79,10 @@ fun OfficeEditorScreen(
             val text = bridge.officeExtractText(filePath) ?: ""
             withContext(Dispatchers.Main) {
                 metadata = meta
-                textContent = text
+                if (!isContentInitialized) {
+                    textContent = text
+                    isContentInitialized = true
+                }
                 isLoading = false
             }
         }
@@ -140,9 +152,15 @@ fun OfficeEditorScreen(
                         )
                     }
 
-                    // Save Document button
+                    // Save Document button (active only for DOCX files to prevent corrupting XLSX/PPTX)
                     IconButton(
                         onClick = {
+                            if (!isDocx) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(readonlyWarningMessage)
+                                }
+                                return@IconButton
+                            }
                             coroutineScope.launch {
                                 isSaving = true
                                 val success = withContext(Dispatchers.IO) {
@@ -156,7 +174,7 @@ fun OfficeEditorScreen(
                                 }
                             }
                         },
-                        enabled = !isLoading && !isSaving
+                        enabled = !isLoading && !isSaving && isDocx
                     ) {
                         Icon(
                             imageVector = Icons.Default.Save,
@@ -172,6 +190,21 @@ fun OfficeEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Read-only warning banner for non-DOCX files (XLSX, PPTX)
+            if (!isDocx) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = readonlyWarningMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
             // Status and metadata bar
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,

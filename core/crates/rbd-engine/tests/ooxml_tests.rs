@@ -135,3 +135,60 @@ fn test_extract_xml_text_self_closing_tags_regression() {
     let extracted = extract_xml_text(xml, &["t"]);
     assert_eq!(extracted, vec!["Item One", "Item Two"]);
 }
+
+#[test]
+fn test_ole2_encrypted_magic_bytes_returns_encrypted_error() {
+    let ole2_magic: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+    let mut payload = ole2_magic.to_vec();
+    payload.extend_from_slice(b"fake encrypted payload bytes for ole2 cfb container");
+
+    let res = extract_office_text_from_bytes(&payload);
+    assert!(res.is_err());
+    match res {
+        Err(rbd_engine::EngineError::Encrypted(msg)) => {
+            assert!(msg.contains("Encrypted") || msg.contains("password") || msg.contains("OLE2"));
+        }
+        other => panic!("Expected EngineError::Encrypted, got: {:?}", other),
+    }
+}
+
+#[test]
+fn test_extract_xlsx_without_sheet1_reads_other_sheets() {
+    let mut buffer = Vec::new();
+    let cursor = Cursor::new(&mut buffer);
+    let mut zip = ZipWriter::new(cursor);
+    let options = SimpleFileOptions::default();
+
+    // Do NOT create sheet1.xml; only create sheet2.xml and sheet3.xml
+    zip.start_file("xl/worksheets/sheet2.xml", options).unwrap();
+    let sheet2_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    <row r="1">
+      <c r="A1" t="inlineStr"><is><t>Sheet2_Data</t></is></c>
+    </row>
+  </sheetData>
+</worksheet>"#;
+    zip.write_all(sheet2_xml.as_bytes()).unwrap();
+
+    zip.start_file("xl/worksheets/sheet3.xml", options).unwrap();
+    let sheet3_xml = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    <row r="1">
+      <c r="A1" t="inlineStr"><is><t>Sheet3_Data</t></is></c>
+    </row>
+  </sheetData>
+</worksheet>"#;
+    zip.write_all(sheet3_xml.as_bytes()).unwrap();
+
+    zip.finish().unwrap();
+
+    let (doc_type, extracted, _, rows) = extract_office_text_from_bytes(&buffer)
+        .expect("Should extract XLSX even if sheet1.xml missing");
+
+    assert_eq!(doc_type, OfficeDocType::Xlsx);
+    assert_eq!(rows, 2);
+    assert!(extracted.contains("Sheet2_Data"));
+    assert!(extracted.contains("Sheet3_Data"));
+}

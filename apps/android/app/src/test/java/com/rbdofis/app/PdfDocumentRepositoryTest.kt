@@ -102,4 +102,16 @@ class PdfDocumentRepositoryTest {
 
         repository.closeDocument()
     }
+
+    @Test
+    fun testTileCacheByteBudgetAndClear() {
+        assertTrue("Max cache budget must be at least 8MB", repository.maxCacheBytes >= 8L * 1024L * 1024L)
+        assertTrue("Max cache budget must be capped at 32MB", repository.maxCacheBytes <= 32L * 1024L * 1024L)
+        assertEquals("Initial cache size in bytes must be 0", 0L, repository.getCacheSizeBytes())
+        assertEquals("Initial cache item count must be 0", 0, repository.getCacheItemCount())
+
+        repository.clearTileCache()
+        assertEquals(0L, repository.getCacheSizeBytes())
+        assertEquals(0, repository.getCacheItemCount())
+    }
 }

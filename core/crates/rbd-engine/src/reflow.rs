@@ -12,6 +12,7 @@
 )]
 
 use crate::error::EngineError;
+use crate::search::PdfRect;
 use lopdf::content::{Content, Operation};
 use lopdf::{Dictionary, Document, Object, Stream};
 use serde::{Deserialize, Serialize};
@@ -62,9 +63,7 @@ pub fn cluster_lines_into_paragraphs(
             .then_with(|| a.bbox[0].total_cmp(&b.bbox[0]))
     });
 
-    let mut paragraphs: Vec<ReflowParagraph> = Vec::new();
-    let mut current_lines: Vec<TextLineSegment> = Vec::new();
-    let mut current_id = 1;
+    let mut active_paragraphs: Vec<Vec<TextLineSegment>> = Vec::new();
 
     for line in sorted {
         let trimmed = line.text.trim();
@@ -72,32 +71,42 @@ pub fn cluster_lines_into_paragraphs(
             continue;
         }
 
-        if current_lines.is_empty() {
-            current_lines.push(line);
-            continue;
+        // Find best matching active paragraph
+        let mut best_match: Option<(usize, f32)> = None;
+
+        for (idx, p) in active_paragraphs.iter().enumerate() {
+            let last_line = p.last().unwrap();
+            let dy = (last_line.bbox[1] - line.bbox[3]).abs();
+            let max_line_spacing = last_line.font_size * 2.2;
+
+            let same_font = (last_line.font_size - line.font_size).abs() < 2.5;
+            let is_adjacent = dy <= max_line_spacing;
+            let x_overlap =
+                last_line.bbox[0].max(line.bbox[0]) <= last_line.bbox[2].min(line.bbox[2]);
+            let dx_left = (last_line.bbox[0] - line.bbox[0]).abs();
+            let same_column = x_overlap && dx_left <= 60.0;
+
+            if same_font && is_adjacent && same_column {
+                if let Some((_, best_dx)) = best_match {
+                    if dx_left < best_dx {
+                        best_match = Some((idx, dx_left));
+                    }
+                } else {
+                    best_match = Some((idx, dx_left));
+                }
+            }
         }
 
-        let last_line = current_lines.last().unwrap();
-        let dy = (last_line.bbox[1] - line.bbox[3]).abs();
-        let max_line_spacing = last_line.font_size * 2.2;
-
-        // Same paragraph if vertical gap is reasonable and font sizes are similar
-        let same_font = (last_line.font_size - line.font_size).abs() < 2.5;
-        let is_adjacent = dy <= max_line_spacing;
-
-        if same_font && is_adjacent {
-            current_lines.push(line);
+        if let Some((idx, _)) = best_match {
+            active_paragraphs[idx].push(line);
         } else {
-            // Flush current paragraph
-            paragraphs.push(build_paragraph(page_index, current_id, &current_lines));
-            current_id += 1;
-            current_lines.clear();
-            current_lines.push(line);
+            active_paragraphs.push(vec![line]);
         }
     }
 
-    if !current_lines.is_empty() {
-        paragraphs.push(build_paragraph(page_index, current_id, &current_lines));
+    let mut paragraphs: Vec<ReflowParagraph> = Vec::new();
+    for (id_idx, p_lines) in active_paragraphs.into_iter().enumerate() {
+        paragraphs.push(build_paragraph(page_index, (id_idx + 1) as u32, &p_lines));
     }
 
     paragraphs
@@ -302,12 +311,24 @@ end\n";
         fonts.set("F_REFLOW", Object::Reference(font_obj_id));
     }
 
-    // 2. Reflow text into lines
+    // 2. Sanitize and purge old text operators (Tj, TJ) intersecting the target bbox
+    let target_rect = PdfRect::new(bbox[0], bbox[1], bbox[2], bbox[3]);
+    let content_data = doc.get_page_content(page_id);
+    if !content_data.is_empty() {
+        if let Ok(mut existing_content) = Content::decode(&content_data) {
+            crate::redaction::sanitize_content_text(&mut existing_content, &[target_rect]);
+            if let Ok(encoded) = existing_content.encode() {
+                let _ = doc.change_page_content(page_id, encoded);
+            }
+        }
+    }
+
+    // 3. Reflow text into lines
     let width = (bbox[2] - bbox[0]).max(50.0);
     let wrapped_lines = reflow_text_to_width(new_text, width, font_size);
     let line_height = font_size * 1.35;
 
-    // 3. Construct clean-up whiteout rect and reflowed text operations
+    // 4. Construct clean-up whiteout rect and reflowed text operations
     #[allow(clippy::vec_init_then_push)]
     let mut ops: Vec<Operation> = Vec::new();
 
@@ -628,5 +649,142 @@ mod tests {
             }
         }
         assert!(found_font, "Must have added Helvetica Type1 font object");
+    }
+
+    #[test]
+    fn test_cluster_lines_multi_column_separation() {
+        // Line 1 in column 1 (left column)
+        let col1_line1 = TextLineSegment {
+            text: "Column 1 line 1 text".to_string(),
+            bbox: [50.0, 700.0, 200.0, 712.0],
+            font_size: 12.0,
+        };
+        // Line 2 in column 1 (left column)
+        let col1_line2 = TextLineSegment {
+            text: "Column 1 line 2 text".to_string(),
+            bbox: [50.0, 680.0, 200.0, 692.0],
+            font_size: 12.0,
+        };
+        // Line 1 in column 2 (right column, starts at x=320, dy is small from col1)
+        let col2_line1 = TextLineSegment {
+            text: "Column 2 line 1 text".to_string(),
+            bbox: [320.0, 695.0, 480.0, 707.0],
+            font_size: 12.0,
+        };
+        // Line 2 in column 2
+        let col2_line2 = TextLineSegment {
+            text: "Column 2 line 2 text".to_string(),
+            bbox: [320.0, 675.0, 480.0, 687.0],
+            font_size: 12.0,
+        };
+
+        let lines = vec![col1_line1, col2_line1, col1_line2, col2_line2];
+        let paragraphs = cluster_lines_into_paragraphs(0, &lines);
+
+        // Columns must NOT be merged together!
+        assert_eq!(
+            paragraphs.len(),
+            2,
+            "Left and right columns must be clustered into separate paragraphs"
+        );
+        for p in &paragraphs {
+            // No paragraph should contain both Column 1 and Column 2 text
+            let has_col1 = p.text.contains("Column 1");
+            let has_col2 = p.text.contains("Column 2");
+            assert!(
+                !(has_col1 && has_col2),
+                "Column 1 and Column 2 must not be mixed in paragraph: {}",
+                p.text
+            );
+        }
+    }
+
+    #[test]
+    fn test_replace_paragraph_text_doc_purges_old_text() {
+        let mut doc = Document::with_version("1.7");
+        let pages_id = doc.new_object_id();
+        let page_id = doc.new_object_id();
+
+        // Content stream containing old sensitive text at x=100, y=500
+        let mut content = Content {
+            operations: Vec::new(),
+        };
+        content.operations.push(Operation::new("BT", vec![]));
+        content.operations.push(Operation::new(
+            "Tf",
+            vec![Object::Name(b"F1".to_vec()), Object::Real(12.0)],
+        ));
+        content.operations.push(Operation::new(
+            "Tm",
+            vec![
+                Object::Real(1.0),
+                Object::Real(0.0),
+                Object::Real(0.0),
+                Object::Real(1.0),
+                Object::Real(100.0),
+                Object::Real(500.0),
+            ],
+        ));
+        content.operations.push(Operation::new(
+            "Tj",
+            vec![Object::string_literal("SUPER_SECRET_OLD_TEXT")],
+        ));
+        content.operations.push(Operation::new("ET", vec![]));
+        let content_bytes = content.encode().unwrap();
+        let content_id = doc.add_object(Object::Stream(Stream::new(
+            Dictionary::new(),
+            content_bytes,
+        )));
+
+        let mut page_dict = Dictionary::new();
+        page_dict.set("Type", Object::Name(b"Page".to_vec()));
+        page_dict.set("Parent", Object::Reference(pages_id));
+        page_dict.set(
+            "MediaBox",
+            Object::Array(vec![
+                Object::Integer(0),
+                Object::Integer(0),
+                Object::Integer(612),
+                Object::Integer(792),
+            ]),
+        );
+        page_dict.set("Contents", Object::Reference(content_id));
+        doc.objects.insert(page_id, Object::Dictionary(page_dict));
+
+        let mut pages_dict = Dictionary::new();
+        pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
+        pages_dict.set("Count", Object::Integer(1));
+        pages_dict.set("Kids", Object::Array(vec![Object::Reference(page_id)]));
+        doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
+
+        let mut catalog = Dictionary::new();
+        catalog.set("Type", Object::Name(b"Catalog".to_vec()));
+        catalog.set("Pages", Object::Reference(pages_id));
+        let catalog_id = doc.add_object(Object::Dictionary(catalog));
+        doc.trailer.set("Root", Object::Reference(catalog_id));
+
+        // Replace the paragraph in bbox [90.0, 490.0, 300.0, 520.0] with new text
+        let res = replace_paragraph_text_doc(
+            &mut doc,
+            0,
+            [90.0, 490.0, 300.0, 520.0],
+            "NEW_REPLACED_PUBLIC_TEXT",
+            12.0,
+        );
+        assert!(res.is_ok());
+
+        let mut out = Vec::new();
+        doc.save_to(&mut out).unwrap();
+        let pdf_str = String::from_utf8_lossy(&out);
+
+        // Security requirement: old text must be stripped / blanked out so it cannot be searched!
+        assert!(
+            !pdf_str.contains("SUPER_SECRET_OLD_TEXT"),
+            "Old replaced text must be stripped from PDF content stream!"
+        );
+        assert!(
+            pdf_str.contains("NEW_REPLACED_PUBLIC_TEXT"),
+            "New replacement text must be present in the PDF!"
+        );
     }
 }

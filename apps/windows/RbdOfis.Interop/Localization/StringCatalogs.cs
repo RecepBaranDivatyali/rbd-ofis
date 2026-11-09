@@ -274,7 +274,19 @@ internal static class StringCatalogs
         ["AiReflowNewText"] = "Yeni Metin:",
         ["AiReflowApply"] = "Paragrafı Güncelle",
         ["AiReflowSuccess"] = "Paragraf metni başarıyla güncellendi.",
-        ["AiReflowFailed"] = "Metin yeniden akışı başarısız oldu: {0}"
+        ["AiReflowFailed"] = "Metin yeniden akışı başarısız oldu: {0}",
+
+        // Desktop, Deployment & UX Hardening Keys
+        ["WebViewNotAvailable"] = "WebView2 çalışma zamanı kullanılamıyor veya başlatılamadı.",
+        ["WatermarkTextEmptyWarning"] = "Filigran metni boş olamaz. Lütfen bir metin girin.",
+        ["PageNumberTemplateEmptyWarning"] = "Sayfa numarası şablonu boş olamaz. Lütfen bir şablon girin (örn: 'Sayfa {page} / {total}').",
+        ["ErrorPasswordRequired"] = "Bu PDF dosyası parola ile korunmaktadır. Açmak için parola gereklidir.",
+        ["ErrorCorruptPdf"] = "PDF dosyası bozuk veya desteklenmeyen bir biçimde.",
+        ["ErrorFileIo"] = "Dosya okuma veya yazma sırasında giriş/çıkış hatası oluştu.",
+        ["ErrorInvalidArgument"] = "Geçersiz parametre veya bağımsız değişken belirtildi.",
+        ["ErrorPageOutOfRange"] = "İstenen sayfa numarası belge sınırları dışında.",
+        ["ErrorEngineFailure"] = "PDF motoru işlemi gerçekleştirirken bir hata oluştu.",
+        ["ErrorUnknown"] = "Bilinmeyen bir yerel hata oluştu."
     };
 
     public static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>
@@ -543,6 +555,18 @@ internal static class StringCatalogs
         ["AiReflowNewText"] = "New Text:",
         ["AiReflowApply"] = "Update Paragraph",
         ["AiReflowSuccess"] = "Paragraph text updated successfully.",
-        ["AiReflowFailed"] = "Text reflow failed: {0}"
+        ["AiReflowFailed"] = "Text reflow failed: {0}",
+
+        // Desktop, Deployment & UX Hardening Keys
+        ["WebViewNotAvailable"] = "WebView2 runtime is not available or could not be initialized.",
+        ["WatermarkTextEmptyWarning"] = "Watermark text cannot be empty. Please enter a watermark text.",
+        ["PageNumberTemplateEmptyWarning"] = "Page number template cannot be empty. Please enter a template (e.g. 'Page {page} of {total}').",
+        ["ErrorPasswordRequired"] = "This PDF file is password protected. A password is required to open it.",
+        ["ErrorCorruptPdf"] = "The PDF file is corrupted or in an unsupported format.",
+        ["ErrorFileIo"] = "An I/O error occurred while reading or writing the file.",
+        ["ErrorInvalidArgument"] = "An invalid parameter or argument was specified.",
+        ["ErrorPageOutOfRange"] = "The requested page number is out of range.",
+        ["ErrorEngineFailure"] = "An error occurred in the PDF engine while processing the document.",
+        ["ErrorUnknown"] = "An unknown native error occurred."
     };
 }

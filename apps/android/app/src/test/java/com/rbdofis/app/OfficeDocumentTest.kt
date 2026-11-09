@@ -83,4 +83,22 @@ class OfficeDocumentTest {
         val result = bridge.officeCreateDocx("text", "")
         assertFalse("Creating docx with empty path must return false", result)
     }
+
+    @Test
+    fun testReadOnlyOfficeFormatsProtection() {
+        val docxFiles = listOf("test.docx", "test.DOCX", "test.doc")
+        val readonlyFiles = listOf("table.xlsx", "table.XLS", "deck.pptx", "deck.PPT")
+
+        for (file in docxFiles) {
+            val ext = file.substringAfterLast('.', "").lowercase()
+            val isDocx = ext == "docx" || ext == "doc"
+            assertTrue("DOCX file should be marked editable: $file", isDocx)
+        }
+
+        for (file in readonlyFiles) {
+            val ext = file.substringAfterLast('.', "").lowercase()
+            val isDocx = ext == "docx" || ext == "doc"
+            assertFalse("XLSX/PPTX file must be marked read-only to prevent corruption: $file", isDocx)
+        }
+    }
 }

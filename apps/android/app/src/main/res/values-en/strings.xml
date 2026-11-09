@@ -187,6 +187,7 @@
     <string name="office_export_success">PDF generated successfully.</string>
     <string name="office_badge_offline">🔒 Offline (Zero Network)</string>
     <string name="office_editor_placeholder">Type document content here…</string>
+    <string name="office_readonly_warning">This file type (%1$s) is read-only. Changes can only be saved in DOCX format.</string>
 
     <!-- Offline AI (Phase 8 Track 8D) -->
     <string name="ai_title">RBD OFİS Offline AI</string>

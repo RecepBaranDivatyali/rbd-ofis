@@ -1,4 +1,5 @@
 using System;
+using RbdOfis.Interop.Localization;
 
 namespace RbdOfis.Interop.Native;
 
@@ -46,6 +47,7 @@ public enum RbdStatusCode : int
 public sealed class RbdNativeException : Exception
 {
     public RbdStatusCode StatusCode { get; }
+    public string FriendlyMessage => LocalizationManager.Instance.GetFriendlyErrorMessage(this);
 
     public RbdNativeException(RbdStatusCode statusCode, string message)
         : base($"[rbd-ffi {statusCode}] {message}")

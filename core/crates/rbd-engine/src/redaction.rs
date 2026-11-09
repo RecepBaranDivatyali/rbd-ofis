@@ -77,6 +77,23 @@ impl Matrix2D {
             x * self.b + y * self.d + self.f,
         )
     }
+
+    /// Compute the inverse affine transformation matrix if non-singular.
+    fn inverse(&self) -> Option<Matrix2D> {
+        let det = self.a * self.d - self.b * self.c;
+        if det.abs() < 1e-12 {
+            return None;
+        }
+        let inv_det = 1.0 / det;
+        Some(Matrix2D {
+            a: self.d * inv_det,
+            b: -self.b * inv_det,
+            c: -self.c * inv_det,
+            d: self.a * inv_det,
+            e: (self.c * self.f - self.d * self.e) * inv_det,
+            f: (self.b * self.e - self.a * self.f) * inv_det,
+        })
+    }
 }
 
 /// Apply permanent redactions to a PDF document.
@@ -138,6 +155,15 @@ fn redact_doc_internal(
                 operations: Vec::new(),
             }
         };
+
+        // Redact intersecting XObject images (forensic pixel-level redaction)
+        redact_page_images(
+            doc,
+            page_id,
+            &content,
+            &redaction.rects,
+            redaction.fill_color,
+        )?;
 
         // Sanitize text inside content stream
         sanitize_content_text(&mut content, &redaction.rects);
@@ -308,9 +334,318 @@ fn is_point_in_redaction_rects(x: f32, y: f32, font_size: f32, rects: &[PdfRect]
     false
 }
 
+fn get_page_xobject_id(
+    doc: &Document,
+    page_id: lopdf::ObjectId,
+    name: &[u8],
+) -> Option<lopdf::ObjectId> {
+    let page_dict = doc.get_dictionary(page_id).ok()?;
+
+    let res_dict = if let Ok(res_obj) = page_dict.get(b"Resources") {
+        match res_obj {
+            Object::Reference(id) => doc.get_dictionary(*id).ok()?,
+            Object::Dictionary(d) => d,
+            _ => return None,
+        }
+    } else if let Ok(parent_ref) = page_dict.get(b"Parent").and_then(|o| o.as_reference()) {
+        let parent_dict = doc.get_dictionary(parent_ref).ok()?;
+        if let Ok(res_obj) = parent_dict.get(b"Resources") {
+            match res_obj {
+                Object::Reference(id) => doc.get_dictionary(*id).ok()?,
+                Object::Dictionary(d) => d,
+                _ => return None,
+            }
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    };
+
+    let xobjects_obj = res_dict.get(b"XObject").ok()?;
+    let xobj_dict = match xobjects_obj {
+        Object::Reference(id) => doc.get_dictionary(*id).ok()?,
+        Object::Dictionary(d) => d,
+        _ => return None,
+    };
+
+    let clean_name = if name.starts_with(b"/") {
+        &name[1..]
+    } else {
+        name
+    };
+    match xobj_dict.get(clean_name).ok()? {
+        Object::Reference(id) => Some(*id),
+        _ => None,
+    }
+}
+
+fn redact_page_images(
+    doc: &mut Document,
+    page_id: lopdf::ObjectId,
+    content: &Content,
+    rects: &[PdfRect],
+    fill_color: (u8, u8, u8),
+) -> Result<(), EngineError> {
+    let mut ctm = Matrix2D::identity();
+    let mut ctm_stack: Vec<Matrix2D> = Vec::new();
+    let mut image_invocations: Vec<(lopdf::ObjectId, Matrix2D)> = Vec::new();
+
+    for op in &content.operations {
+        match op.operator.as_str() {
+            "q" => ctm_stack.push(ctm),
+            "Q" => ctm = ctm_stack.pop().unwrap_or_else(Matrix2D::identity),
+            "cm" => {
+                if op.operands.len() >= 6 {
+                    let a = op.operands[0].as_float().unwrap_or(1.0);
+                    let b = op.operands[1].as_float().unwrap_or(0.0);
+                    let c = op.operands[2].as_float().unwrap_or(0.0);
+                    let d = op.operands[3].as_float().unwrap_or(1.0);
+                    let e = op.operands[4].as_float().unwrap_or(0.0);
+                    let f = op.operands[5].as_float().unwrap_or(0.0);
+                    let m = Matrix2D { a, b, c, d, e, f };
+                    ctm = m.multiply(&ctm);
+                }
+            }
+            "Do" => {
+                if let Some(Object::Name(name)) = op.operands.first() {
+                    if let Some(img_id) = get_page_xobject_id(doc, page_id, name) {
+                        image_invocations.push((img_id, ctm));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for (img_id, inv_ctm) in image_invocations {
+        redact_image_xobject(doc, img_id, &inv_ctm, rects, fill_color)?;
+    }
+
+    Ok(())
+}
+
+fn redact_image_xobject(
+    doc: &mut Document,
+    img_id: lopdf::ObjectId,
+    ctm: &Matrix2D,
+    rects: &[PdfRect],
+    fill_color: (u8, u8, u8),
+) -> Result<(), EngineError> {
+    let obj = doc.get_object_mut(img_id)?;
+    let stream = match obj {
+        Object::Stream(s) => s,
+        _ => return Ok(()),
+    };
+
+    let is_image = stream
+        .dict
+        .get(b"Subtype")
+        .map(|s| s == &Object::Name(b"Image".to_vec()))
+        .unwrap_or(false);
+    if !is_image {
+        return Ok(());
+    }
+
+    let width = stream
+        .dict
+        .get(b"Width")
+        .and_then(|w| w.as_i64())
+        .unwrap_or(0) as u32;
+    let height = stream
+        .dict
+        .get(b"Height")
+        .and_then(|h| h.as_i64())
+        .unwrap_or(0) as u32;
+    if width == 0 || height == 0 {
+        return Ok(());
+    }
+
+    let c0 = ctm.transform_point(0.0, 0.0);
+    let c1 = ctm.transform_point(1.0, 0.0);
+    let c2 = ctm.transform_point(0.0, 1.0);
+    let c3 = ctm.transform_point(1.0, 1.0);
+
+    let img_bbox = PdfRect::new(
+        c0.0.min(c1.0).min(c2.0).min(c3.0),
+        c0.1.min(c1.1).min(c2.1).min(c3.1),
+        c0.0.max(c1.0).max(c2.0).max(c3.0),
+        c0.1.max(c1.1).max(c2.1).max(c3.1),
+    );
+
+    let mut intersecting_rects = Vec::new();
+    for r in rects {
+        if rects_intersect(&img_bbox, r) {
+            intersecting_rects.push(*r);
+        }
+    }
+    if intersecting_rects.is_empty() {
+        return Ok(());
+    }
+
+    let Some(inv) = ctm.inverse() else {
+        return Ok(());
+    };
+
+    // Try decoding with image crate first (supports JPEG / DCTDecode, PNG, etc.)
+    if let Ok(dyn_img) = image::load_from_memory(&stream.content) {
+        let mut rgb_img = dyn_img.to_rgb8();
+        let (img_w, img_h) = rgb_img.dimensions();
+        let mut modified = false;
+
+        for r in &intersecting_rects {
+            let p0 = inv.transform_point(r.x0, r.y0);
+            let p1 = inv.transform_point(r.x1, r.y0);
+            let p2 = inv.transform_point(r.x0, r.y1);
+            let p3 = inv.transform_point(r.x1, r.y1);
+
+            let min_u = p0.0.min(p1.0).min(p2.0).min(p3.0);
+            let max_u = p0.0.max(p1.0).max(p2.0).max(p3.0);
+            let min_v = p0.1.min(p1.1).min(p2.1).min(p3.1);
+            let max_v = p0.1.max(p1.1).max(p2.1).max(p3.1);
+
+            let px_start = ((min_u * img_w as f32).floor() as i64).clamp(0, img_w as i64) as u32;
+            let px_end = ((max_u * img_w as f32).ceil() as i64).clamp(0, img_w as i64) as u32;
+            let py_start =
+                (((1.0 - max_v) * img_h as f32).floor() as i64).clamp(0, img_h as i64) as u32;
+            let py_end =
+                (((1.0 - min_v) * img_h as f32).ceil() as i64).clamp(0, img_h as i64) as u32;
+
+            let rx_min = r.x0.min(r.x1);
+            let rx_max = r.x0.max(r.x1);
+            let ry_min = r.y0.min(r.y1);
+            let ry_max = r.y0.max(r.y1);
+
+            for py in py_start..py_end {
+                let v = 1.0 - (py as f32 + 0.5) / img_h as f32;
+                for px in px_start..px_end {
+                    let u = (px as f32 + 0.5) / img_w as f32;
+                    let (user_x, user_y) = ctm.transform_point(u, v);
+                    if user_x >= rx_min && user_x <= rx_max && user_y >= ry_min && user_y <= ry_max
+                    {
+                        rgb_img.put_pixel(
+                            px,
+                            py,
+                            image::Rgb([fill_color.0, fill_color.1, fill_color.2]),
+                        );
+                        modified = true;
+                    }
+                }
+            }
+        }
+
+        if modified {
+            stream.content = rgb_img.into_raw();
+            stream.dict.set("Width", Object::Integer(img_w as i64));
+            stream.dict.set("Height", Object::Integer(img_h as i64));
+            stream
+                .dict
+                .set("ColorSpace", Object::Name(b"DeviceRGB".to_vec()));
+            stream.dict.set("BitsPerComponent", Object::Integer(8));
+            let _ = stream.dict.remove(b"Filter");
+            let _ = stream.compress();
+        }
+        return Ok(());
+    }
+
+    // Fallback: raw / FlateDecode pixel buffer
+    let _ = stream.decompress();
+
+    let color_space = stream
+        .dict
+        .get(b"ColorSpace")
+        .ok()
+        .and_then(|cs| match cs {
+            Object::Name(n) => Some(n.as_slice()),
+            _ => None,
+        })
+        .unwrap_or(b"DeviceRGB");
+
+    let bytes_per_pixel = match color_space {
+        b"DeviceRGB" => 3,
+        b"DeviceGray" => 1,
+        b"DeviceCMYK" => 4,
+        _ => 3,
+    };
+
+    let mut modified = false;
+    let img_w = width;
+    let img_h = height;
+
+    for r in &intersecting_rects {
+        let p0 = inv.transform_point(r.x0, r.y0);
+        let p1 = inv.transform_point(r.x1, r.y0);
+        let p2 = inv.transform_point(r.x0, r.y1);
+        let p3 = inv.transform_point(r.x1, r.y1);
+
+        let min_u = p0.0.min(p1.0).min(p2.0).min(p3.0);
+        let max_u = p0.0.max(p1.0).max(p2.0).max(p3.0);
+        let min_v = p0.1.min(p1.1).min(p2.1).min(p3.1);
+        let max_v = p0.1.max(p1.1).max(p2.1).max(p3.1);
+
+        let px_start = ((min_u * img_w as f32).floor() as i64).clamp(0, img_w as i64) as u32;
+        let px_end = ((max_u * img_w as f32).ceil() as i64).clamp(0, img_w as i64) as u32;
+        let py_start =
+            (((1.0 - max_v) * img_h as f32).floor() as i64).clamp(0, img_h as i64) as u32;
+        let py_end = (((1.0 - min_v) * img_h as f32).ceil() as i64).clamp(0, img_h as i64) as u32;
+
+        let rx_min = r.x0.min(r.x1);
+        let rx_max = r.x0.max(r.x1);
+        let ry_min = r.y0.min(r.y1);
+        let ry_max = r.y0.max(r.y1);
+
+        for py in py_start..py_end {
+            let v = 1.0 - (py as f32 + 0.5) / img_h as f32;
+            for px in px_start..px_end {
+                let u = (px as f32 + 0.5) / img_w as f32;
+                let (user_x, user_y) = ctm.transform_point(u, v);
+                if user_x >= rx_min && user_x <= rx_max && user_y >= ry_min && user_y <= ry_max {
+                    let pixel_idx = (py as usize * img_w as usize + px as usize) * bytes_per_pixel;
+                    match bytes_per_pixel {
+                        1 => {
+                            if pixel_idx < stream.content.len() {
+                                let gray = (0.299 * fill_color.0 as f32
+                                    + 0.587 * fill_color.1 as f32
+                                    + 0.114 * fill_color.2 as f32)
+                                    .round() as u8;
+                                stream.content[pixel_idx] = gray;
+                                modified = true;
+                            }
+                        }
+                        3 => {
+                            if pixel_idx + 2 < stream.content.len() {
+                                stream.content[pixel_idx] = fill_color.0;
+                                stream.content[pixel_idx + 1] = fill_color.1;
+                                stream.content[pixel_idx + 2] = fill_color.2;
+                                modified = true;
+                            }
+                        }
+                        4 => {
+                            if pixel_idx + 3 < stream.content.len() {
+                                stream.content[pixel_idx] = 0;
+                                stream.content[pixel_idx + 1] = 0;
+                                stream.content[pixel_idx + 2] = 0;
+                                stream.content[pixel_idx + 3] = 255;
+                                modified = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    if modified {
+        let _ = stream.compress();
+    }
+
+    Ok(())
+}
+
 /// Sanitize text inside content stream operations by zeroing or blanking characters
 /// whose coordinates fall within any redaction rectangle.
-fn sanitize_content_text(content: &mut Content, rects: &[PdfRect]) {
+pub(crate) fn sanitize_content_text(content: &mut Content, rects: &[PdfRect]) {
     let mut ctm = Matrix2D::identity();
     let mut ctm_stack: Vec<Matrix2D> = Vec::new();
 
@@ -671,6 +1006,130 @@ mod tests {
         assert!(
             content_str.contains("re\nf") || content_str.contains("re f"),
             "Rectangle path and fill operator must be present in content stream"
+        );
+    }
+
+    #[test]
+    fn test_redaction_image_pixels_permanently_blacked_out() {
+        // Create a 10x10 all-white image (300 bytes: 10*10*3)
+        let img_w = 10u32;
+        let img_h = 10u32;
+        let raw_pixels = vec![255u8; (img_w * img_h * 3) as usize];
+
+        let mut doc = Document::with_version("1.5");
+        let pages_id = doc.new_object_id();
+
+        let mut img_dict = Dictionary::new();
+        img_dict.set("Type", Object::Name(b"XObject".to_vec()));
+        img_dict.set("Subtype", Object::Name(b"Image".to_vec()));
+        img_dict.set("Width", Object::Integer(img_w as i64));
+        img_dict.set("Height", Object::Integer(img_h as i64));
+        img_dict.set("ColorSpace", Object::Name(b"DeviceRGB".to_vec()));
+        img_dict.set("BitsPerComponent", Object::Integer(8));
+        let img_stream = Stream::new(img_dict, raw_pixels);
+        let img_id = doc.add_object(Object::Stream(img_stream));
+
+        let mut xobjects = Dictionary::new();
+        xobjects.set("Im1", Object::Reference(img_id));
+        let mut resources = Dictionary::new();
+        resources.set("XObject", Object::Dictionary(xobjects));
+
+        // Place image at (100, 100) with size (100, 100) points:
+        // CTM: cm 100 0 0 100 100 100 -> spans x: 100..200, y: 100..200 in user space
+        let mut content = Content {
+            operations: Vec::new(),
+        };
+        content.operations.push(Operation::new("q", vec![]));
+        content.operations.push(Operation::new(
+            "cm",
+            vec![
+                Object::Real(100.0),
+                Object::Real(0.0),
+                Object::Real(0.0),
+                Object::Real(100.0),
+                Object::Real(100.0),
+                Object::Real(100.0),
+            ],
+        ));
+        content
+            .operations
+            .push(Operation::new("Do", vec![Object::Name(b"Im1".to_vec())]));
+        content.operations.push(Operation::new("Q", vec![]));
+
+        let content_bytes = content.encode().unwrap();
+        let content_id = doc.add_object(Object::Stream(Stream::new(
+            Dictionary::new(),
+            content_bytes,
+        )));
+
+        let mut page_dict = Dictionary::new();
+        page_dict.set("Type", Object::Name(b"Page".to_vec()));
+        page_dict.set("Parent", Object::Reference(pages_id));
+        page_dict.set(
+            "MediaBox",
+            Object::Array(vec![
+                Object::Real(0.0),
+                Object::Real(0.0),
+                Object::Real(600.0),
+                Object::Real(800.0),
+            ]),
+        );
+        page_dict.set("Contents", Object::Reference(content_id));
+        page_dict.set("Resources", Object::Dictionary(resources));
+        let page_id = doc.add_object(Object::Dictionary(page_dict));
+
+        let mut pages_dict = Dictionary::new();
+        pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
+        pages_dict.set("Kids", Object::Array(vec![Object::Reference(page_id)]));
+        pages_dict.set("Count", Object::Integer(1));
+        doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
+
+        let mut catalog = Dictionary::new();
+        catalog.set("Type", Object::Name(b"Catalog".to_vec()));
+        catalog.set("Pages", Object::Reference(pages_id));
+        let cat_id = doc.add_object(Object::Dictionary(catalog));
+        doc.trailer.set("Root", Object::Reference(cat_id));
+
+        let mut pdf_data = Vec::new();
+        doc.save_to(&mut pdf_data).unwrap();
+
+        // Redact region x: 100..150, y: 100..150 (covers bottom-left half of the image in user space)
+        let redaction = PageRedaction::new(0, vec![PdfRect::new(100.0, 100.0, 150.0, 150.0)]);
+        let redacted_bytes = redact_document_bytes(&pdf_data, &[redaction]).unwrap();
+
+        // Inspect the redacted PDF's image object
+        let mut redacted_doc = Document::load_mem(&redacted_bytes).unwrap();
+        let stream = redacted_doc
+            .get_object_mut(img_id)
+            .unwrap()
+            .as_stream_mut()
+            .unwrap();
+        let _ = stream.decompress();
+
+        // Pixel (0, 9) in image is bottom-left (y_img = 9 -> in PDF user space y ≈ 105, x ≈ 105)
+        // This pixel MUST be blacked out (0, 0, 0)!
+        let bl_idx = 90 * 3;
+        assert_eq!(
+            (
+                stream.content[bl_idx],
+                stream.content[bl_idx + 1],
+                stream.content[bl_idx + 2]
+            ),
+            (0, 0, 0),
+            "Intersecting image pixel must be permanently blacked out (forensic redaction)"
+        );
+
+        // Pixel (9, 0) in image is top-right (x ≈ 195, y ≈ 195 in user space)
+        // Outside the redaction box [100..150, 100..150], MUST remain white (255, 255, 255)!
+        let tr_idx = 9 * 3;
+        assert_eq!(
+            (
+                stream.content[tr_idx],
+                stream.content[tr_idx + 1],
+                stream.content[tr_idx + 2]
+            ),
+            (255, 255, 255),
+            "Non-intersecting image pixel must remain unchanged"
         );
     }
 }

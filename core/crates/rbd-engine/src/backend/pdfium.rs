@@ -45,6 +45,8 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
     {
         search_dirs.push(parent.to_path_buf());
         search_dirs.push(parent.join("vendor/pdfium/bin"));
+        search_dirs.push(parent.join("../Frameworks"));
+        search_dirs.push(parent.join("../lib"));
         search_dirs.push(parent.join("../../vendor/pdfium/bin"));
         search_dirs.push(parent.join("../../../vendor/pdfium/bin"));
         search_dirs.push(parent.join("../../../../vendor/pdfium/bin"));
@@ -63,6 +65,8 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
         "../vendor/pdfium/bin",
         "../../vendor/pdfium/bin",
         "vendor/pdfium/bin",
+        "../Frameworks",
+        "../lib",
         ".",
         "runtimes/win-x64/native",
     ] {

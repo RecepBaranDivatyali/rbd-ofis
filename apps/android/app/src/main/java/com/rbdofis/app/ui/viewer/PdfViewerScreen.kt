@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Transform
@@ -73,6 +74,7 @@ fun PdfViewerScreen(
     onNavigateToOrganizer: () -> Unit,
     onScanDocumentRequested: () -> Unit,
     onShareRequested: () -> Unit,
+    onExportRequested: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -162,6 +164,17 @@ fun PdfViewerScreen(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = stringResource(R.string.ai_title)
+                            )
+                        }
+
+                        // Export (Save As) via Scoped Storage SAF
+                        IconButton(
+                            onClick = onExportRequested,
+                            enabled = docState.isOpen
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SaveAs,
+                                contentDescription = stringResource(R.string.action_save_as)
                             )
                         }
 

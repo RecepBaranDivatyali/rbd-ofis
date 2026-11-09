@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -34,6 +35,9 @@ public partial class MainWindow : Window
         public int CurrentSearchIndex { get; set; } = -1;
         public Button TabButton { get; set; } = null!;
         public Border ContainerBorder { get; set; } = null!;
+        public CancellationTokenSource Cts { get; } = new();
+        public bool IsClosed { get; set; }
+        public List<string> OwnedTempFiles { get; } = new();
     }
 
     private enum AnnotationTool
@@ -334,9 +338,22 @@ public partial class MainWindow : Window
     {
         if (_tabs.Count <= 1) return; // Keep at least one tab open
 
+        tab.IsClosed = true;
+        try
+        {
+            tab.Cts.Cancel();
+            tab.Cts.Dispose();
+        }
+        catch { }
+
         _tabs.Remove(tab);
         DocumentTabsContainer.Children.Remove(tab.ContainerBorder);
         tab.Document.Dispose();
+
+        foreach (var file in tab.OwnedTempFiles)
+        {
+            try { if (File.Exists(file)) File.Delete(file); } catch { }
+        }
 
         if (_activeTab == tab)
         {
@@ -349,7 +366,11 @@ public partial class MainWindow : Window
         ThumbnailsContainer.Children.Clear();
         if (_activeTab == null) return;
 
-        int pageCount = Math.Min(_activeTab.Document.PageCount, 40); // Generate first 40 thumbnails for speed
+        var targetTab = _activeTab;
+        var token = targetTab.Cts.Token;
+        var currentDoc = targetTab.Document;
+
+        int pageCount = Math.Min(currentDoc.PageCount, 40); // Generate first 40 thumbnails for speed
         var lm = LocalizationManager.Instance;
 
         for (int p = 0; p < pageCount; p++)
@@ -402,16 +423,19 @@ public partial class MainWindow : Window
             thumbGrid.Children.Add(thumbImage);
             thumbBox.Child = thumbGrid;
 
-            var currentDoc = _activeTab.Document;
             _ = Task.Run(() =>
             {
                 try
                 {
+                    if (token.IsCancellationRequested || targetTab.IsClosed || currentDoc.IsDisposed) return;
+
                     const int tw = 120;
                     const int th = 160;
                     const int stride = tw * 4;
                     byte[] buffer = new byte[stride * th];
                     double zoom = tw / PageWidthPt;
+
+                    if (token.IsCancellationRequested || targetTab.IsClosed || currentDoc.IsDisposed) return;
 
                     currentDoc.RenderTileIntoBuffer(
                         pageIndex: pageIndex,
@@ -424,8 +448,11 @@ public partial class MainWindow : Window
                         stride: stride,
                         format: RbdPixelFormat.Bgra32);
 
+                    if (token.IsCancellationRequested || targetTab.IsClosed || currentDoc.IsDisposed) return;
+
                     Dispatcher.InvokeAsync(() =>
                     {
+                        if (token.IsCancellationRequested || targetTab.IsClosed || currentDoc.IsDisposed) return;
                         var bmp = new WriteableBitmap(tw, th, 96, 96, PixelFormats.Bgra32, null);
                         bmp.WritePixels(new Int32Rect(0, 0, tw, th), buffer, stride, 0);
                         bmp.Freeze();
@@ -434,9 +461,9 @@ public partial class MainWindow : Window
                 }
                 catch
                 {
-                    // Keep text block placeholder on exception
+                    // Keep text block placeholder on exception or cancellation
                 }
-            });
+            }, token);
 
             var label = new TextBlock
             {
@@ -472,40 +499,56 @@ public partial class MainWindow : Window
     {
         if (_activeTab == null || PdfScrollViewer == null) return;
 
+        var dpi = VisualTreeHelper.GetDpi(this);
+        double dpiScale = dpi.PixelsPerDip > 0 ? dpi.PixelsPerDip : 1.0;
+        double dpiX = dpi.DpiScaleX * 96.0;
+        double dpiY = dpi.DpiScaleY * 96.0;
+
         double viewportW = Math.Max(PdfScrollViewer.ViewportWidth, 800);
         double viewportH = Math.Max(PdfScrollViewer.ViewportHeight, 600);
         double scrollX = PdfScrollViewer.HorizontalOffset;
         double scrollY = PdfScrollViewer.VerticalOffset;
         double zoom = _activeTab.Zoom;
+        double physicalZoom = zoom * dpiScale;
 
         var query = new ViewportQuery(
             TotalPages: _activeTab.Document.PageCount,
             PageWidthPt: PageWidthPt,
             PageHeightPt: PageHeightPt,
             PageGapPt: PageGapPt,
-            Zoom: zoom,
-            ViewportWidth: viewportW,
-            ViewportHeight: viewportH,
-            ScrollOffsetX: scrollX,
-            ScrollOffsetY: scrollY,
+            Zoom: physicalZoom,
+            ViewportWidth: viewportW * dpiScale,
+            ViewportHeight: viewportH * dpiScale,
+            ScrollOffsetX: scrollX * dpiScale,
+            ScrollOffsetY: scrollY * dpiScale,
             TileSize: 512);
 
         var sw = Stopwatch.StartNew();
         var result = TiledViewportMath.CalculateVisibleTiles(query);
 
-        VirtualDocumentCanvas.Height = Math.Max(result.TotalDocumentHeight, viewportH);
-        VirtualDocumentCanvas.Width = Math.Max(result.TotalDocumentWidth, viewportW);
+        double totalDocHeightDips = result.TotalDocumentHeight / dpiScale;
+        double totalDocWidthDips = result.TotalDocumentWidth / dpiScale;
+
+        VirtualDocumentCanvas.Height = Math.Max(totalDocHeightDips, viewportH);
+        VirtualDocumentCanvas.Width = Math.Max(totalDocWidthDips, viewportW);
         OverlayCanvas.Width = VirtualDocumentCanvas.Width;
         OverlayCanvas.Height = VirtualDocumentCanvas.Height;
 
-        int bmpW = (int)Math.Ceiling(viewportW);
-        int bmpH = (int)Math.Ceiling(viewportH);
+        int bmpW = (int)Math.Ceiling(viewportW * dpiScale);
+        int bmpH = (int)Math.Ceiling(viewportH * dpiScale);
 
-        if (_writeableBitmap == null || _writeableBitmap.PixelWidth != bmpW || _writeableBitmap.PixelHeight != bmpH)
+        if (_writeableBitmap == null ||
+            _writeableBitmap.PixelWidth != bmpW ||
+            _writeableBitmap.PixelHeight != bmpH ||
+            Math.Abs(_writeableBitmap.DpiX - dpiX) > 0.01)
         {
-            _writeableBitmap = new WriteableBitmap(bmpW, bmpH, 96, 96, PixelFormats.Bgra32, null);
+            _writeableBitmap = new WriteableBitmap(bmpW, bmpH, dpiX, dpiY, PixelFormats.Bgra32, null);
             CanvasImage.Source = _writeableBitmap;
         }
+
+        CanvasImage.Width = viewportW;
+        CanvasImage.Height = viewportH;
+        CanvasImage.Margin = new Thickness(scrollX, scrollY, 0, 0);
 
         // Direct2D / WriteableBitmap zero-copy render
         _writeableBitmap.Lock();
@@ -545,7 +588,7 @@ public partial class MainWindow : Window
                         tileY: tile.TileY,
                         tileWidth: drawW,
                         tileHeight: drawH,
-                        zoom: zoom,
+                        zoom: physicalZoom,
                         backBufferPtr: (IntPtr)subBuffer,
                         stride: stride,
                         format: RbdPixelFormat.Bgra32);
@@ -566,6 +609,13 @@ public partial class MainWindow : Window
 
         UpdatePageIndicator(result.FirstVisiblePageIndex);
         UpdateDiagnostics(sw.Elapsed.TotalMilliseconds);
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        _writeableBitmap = null;
+        RenderTiledViewport();
     }
 
     private void RenderOverlays(int firstPage, int lastPage)
@@ -920,26 +970,46 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ExecuteSearch()
+    private async void ExecuteSearch()
     {
         if (_activeTab == null) return;
+        var tab = _activeTab;
+        var token = tab.Cts.Token;
+        var doc = tab.Document;
+
         string query = SearchQueryTextBox.Text.Trim();
         if (string.IsNullOrEmpty(query)) return;
 
         bool caseSensitive = CaseSensitiveCheckBox.IsChecked == true;
-        var hits = _activeTab.Document.Search(query, caseSensitive);
-        _activeTab.SearchHits = hits.ToList();
-        _activeTab.CurrentSearchIndex = hits.Count > 0 ? 0 : -1;
 
-        UpdateSearchCountDisplay();
-
-        if (_activeTab.SearchHits.Count > 0)
+        try
         {
-            JumpToCurrentSearchHit();
+            var hits = await Task.Run(() =>
+            {
+                if (token.IsCancellationRequested || tab.IsClosed || doc.IsDisposed)
+                    return new List<SearchHitDto>();
+                return doc.Search(query, caseSensitive).ToList();
+            }, token);
+
+            if (token.IsCancellationRequested || tab.IsClosed || _activeTab != tab) return;
+
+            tab.SearchHits = hits;
+            tab.CurrentSearchIndex = hits.Count > 0 ? 0 : -1;
+
+            UpdateSearchCountDisplay();
+
+            if (tab.SearchHits.Count > 0)
+            {
+                JumpToCurrentSearchHit();
+            }
+            else
+            {
+                RenderTiledViewport();
+            }
         }
-        else
+        catch (OperationCanceledException)
         {
-            RenderTiledViewport();
+            // Search cancelled
         }
     }
 
@@ -1005,9 +1075,14 @@ public partial class MainWindow : Window
                         OpenNewDocumentTab(doc, name);
                     }
                 }
+                catch (RbdNativeException ex)
+                {
+                    string msg = LocalizationManager.Instance.GetFriendlyErrorMessage(ex);
+                    MessageBox.Show(msg, LocalizationManager.Instance["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message, LocalizationManager.Instance["ErrorOpeningDocument"], MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(ex.Message, LocalizationManager.Instance["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -1096,20 +1171,35 @@ public partial class MainWindow : Window
         };
         if (organizer.ShowDialog() == true && !string.IsNullOrEmpty(organizer.ResultFilePath))
         {
+            string tempFile = organizer.ResultFilePath;
+            bool success = false;
             try
             {
-                var newDoc = _engine.OpenDocument(organizer.ResultFilePath);
+                var newDoc = _engine.OpenDocument(tempFile);
                 _activeTab.Document.Dispose();
                 _activeTab.Document = newDoc;
-                _activeTab.Title = System.IO.Path.GetFileName(organizer.ResultFilePath);
+                _activeTab.Title = System.IO.Path.GetFileName(tempFile);
                 _activeTab.TabButton.Content = _activeTab.Title;
+                if (tempFile.StartsWith(System.IO.Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
+                {
+                    _activeTab.OwnedTempFiles.Add(tempFile);
+                }
+                success = true;
                 RebuildThumbnails();
                 RenderTiledViewport();
             }
             catch (Exception ex)
             {
                 var lm = LocalizationManager.Instance;
-                MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+                string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+                MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                if (!success && File.Exists(tempFile))
+                {
+                    try { File.Delete(tempFile); } catch { }
+                }
             }
         }
     }
@@ -1128,6 +1218,10 @@ public partial class MainWindow : Window
 
         if (dialog.ShowDialog() == true && dialog.DocumentModified && !string.IsNullOrWhiteSpace(dialog.ResultFilePath))
         {
+            if (dialog.ResultFilePath.StartsWith(System.IO.Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
+            {
+                _activeTab.OwnedTempFiles.Add(dialog.ResultFilePath);
+            }
             ReloadActiveTabDocument(dialog.ResultFilePath);
         }
     }
@@ -1176,6 +1270,8 @@ public partial class MainWindow : Window
         var confirm = MessageBox.Show(lm["RedactPrompt"], lm["Redact"], MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.Yes) return;
 
+        string tempOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rbd_redact_{Guid.NewGuid():N}.pdf");
+        bool success = false;
         try
         {
             var grouped = new Dictionary<uint, List<PdfRect>>();
@@ -1196,15 +1292,24 @@ public partial class MainWindow : Window
                 });
             }
 
-            string tempOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rbd_redact_{Guid.NewGuid():N}.pdf");
             _proService.Redact(_activeTab.Document.FilePath, tempOut, redactions);
 
             ReloadActiveTabDocument(tempOut);
+            _activeTab.OwnedTempFiles.Add(tempOut);
+            success = true;
             MessageBox.Show(lm["RedactionSuccess"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            if (!success && File.Exists(tempOut))
+            {
+                try { File.Delete(tempOut); } catch { }
+            }
         }
     }
 
@@ -1307,9 +1412,12 @@ public partial class MainWindow : Window
 
     private void OnPageJumpKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && int.TryParse(PageJumpTextBox.Text.Trim(), out int pageNum))
+        if (e.Key == Key.Enter && _activeTab != null && int.TryParse(PageJumpTextBox.Text.Trim(), out int pageNum))
         {
-            ScrollToPage(pageNum - 1);
+            int maxPages = Math.Max(1, _activeTab.Document.PageCount);
+            int clampedPageNum = Math.Clamp(pageNum, 1, maxPages);
+            PageJumpTextBox.Text = clampedPageNum.ToString();
+            ScrollToPage(clampedPageNum - 1);
         }
     }
 
@@ -1408,9 +1516,29 @@ public partial class MainWindow : Window
 
     private async Task InitializeWebView2Async()
     {
+        if (OfficeWebView.CoreWebView2 != null)
+        {
+            return;
+        }
+
         try
         {
-            await OfficeWebView.EnsureCoreWebView2Async();
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string userDataFolder = System.IO.Path.Combine(localAppData, "RbdOfis", "WebView2");
+            Directory.CreateDirectory(userDataFolder);
+
+            var options = new CoreWebView2EnvironmentOptions
+            {
+                AdditionalBrowserArguments = "--disable-background-networking"
+            };
+
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
+            await OfficeWebView.EnsureCoreWebView2Async(env);
+
+            if (OfficeWebView.CoreWebView2 == null)
+            {
+                return;
+            }
 
             OfficeWebView.CoreWebView2.Settings.IsGeneralAutofillEnabled = false;
             OfficeWebView.CoreWebView2.Settings.IsPasswordAutosaveEnabled = false;
@@ -1506,6 +1634,13 @@ public partial class MainWindow : Window
             string title = System.IO.Path.GetFileName(filePath);
 
             await InitializeWebView2Async();
+            if (OfficeWebView.CoreWebView2 == null)
+            {
+                string msg = LocalizationManager.Instance["WebViewNotAvailable"];
+                MessageBox.Show(msg, LocalizationManager.Instance["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             ModeOfficeRadio.IsChecked = true;
 
             string titleJson = System.Text.Json.JsonSerializer.Serialize(title);
@@ -1519,9 +1654,14 @@ public partial class MainWindow : Window
             string summary = LocalizationManager.Instance.GetString("OfficeInspectSummary", info.DocType, info.WordCount, info.ItemCount, unitName);
             StatusMessageText.Text = LocalizationManager.Instance.GetString("OfficeDocumentOpened", $"{title} ({summary})");
         }
+        catch (RbdNativeException ex)
+        {
+            string msg = LocalizationManager.Instance.GetFriendlyErrorMessage(ex);
+            MessageBox.Show(msg, LocalizationManager.Instance["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, LocalizationManager.Instance["ErrorOpeningDocument"], MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(ex.Message, LocalizationManager.Instance["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -1529,7 +1669,18 @@ public partial class MainWindow : Window
     {
         foreach (var t in _tabs)
         {
+            t.IsClosed = true;
+            try
+            {
+                t.Cts.Cancel();
+                t.Cts.Dispose();
+            }
+            catch { }
             t.Document.Dispose();
+            foreach (var file in t.OwnedTempFiles)
+            {
+                try { if (File.Exists(file)) File.Delete(file); } catch { }
+            }
         }
         _engine?.Dispose();
         base.OnClosed(e);

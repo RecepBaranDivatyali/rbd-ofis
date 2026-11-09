@@ -14,6 +14,12 @@ use lopdf::{Dictionary, Document, Object, Stream};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// Maximum resolution permitted for PDF-to-image conversion to prevent excessive memory allocation.
+pub const MAX_DPI: u32 = 600;
+
+/// Maximum number of pixels allowed per rendered page (40 megapixels ≈ 160 MB in RGBA) to prevent OOM aborts.
+pub const MAX_PIXELS: u64 = 40_000_000;
+
 /// Target image format for PDF-to-image rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ImageFormatType {
@@ -91,6 +97,13 @@ pub fn pdf_to_images(
         ));
     }
 
+    if options.dpi > MAX_DPI {
+        return Err(EngineError::InvalidParameter(format!(
+            "DPI {} exceeds maximum allowed limit of {}",
+            options.dpi, MAX_DPI
+        )));
+    }
+
     if !output_dir.exists() {
         std::fs::create_dir_all(output_dir)?;
     }
@@ -142,7 +155,25 @@ pub fn pdf_to_images(
         let width_px = ((dim_w * scale).round() as u32).max(1);
         let height_px = ((dim_h * scale).round() as u32).max(1);
 
-        let buf_size = (width_px as usize) * (height_px as usize) * 4;
+        let total_pixels = (width_px as u64)
+            .checked_mul(height_px as u64)
+            .ok_or_else(|| {
+                EngineError::InvalidParameter(format!(
+                    "Page {p} pixel dimensions overflow: {width_px}x{height_px}"
+                ))
+            })?;
+
+        if total_pixels > MAX_PIXELS {
+            return Err(EngineError::InvalidParameter(format!(
+                "Page {p} rendered pixel count {total_pixels} exceeds maximum limit of {MAX_PIXELS} pixels ({width_px}x{height_px})"
+            )));
+        }
+
+        let buf_size = (total_pixels as usize).checked_mul(4).ok_or_else(|| {
+            EngineError::InvalidParameter(format!(
+                "Page {p} RGBA buffer size overflow: {total_pixels} pixels * 4"
+            ))
+        })?;
         let mut rgba_buf = vec![0u8; buf_size];
 
         page.render_tile_to_rgba(0, 0, width_px, height_px, options.dpi as f32, &mut rgba_buf)?;

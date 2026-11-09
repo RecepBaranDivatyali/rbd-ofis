@@ -187,6 +187,7 @@
     <string name="office_export_success">PDF belgesi başarıyla oluşturuldu.</string>
     <string name="office_badge_offline">🔒 Çevrimdışı (Sıfır Ağ)</string>
     <string name="office_editor_placeholder">Belge içeriğini buraya yazın…</string>
+    <string name="office_readonly_warning">Bu dosya türü (%1$s) salt okunurdur. Değişiklikler yalnızca DOCX formatında kaydedilebilir.</string>
 
     <!-- Çevrimdışı Yapay Zeka (Phase 8 Track 8D) -->
     <string name="ai_title">RBD OFİS Çevrimdışı Yapay Zeka</string>

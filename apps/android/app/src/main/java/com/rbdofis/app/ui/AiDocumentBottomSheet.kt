@@ -22,6 +22,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.rbdofis.app.R
 import com.rbdofis.app.core.RbdNativeBridge
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 data class AiSummaryState(
     val summaryText: String = "",
@@ -48,6 +52,7 @@ fun AiDocumentBottomSheet(
     onDismissRequest: () -> Unit,
     onNavigateToPage: (Int) -> Unit = {}
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val bridge = remember { RbdNativeBridge.getInstance() }
     val defaultSummaryFallback = stringResource(R.string.ai_summary_fallback)
     val defaultAnswerFallback = stringResource(R.string.ai_answer_fallback)
@@ -57,22 +62,42 @@ fun AiDocumentBottomSheet(
     var queryInput by remember { mutableStateOf("") }
 
     LaunchedEffect(docHandle) {
-        val json = bridge.summarizeDocument(docHandle, 5)
-        val textRegex = Regex("\"summary_text\"\\s*:\\s*\"([^\"]*)\"")
-        val wordsRegex = Regex("\"word_count\"\\s*:\\s*(\\d+)")
-        val timeRegex = Regex("\"reading_time_minutes\"\\s*:\\s*([0-9.]+)")
-
-        val text = textRegex.find(json)?.groupValues?.get(1) ?: defaultSummaryFallback
-        val words = wordsRegex.find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 120
-        val time = timeRegex.find(json)?.groupValues?.get(1)?.toFloatOrNull() ?: 0.6f
-
-        summaryState = AiSummaryState(
-            summaryText = text,
-            keySentences = listOf(text),
-            wordCount = words,
-            readingTimeMinutes = time,
-            isLoading = false
-        )
+        summaryState = summaryState.copy(isLoading = true)
+        val parsed = withContext(Dispatchers.IO) {
+            try {
+                val json = bridge.summarizeDocument(docHandle, 5)
+                val obj = JSONObject(json)
+                val text = obj.optString("summary_text", defaultSummaryFallback)
+                val words = obj.optInt("word_count", 120)
+                val time = obj.optDouble("reading_time_minutes", 0.6).toFloat()
+                val sentences = mutableListOf<String>()
+                val arr = obj.optJSONArray("key_sentences")
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        sentences.add(arr.optString(i))
+                    }
+                }
+                if (sentences.isEmpty()) {
+                    sentences.add(text)
+                }
+                AiSummaryState(
+                    summaryText = text,
+                    keySentences = sentences,
+                    wordCount = words,
+                    readingTimeMinutes = time,
+                    isLoading = false
+                )
+            } catch (e: Exception) {
+                AiSummaryState(
+                    summaryText = defaultSummaryFallback,
+                    keySentences = listOf(defaultSummaryFallback),
+                    wordCount = 120,
+                    readingTimeMinutes = 0.6f,
+                    isLoading = false
+                )
+            }
+        }
+        summaryState = parsed
     }
 
     ModalBottomSheet(
@@ -215,26 +240,39 @@ fun AiDocumentBottomSheet(
                             IconButton(
                                 onClick = {
                                     if (queryInput.isNotBlank()) {
-                                        answerState = answerState.copy(isLoading = true)
-                                        val json = bridge.askDocument(docHandle, queryInput)
-                                        val ansRegex = Regex("\"answer_text\"\\s*:\\s*\"([^\"]*)\"")
-                                        val pageRegex = Regex("\"page_number\"\\s*:\\s*(\\d+)")
-                                        val confRegex = Regex("\"confidence\"\\s*:\\s*([0-9.]+)")
-                                        val foundRegex = Regex("\"found\"\\s*:\\s*(true|false)")
-
-                                        val ans = ansRegex.find(json)?.groupValues?.get(1) ?: defaultAnswerFallback
-                                        val page = pageRegex.find(json)?.groupValues?.get(1)?.toIntOrNull() ?: 1
-                                        val conf = confRegex.find(json)?.groupValues?.get(1)?.toFloatOrNull() ?: 0.9f
-                                        val found = foundRegex.find(json)?.groupValues?.get(1) == "true"
-
-                                        answerState = AiAnswerState(
-                                            query = queryInput,
-                                            answerText = ans,
-                                            pageNumber = page,
-                                            confidence = conf,
-                                            found = found,
-                                            isLoading = false
-                                        )
+                                        coroutineScope.launch {
+                                            answerState = answerState.copy(isLoading = true)
+                                            val parsed = withContext(Dispatchers.IO) {
+                                                try {
+                                                    val json = bridge.askDocument(docHandle, queryInput)
+                                                    val obj = JSONObject(json)
+                                                    val ans = obj.optString("answer_text", defaultAnswerFallback)
+                                                    val page = obj.optInt("page_number", 1)
+                                                    val conf = obj.optDouble("confidence", 0.9).toFloat()
+                                                    val found = obj.optBoolean("found", false)
+                                                    val excerpt = obj.optString("context_excerpt", "")
+                                                    AiAnswerState(
+                                                        query = queryInput,
+                                                        answerText = ans,
+                                                        contextExcerpt = excerpt,
+                                                        pageNumber = page,
+                                                        confidence = conf,
+                                                        found = found,
+                                                        isLoading = false
+                                                    )
+                                                } catch (e: Exception) {
+                                                    AiAnswerState(
+                                                        query = queryInput,
+                                                        answerText = defaultAnswerFallback,
+                                                        pageNumber = 1,
+                                                        confidence = 0.0f,
+                                                        found = false,
+                                                        isLoading = false
+                                                    )
+                                                }
+                                            }
+                                            answerState = parsed
+                                        }
                                     }
                                 }
                             ) {

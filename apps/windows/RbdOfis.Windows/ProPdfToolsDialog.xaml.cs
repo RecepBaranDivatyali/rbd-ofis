@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using RbdOfis.Interop.Localization;
 using RbdOfis.Interop.Models;
+using RbdOfis.Interop.Native;
 using RbdOfis.Interop.Services;
 
 namespace RbdOfis.Windows;
@@ -123,9 +124,9 @@ public partial class ProPdfToolsDialog : Window
     private void OnCompressClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
+        string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_comp_{Guid.NewGuid():N}.pdf");
         try
         {
-            string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_comp_{Guid.NewGuid():N}.pdf");
             var options = new CompressionOptionsDto
             {
                 RemoveUnusedObjects = RemoveUnusedCheckBox.IsChecked == true,
@@ -145,20 +146,32 @@ public partial class ProPdfToolsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            if (File.Exists(tempOut))
+            {
+                try { File.Delete(tempOut); } catch { }
+            }
+            string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void OnWatermarkClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
+        if (string.IsNullOrWhiteSpace(WatermarkTextBox.Text))
+        {
+            MessageBox.Show(lm["WatermarkTextEmptyWarning"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_wm_{Guid.NewGuid():N}.pdf");
         try
         {
-            string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_wm_{Guid.NewGuid():N}.pdf");
-
             float.TryParse(WatermarkFontSizeBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out float fontSize);
             float.TryParse(WatermarkRotationBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out float rot);
-            float.TryParse(WatermarkOpacityBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out float opacity);
+
+            string opacityText = (WatermarkOpacityBox.Text ?? "").Trim().Replace(',', '.');
+            float.TryParse(opacityText, NumberStyles.Float, CultureInfo.InvariantCulture, out float opacity);
 
             var options = new WatermarkOptionsDto
             {
@@ -180,17 +193,27 @@ public partial class ProPdfToolsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            if (File.Exists(tempOut))
+            {
+                try { File.Delete(tempOut); } catch { }
+            }
+            string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void OnPageNumbersClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
+        if (string.IsNullOrWhiteSpace(PageNumTemplateBox.Text))
+        {
+            MessageBox.Show(lm["PageNumberTemplateEmptyWarning"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_num_{Guid.NewGuid():N}.pdf");
         try
         {
-            string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_num_{Guid.NewGuid():N}.pdf");
-
             float.TryParse(PageNumFontSizeBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out float fontSize);
             float.TryParse(PageNumMarginBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out float margin);
 
@@ -218,17 +241,21 @@ public partial class ProPdfToolsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            if (File.Exists(tempOut))
+            {
+                try { File.Delete(tempOut); } catch { }
+            }
+            string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void OnBatesClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
+        string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_bates_{Guid.NewGuid():N}.pdf");
         try
         {
-            string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_bates_{Guid.NewGuid():N}.pdf");
-
             uint.TryParse(BatesStartBox.Text, out uint start);
             uint.TryParse(BatesDigitsBox.Text, out uint digits);
 
@@ -257,7 +284,12 @@ public partial class ProPdfToolsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            if (File.Exists(tempOut))
+            {
+                try { File.Delete(tempOut); } catch { }
+            }
+            string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -360,10 +392,9 @@ public partial class ProPdfToolsDialog : Window
     private void OnSaveFormFieldsClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
+        string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_form_{Guid.NewGuid():N}.pdf");
         try
         {
-            string tempOut = Path.Combine(Path.GetTempPath(), $"rbd_form_{Guid.NewGuid():N}.pdf");
-
             var values = new Dictionary<string, string>();
             foreach (var (fieldName, textBox) in _formFieldTextBoxes)
             {
@@ -381,7 +412,12 @@ public partial class ProPdfToolsDialog : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            if (File.Exists(tempOut))
+            {
+                try { File.Delete(tempOut); } catch { }
+            }
+            string msg = ex is RbdNativeException nativeEx ? lm.GetFriendlyErrorMessage(nativeEx) : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -18,6 +18,7 @@ public sealed class RbdDocument : IDisposable
 
     public SafeDocumentHandle Handle => _handle;
     public string FilePath { get; set; } = string.Empty;
+    public bool IsDisposed => _disposed;
 
     public RbdDocument(SafeDocumentHandle handle, INativeRbdApi api, string filePath = "")
     {

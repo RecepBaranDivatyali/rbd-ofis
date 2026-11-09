@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using RbdOfis.Interop.Native;
 
 namespace RbdOfis.Interop.Localization;
 
@@ -144,5 +145,38 @@ public sealed class LocalizationManager
             keys.Add(k);
         }
         return keys;
+    }
+
+    /// <summary>
+    /// Maps an exception to a user-friendly localized message.
+    /// Specifically translates RbdNativeException status codes into descriptive messages.
+    /// </summary>
+    public string GetFriendlyErrorMessage(Exception ex)
+    {
+        ArgumentNullException.ThrowIfNull(ex);
+
+        if (ex is RbdNativeException nativeEx)
+        {
+            return GetFriendlyErrorMessage(nativeEx.StatusCode);
+        }
+
+        return ex.Message;
+    }
+
+    /// <summary>
+    /// Maps an RbdStatusCode to a user-friendly localized message.
+    /// </summary>
+    public string GetFriendlyErrorMessage(RbdStatusCode statusCode)
+    {
+        return statusCode switch
+        {
+            RbdStatusCode.ErrorPasswordRequired => GetString("ErrorPasswordRequired"),
+            RbdStatusCode.ErrorCorruptPdf => GetString("ErrorCorruptPdf"),
+            RbdStatusCode.ErrorFileIo => GetString("ErrorFileIo"),
+            RbdStatusCode.ErrorInvalidArgument => GetString("ErrorInvalidArgument"),
+            RbdStatusCode.ErrorPageOutOfRange => GetString("ErrorPageOutOfRange"),
+            RbdStatusCode.ErrorEngineFailure => GetString("ErrorEngineFailure"),
+            _ => GetString("ErrorUnknown")
+        };
     }
 }

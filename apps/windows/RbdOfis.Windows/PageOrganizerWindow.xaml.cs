@@ -303,6 +303,8 @@ public partial class PageOrganizerWindow : Window
     private void OnApplyClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
+        var intermediateFiles = new List<string>();
+        string? finalResultPath = null;
         try
         {
             string sourceFile = _document.FilePath;
@@ -320,6 +322,7 @@ public partial class PageOrganizerWindow : Window
             }
 
             string workPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"org_{Guid.NewGuid():N}.pdf");
+            intermediateFiles.Add(workPath);
             System.IO.File.Copy(sourceFile, workPath, overwrite: true);
 
             // 1. Reorder & Delete
@@ -328,6 +331,7 @@ public partial class PageOrganizerWindow : Window
             {
                 uint[] newOrder = nonBlank.Select(p => (uint)(p.OriginalIndex + 1)).ToArray();
                 string reorderOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"reorder_{Guid.NewGuid():N}.pdf");
+                intermediateFiles.Add(reorderOut);
                 _pageOps.ReorderPages(workPath, newOrder, reorderOut);
                 workPath = reorderOut;
             }
@@ -345,6 +349,7 @@ public partial class PageOrganizerWindow : Window
             if (pageRotations.Count > 0)
             {
                 string rotateOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rotate_{Guid.NewGuid():N}.pdf");
+                intermediateFiles.Add(rotateOut);
                 _pageOps.RotatePages(workPath, pageRotations, nonBlank.Count, rotateOut);
                 workPath = rotateOut;
             }
@@ -355,6 +360,7 @@ public partial class PageOrganizerWindow : Window
                 if (_pages[i].CropBox != null)
                 {
                     string cropOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crop_{Guid.NewGuid():N}.pdf");
+                    intermediateFiles.Add(cropOut);
                     _pageOps.CropPage(workPath, (uint)(i + 1), _pages[i].CropBox!, cropOut);
                     workPath = cropOut;
                 }
@@ -366,11 +372,13 @@ public partial class PageOrganizerWindow : Window
                 if (_pages[i].OriginalIndex < 0)
                 {
                     string blankOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"blank_{Guid.NewGuid():N}.pdf");
+                    intermediateFiles.Add(blankOut);
                     _pageOps.InsertBlankPage(workPath, (uint)i, 595.0f, 842.0f, blankOut);
                     workPath = blankOut;
                 }
             }
 
+            finalResultPath = workPath;
             ResultFilePath = workPath;
             MessageBox.Show(lm.GetString("OperationSuccess", lm["PageLayoutUpdated"]), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
@@ -378,7 +386,20 @@ public partial class PageOrganizerWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(lm.GetString("OperationFailed", ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            string msg = ex is RbdNativeException nativeEx
+                ? LocalizationManager.Instance.GetFriendlyErrorMessage(nativeEx)
+                : ex.Message;
+            MessageBox.Show(lm.GetString("OperationFailed", msg), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            foreach (string file in intermediateFiles)
+            {
+                if ((finalResultPath == null || !string.Equals(file, finalResultPath, StringComparison.OrdinalIgnoreCase)) && System.IO.File.Exists(file))
+                {
+                    try { System.IO.File.Delete(file); } catch { }
+                }
+            }
         }
     }
 

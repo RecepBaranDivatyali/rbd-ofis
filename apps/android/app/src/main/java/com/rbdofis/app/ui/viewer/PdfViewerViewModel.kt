@@ -71,7 +71,7 @@ data class ViewerUiState(
 )
 
 class PdfViewerViewModel(
-    private val repository: PdfDocumentRepository
+    val repository: PdfDocumentRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ViewerUiState())

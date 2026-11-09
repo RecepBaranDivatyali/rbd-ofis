@@ -62,6 +62,11 @@ pub fn compress_document(
     let original_size = std::fs::metadata(input_path).map(|m| m.len()).unwrap_or(0);
 
     let mut doc = Document::load(input_path)?;
+    if doc.is_encrypted() {
+        return Err(EngineError::Encrypted(
+            "Cannot compress encrypted or password-protected PDF document".into(),
+        ));
+    }
     compress_doc_internal(&mut doc, options);
     doc.save(output_path)?;
 
@@ -88,6 +93,11 @@ pub fn compress_document_bytes(
     let original_size = input_bytes.len() as u64;
 
     let mut doc = Document::load_mem(input_bytes)?;
+    if doc.is_encrypted() {
+        return Err(EngineError::Encrypted(
+            "Cannot compress encrypted or password-protected PDF document".into(),
+        ));
+    }
     compress_doc_internal(&mut doc, options);
 
     let mut compressed_bytes = Vec::new();
@@ -135,7 +145,9 @@ fn compress_doc_internal(doc: &mut Document, options: &CompressionOptions) {
     // 3. Object pruning and compaction
     if options.remove_unused_objects {
         doc.prune_objects();
-        doc.renumber_objects();
+        if !doc.is_encrypted() {
+            doc.renumber_objects();
+        }
     }
 }
 
@@ -298,5 +310,33 @@ mod tests {
             obj_count_before,
             roundtrip_doc.objects.len()
         );
+    }
+
+    #[test]
+    fn test_compression_encrypted_document_rejected() {
+        let base = create_uncompressed_sample_pdf();
+        let mut doc = Document::load_mem(&base).unwrap();
+
+        // Mark document as encrypted by adding /Encrypt to trailer
+        let mut enc_dict = Dictionary::new();
+        enc_dict.set("Filter", Object::Name(b"Standard".to_vec()));
+        enc_dict.set("V", Object::Integer(2));
+        let enc_id = doc.add_object(Object::Dictionary(enc_dict));
+        doc.trailer.set("Encrypt", Object::Reference(enc_id));
+
+        let mut encrypted_bytes = Vec::new();
+        doc.save_to(&mut encrypted_bytes).unwrap();
+
+        let res = compress_document_bytes(&encrypted_bytes, &CompressionOptions::default());
+        assert!(
+            res.is_err(),
+            "Attempting to compress an encrypted PDF must fail"
+        );
+        match res {
+            Err(EngineError::Encrypted(msg)) => {
+                assert!(msg.contains("encrypted") || msg.contains("password"));
+            }
+            other => panic!("Expected EngineError::Encrypted, got: {:?}", other),
+        }
     }
 }

@@ -187,14 +187,34 @@ fn extract_xlsx_text(
         }
     }
 
-    // 2. Worksheets
+    // 2. Worksheets: scan all worksheets matching xl/worksheets/sheet*.xml in sequential natural order
     let mut sheet_rows = Vec::new();
-    let mut sheet_idx = 1;
-    loop {
-        let sheet_name = format!("xl/worksheets/sheet{}.xml", sheet_idx);
+    let mut sheet_names: Vec<String> = archive
+        .file_names()
+        .filter_map(|res| res.ok())
+        .filter(|name| name.starts_with("xl/worksheets/sheet") && name.ends_with(".xml"))
+        .map(|name| name.to_string())
+        .collect();
+
+    sheet_names.sort_by(|a, b| {
+        let num_a = a
+            .strip_prefix("xl/worksheets/sheet")
+            .and_then(|s| s.strip_suffix(".xml"))
+            .and_then(|s| s.parse::<u32>().ok());
+        let num_b = b
+            .strip_prefix("xl/worksheets/sheet")
+            .and_then(|s| s.strip_suffix(".xml"))
+            .and_then(|s| s.parse::<u32>().ok());
+        match (num_a, num_b) {
+            (Some(na), Some(nb)) => na.cmp(&nb),
+            _ => a.cmp(b),
+        }
+    });
+
+    for sheet_name in sheet_names {
         let mut sheet_file = match archive.by_name(&sheet_name) {
             Ok(f) => f,
-            Err(_) => break,
+            Err(_) => continue,
         };
         let mut sheet_xml = String::new();
         if sheet_file.read_to_string(&mut sheet_xml).is_ok() {
@@ -258,7 +278,6 @@ fn extract_xlsx_text(
                 }
             }
         }
-        sheet_idx += 1;
     }
 
     let full_text = sheet_rows.join("\n");
@@ -304,6 +323,16 @@ fn extract_pptx_text(
 pub fn extract_office_text_from_bytes(
     bytes: &[u8],
 ) -> Result<(OfficeDocType, String, usize, usize), EngineError> {
+    // Check for Microsoft Compound File Binary (OLE2 CFB) magic header.
+    // Password-protected Office documents (DOCX, XLSX, PPTX) wrap an encrypted package
+    // inside an OLE2 CFB container instead of an open ZIP archive.
+    const OLE2_CFB_MAGIC: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+    if bytes.starts_with(&OLE2_CFB_MAGIC) {
+        return Err(EngineError::Encrypted(
+            "Encrypted or password-protected Office document (OLE2 CFB wrapper)".to_string(),
+        ));
+    }
+
     let cursor = Cursor::new(bytes);
     let mut archive = ZipArchive::new(cursor)
         .map_err(|e| EngineError::Corrupt(format!("Not a valid ZIP/Office archive: {}", e)))?;
@@ -311,9 +340,15 @@ pub fn extract_office_text_from_bytes(
     // Determine type by examining archive contents
     let has_word = archive.by_name("word/document.xml").is_ok();
     let has_excel = archive.by_name("xl/workbook.xml").is_ok()
-        || archive.by_name("xl/worksheets/sheet1.xml").is_ok();
+        || archive
+            .file_names()
+            .filter_map(|res| res.ok())
+            .any(|name| name.starts_with("xl/worksheets/sheet") && name.ends_with(".xml"));
     let has_powerpoint = archive.by_name("ppt/presentation.xml").is_ok()
-        || archive.by_name("ppt/slides/slide1.xml").is_ok();
+        || archive
+            .file_names()
+            .filter_map(|res| res.ok())
+            .any(|name| name.starts_with("ppt/slides/slide") && name.ends_with(".xml"));
 
     if has_word {
         let (text, words, items) = extract_docx_text(&mut archive)?;

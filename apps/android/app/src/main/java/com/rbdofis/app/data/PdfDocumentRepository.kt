@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Collections
 
 /**
  * High-level state of a currently open document.
@@ -98,15 +97,62 @@ class PdfDocumentRepository(
         }
     }
 
-    // In-memory tile/thumbnail cache: max 128 items, LRU order, fully platform independent
+    // In-memory tile/thumbnail cache: max 128 items, LRU order, with byte-budget OOM protection
     private val maxCacheEntries = 128
-    private val tileCache = Collections.synchronizedMap(
-        object : LinkedHashMap<String, Bitmap>(64, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>?): Boolean {
-                return size > maxCacheEntries
-            }
+    val maxCacheBytes: Long = run {
+        val maxMem = Runtime.getRuntime().maxMemory()
+        val eighthMem = if (maxMem > 0L) maxMem / 8L else 32L * 1024L * 1024L
+        eighthMem.coerceIn(8L * 1024L * 1024L, 32L * 1024L * 1024L)
+    }
+
+    private val cacheLock = Any()
+    private var currentCacheBytes: Long = 0L
+    private val tileCache = LinkedHashMap<String, Bitmap>(64, 0.75f, true)
+
+    private fun getBitmapByteSize(bitmap: Bitmap): Long {
+        val bytes = try {
+            bitmap.allocationByteCount.toLong()
+        } catch (_: Throwable) {
+            0L
         }
-    )
+        return if (bytes > 0L) bytes else (bitmap.width.toLong() * bitmap.height.toLong() * 4L).coerceAtLeast(1L)
+    }
+
+    fun getCacheSizeBytes(): Long = synchronized(cacheLock) { currentCacheBytes }
+
+    fun getCacheItemCount(): Int = synchronized(cacheLock) { tileCache.size }
+
+    fun getTile(key: String): Bitmap? = synchronized(cacheLock) {
+        tileCache[key]
+    }
+
+    fun putTile(key: String, bitmap: Bitmap) {
+        synchronized(cacheLock) {
+            val incomingBytes = getBitmapByteSize(bitmap)
+
+            tileCache.remove(key)?.let { old ->
+                currentCacheBytes -= getBitmapByteSize(old)
+            }
+
+            // Evict eldest entries while over byte budget or entry limit
+            val iterator = tileCache.entries.iterator()
+            while (iterator.hasNext() && (currentCacheBytes + incomingBytes > maxCacheBytes || tileCache.size >= maxCacheEntries)) {
+                val eldest = iterator.next()
+                currentCacheBytes -= getBitmapByteSize(eldest.value)
+                iterator.remove()
+            }
+
+            tileCache[key] = bitmap
+            currentCacheBytes += incomingBytes
+        }
+    }
+
+    fun clearTileCache() {
+        synchronized(cacheLock) {
+            tileCache.clear()
+            currentCacheBytes = 0L
+        }
+    }
 
     /**
      * Opens a PDF document from a local file path.
@@ -213,7 +259,7 @@ class PdfDocumentRepository(
             try { it.delete() } catch (_: Throwable) {}
         }
         workingTempFile = null
-        tileCache.clear()
+        clearTileCache()
         _documentState.value = DocumentState()
     }
 
@@ -259,7 +305,7 @@ class PdfDocumentRepository(
         if (currentDocHandle == 0L) return@withContext null
 
         val cacheKey = "p_${pageIndex}_w_${targetWidth}_h_${targetHeight}_s_${scale}"
-        tileCache.get(cacheKey)?.let { return@withContext it }
+        getTile(cacheKey)?.let { return@withContext it }
 
         val bitmap = nativeBridge.renderTile(
             docHandle = currentDocHandle,
@@ -272,7 +318,7 @@ class PdfDocumentRepository(
         )
 
         if (bitmap != null) {
-            tileCache.put(cacheKey, bitmap)
+            putTile(cacheKey, bitmap)
         }
         bitmap
     }
@@ -343,7 +389,7 @@ class PdfDocumentRepository(
             val newHandle = renewActiveDocument(tempOut)
             if (newHandle <= 0L) return@withContext false
 
-            tileCache.clear()
+            clearTileCache()
             val newCount = nativeBridge.getPageCount(newHandle)
             val nextIndex = _documentState.value.currentPageIndex.coerceAtMost((newCount - 1).coerceAtLeast(0))
             _documentState.value = _documentState.value.copy(
@@ -356,7 +402,7 @@ class PdfDocumentRepository(
 
         val success = nativeBridge.deletePages(currentDocHandle, pageIndices)
         if (success) {
-            tileCache.clear()
+            clearTileCache()
             val newCount = nativeBridge.getPageCount(currentDocHandle)
             val nextIndex = _documentState.value.currentPageIndex.coerceAtMost((newCount - 1).coerceAtLeast(0))
             _documentState.value = _documentState.value.copy(
@@ -397,14 +443,14 @@ class PdfDocumentRepository(
             val newHandle = renewActiveDocument(tempOut)
             if (newHandle <= 0L) return@withContext false
 
-            tileCache.clear()
+            clearTileCache()
             _documentState.value = _documentState.value.copy(isModified = true)
             return@withContext true
         }
 
         val success = nativeBridge.reorderPages(currentDocHandle, newOrder)
         if (success) {
-            tileCache.clear()
+            clearTileCache()
             _documentState.value = _documentState.value.copy(isModified = true)
         }
         success
@@ -507,7 +553,7 @@ class PdfDocumentRepository(
         if (currentDocHandle == 0L) return@withContext false
         val success = nativeBridge.undo(currentDocHandle)
         if (success) {
-            tileCache.clear()
+            clearTileCache()
             _documentState.value = _documentState.value.copy(isModified = true)
         }
         success
@@ -520,7 +566,7 @@ class PdfDocumentRepository(
         if (currentDocHandle == 0L) return@withContext false
         val success = nativeBridge.redo(currentDocHandle)
         if (success) {
-            tileCache.clear()
+            clearTileCache()
             _documentState.value = _documentState.value.copy(isModified = true)
         }
         success
@@ -683,11 +729,15 @@ class PdfDocumentRepository(
     }
 
     private fun clearPageCache(pageIndex: Int) {
-        synchronized(tileCache) {
+        synchronized(cacheLock) {
             val prefix = "p_${pageIndex}_"
-            val keysToRemove = tileCache.keys.filter { it.startsWith(prefix) }
-            for (key in keysToRemove) {
-                tileCache.remove(key)
+            val iterator = tileCache.entries.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (entry.key.startsWith(prefix)) {
+                    currentCacheBytes -= getBitmapByteSize(entry.value)
+                    iterator.remove()
+                }
             }
         }
     }
