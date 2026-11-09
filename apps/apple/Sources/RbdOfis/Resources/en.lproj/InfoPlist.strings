@@ -1,0 +1,4 @@
+/* InfoPlist.strings (English) - RBD OFİS */
+"CFBundleDisplayName" = "RBD OFİS";
+"CFBundleName" = "RBD OFİS";
+"NSCameraUsageDescription" = "Camera access is required to scan physical documents.";

@@ -12,8 +12,8 @@ android {
         applicationId = "com.rbdofis.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 100
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -26,6 +26,32 @@ android {
         }
     }
 
+    signingConfigs {
+        val debugSigning = getByName("debug")
+        create("release") {
+            val keystorePath = System.getenv("RBD_KEYSTORE_FILE")
+                ?: (project.findProperty("RBD_KEYSTORE_FILE") as? String)
+            val keystorePassword = System.getenv("RBD_KEYSTORE_PASSWORD")
+                ?: (project.findProperty("RBD_KEYSTORE_PASSWORD") as? String)
+            val rbdKeyAlias = System.getenv("RBD_KEY_ALIAS")
+                ?: (project.findProperty("RBD_KEY_ALIAS") as? String)
+            val rbdKeyPassword = System.getenv("RBD_KEY_PASSWORD")
+                ?: (project.findProperty("RBD_KEY_PASSWORD") as? String)
+
+            if (keystorePath != null && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = keystorePassword
+                keyAlias = rbdKeyAlias
+                keyPassword = rbdKeyPassword
+            } else {
+                storeFile = debugSigning.storeFile
+                storePassword = debugSigning.storePassword
+                keyAlias = debugSigning.keyAlias
+                keyPassword = debugSigning.keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -34,11 +60,23 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+        }
+    }
+
+    bundle {
+        language {
+            enableSplit = false // Kullanıcı çevrimdışıyken dil değiştirebilsin (TR/EN)
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
         }
     }
 

@@ -9,3 +9,4 @@
 "document_summary" = "Document Summary";
 "ask_document" = "Ask Document";
 "zoom_format" = "%d%%";
+"camera_usage_description" = "Camera access is required to scan physical documents.";

@@ -1,0 +1,4 @@
+/* InfoPlist.strings (Turkish) - RBD OFİS */
+"CFBundleDisplayName" = "RBD OFİS";
+"CFBundleName" = "RBD OFİS";
+"NSCameraUsageDescription" = "Belge tarayıcı ile fiziksel belgelerin taranması için kamera erişimi gereklidir.";
