@@ -4,6 +4,13 @@ targets = [
     { triple = "x86_64-pc-windows-msvc" },
 ]
 
+[advisories]
+version = 2
+ignore = [
+    # Transitive dependency chrono via lopdf / pdfium-render informational unmaintained notice (not a security vulnerability)
+    "RUSTSEC-2026-0543",
+]
+
 [licenses]
 version = 2
 allow = [
