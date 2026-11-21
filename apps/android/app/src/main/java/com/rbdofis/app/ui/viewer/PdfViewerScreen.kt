@@ -28,7 +28,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.FitScreen
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -36,11 +38,15 @@ import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -75,11 +81,14 @@ fun PdfViewerScreen(
     onScanDocumentRequested: () -> Unit,
     onShareRequested: () -> Unit,
     onExportRequested: () -> Unit = {},
+    onOpenDocumentRequested: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val docState = uiState.documentState
     var isAiSheetOpen by remember { mutableStateOf(false) }
+    var isMoreMenuOpen by remember { mutableStateOf(false) }
+    var activeSearchResultIndex by remember { mutableStateOf(0) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -95,7 +104,15 @@ fun PdfViewerScreen(
                         )
                     },
                     actions = {
-                        // Drawing / Stylus Toggle
+                        // 1. Open Document Picker (Always accessible)
+                        IconButton(onClick = onOpenDocumentRequested) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = stringResource(R.string.action_open)
+                            )
+                        }
+
+                        // 2. Drawing / Stylus Toggle
                         IconButton(
                             onClick = { viewModel.toggleInkMode() },
                             enabled = docState.isOpen
@@ -107,7 +124,7 @@ fun PdfViewerScreen(
                             )
                         }
 
-                        // Search
+                        // 3. Search
                         IconButton(
                             onClick = { viewModel.toggleSearch(!uiState.isSearchOpen) },
                             enabled = docState.isOpen
@@ -118,45 +135,7 @@ fun PdfViewerScreen(
                             )
                         }
 
-                        // Page Organizer
-                        IconButton(
-                            onClick = onNavigateToOrganizer,
-                            enabled = docState.isOpen
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GridView,
-                                contentDescription = stringResource(R.string.action_organizer)
-                            )
-                        }
-
-                        // Document Camera Scanner
-                        IconButton(onClick = onScanDocumentRequested) {
-                            Icon(
-                                imageVector = Icons.Default.DocumentScanner,
-                                contentDescription = stringResource(R.string.action_scan_document)
-                            )
-                        }
-
-                        // Pro Tools
-                        IconButton(
-                            onClick = { viewModel.openProTools() },
-                            enabled = docState.isOpen
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoFixHigh,
-                                contentDescription = stringResource(R.string.action_pro_tools)
-                            )
-                        }
-
-                        // Converter Tools
-                        IconButton(onClick = { viewModel.openConverter() }) {
-                            Icon(
-                                imageVector = Icons.Default.Transform,
-                                contentDescription = stringResource(R.string.action_convert)
-                            )
-                        }
-
-                        // Offline AI Tools (Phase 8 Track 8D)
+                        // 4. Offline AI Tools (Phase 8 Track 8D)
                         IconButton(
                             onClick = { isAiSheetOpen = true },
                             enabled = docState.isOpen
@@ -167,26 +146,71 @@ fun PdfViewerScreen(
                             )
                         }
 
-                        // Export (Save As) via Scoped Storage SAF
-                        IconButton(
-                            onClick = onExportRequested,
-                            enabled = docState.isOpen
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SaveAs,
-                                contentDescription = stringResource(R.string.action_save_as)
-                            )
-                        }
-
-                        // Share
-                        IconButton(
-                            onClick = onShareRequested,
-                            enabled = docState.isOpen
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = stringResource(R.string.action_share)
-                            )
+                        // 5. Overflow Menu (Prevents 9-button horizontal overflow on phone screens)
+                        Box {
+                            IconButton(onClick = { isMoreMenuOpen = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = null
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = isMoreMenuOpen,
+                                onDismissRequest = { isMoreMenuOpen = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_organizer)) },
+                                    leadingIcon = { Icon(Icons.Default.GridView, contentDescription = null) },
+                                    enabled = docState.isOpen,
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        onNavigateToOrganizer()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_scan_document)) },
+                                    leadingIcon = { Icon(Icons.Default.DocumentScanner, contentDescription = null) },
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        onScanDocumentRequested()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_pro_tools)) },
+                                    leadingIcon = { Icon(Icons.Default.AutoFixHigh, contentDescription = null) },
+                                    enabled = docState.isOpen,
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        viewModel.openProTools()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_convert)) },
+                                    leadingIcon = { Icon(Icons.Default.Transform, contentDescription = null) },
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        viewModel.openConverter()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_save_as)) },
+                                    leadingIcon = { Icon(Icons.Default.SaveAs, contentDescription = null) },
+                                    enabled = docState.isOpen,
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        onExportRequested()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_share)) },
+                                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                                    enabled = docState.isOpen,
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        onShareRequested()
+                                    }
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -203,29 +227,68 @@ fun PdfViewerScreen(
                         Column(modifier = Modifier.padding(8.dp)) {
                             OutlinedTextField(
                                 value = uiState.searchQuery,
-                                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                                onValueChange = {
+                                    activeSearchResultIndex = 0
+                                    viewModel.onSearchQueryChanged(it)
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = { Text(stringResource(R.string.action_search_hint)) },
                                 singleLine = true,
                                 trailingIcon = {
                                     if (uiState.searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                        IconButton(onClick = {
+                                            activeSearchResultIndex = 0
+                                            viewModel.onSearchQueryChanged("")
+                                        }) {
                                             Icon(Icons.Default.Close, contentDescription = null)
                                         }
                                     }
                                 }
                             )
                             if (uiState.searchQuery.length >= 2) {
-                                Text(
-                                    text = if (uiState.searchResults.isNotEmpty()) {
-                                        stringResource(R.string.status_search_results, uiState.searchResults.size)
-                                    } else {
-                                        stringResource(R.string.status_no_search_results)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp, start = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (uiState.searchResults.isNotEmpty()) {
+                                            stringResource(R.string.status_search_results, uiState.searchResults.size)
+                                        } else {
+                                            stringResource(R.string.status_no_search_results)
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (uiState.searchResults.isNotEmpty()) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(
+                                                onClick = {
+                                                    val size = uiState.searchResults.size
+                                                    activeSearchResultIndex = (activeSearchResultIndex - 1 + size) % size
+                                                    viewModel.goToPage(uiState.searchResults[activeSearchResultIndex].pageIndex)
+                                                }
+                                            ) {
+                                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                                            }
+                                            Text(
+                                                text = "${(activeSearchResultIndex % uiState.searchResults.size) + 1}/${uiState.searchResults.size}",
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    val size = uiState.searchResults.size
+                                                    activeSearchResultIndex = (activeSearchResultIndex + 1) % size
+                                                    viewModel.goToPage(uiState.searchResults[activeSearchResultIndex].pageIndex)
+                                                }
+                                            ) {
+                                                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -337,6 +400,18 @@ fun PdfViewerScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(onClick = onOpenDocumentRequested) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = stringResource(R.string.action_open))
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedButton(onClick = onScanDocumentRequested) {
+                            Icon(Icons.Default.DocumentScanner, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = stringResource(R.string.action_scan_document))
+                        }
                     }
                 }
                 else -> {

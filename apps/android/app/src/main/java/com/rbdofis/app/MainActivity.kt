@@ -228,6 +228,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun openDocumentPicker() {
+        openDocumentLauncher.launch(
+            arrayOf(
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "application/msword",
+                "application/vnd.ms-excel",
+                "application/vnd.ms-powerpoint"
+            )
+        )
+    }
+
     private fun exportCurrentDocument() {
         val doc = repository.documentState.value
         if (!doc.isOpen) return
@@ -244,8 +258,17 @@ class MainActivity : ComponentActivity() {
         if (!doc.isOpen || doc.filePath.isBlank()) return
 
         lifecycleScope.launch(Dispatchers.IO) {
+            var tempSavedFile: File? = null
             try {
-                val sourceFile = File(doc.filePath)
+                val candidateTemp = File(cacheDir, "rbd_export_${System.currentTimeMillis()}.pdf")
+                val savedOk = repository.saveDocument(candidateTemp.absolutePath)
+                val sourceFile = if (savedOk && candidateTemp.exists()) {
+                    tempSavedFile = candidateTemp
+                    candidateTemp
+                } else {
+                    File(doc.filePath)
+                }
+
                 if (!sourceFile.exists()) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, R.string.error_save_document, Toast.LENGTH_SHORT).show()
@@ -265,6 +288,8 @@ class MainActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, R.string.error_save_document, Toast.LENGTH_SHORT).show()
                 }
+            } finally {
+                tempSavedFile?.delete()
             }
         }
     }
@@ -273,24 +298,34 @@ class MainActivity : ComponentActivity() {
         val doc = repository.documentState.value
         if (!doc.isOpen || doc.filePath.isBlank()) return
 
-        val file = File(doc.filePath)
-        if (!file.exists()) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val shareDir = File(cacheDir, "shared_documents").apply { mkdirs() }
+                val safeName = doc.fileName.ifBlank { "document.pdf" }
+                val targetShareFile = File(shareDir, if (safeName.endsWith(".pdf", true)) safeName else "$safeName.pdf")
+                val savedOk = repository.saveDocument(targetShareFile.absolutePath)
+                val file = if (savedOk && targetShareFile.exists()) targetShareFile else File(doc.filePath)
+                if (!file.exists()) return@launch
 
-        try {
-            val contentUri = FileProvider.getUriForFile(
-                this,
-                "${applicationContext.packageName}.fileprovider",
-                file
-            )
+                val contentUri = FileProvider.getUriForFile(
+                    this@MainActivity,
+                    "${applicationContext.packageName}.fileprovider",
+                    file
+                )
 
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/pdf"
-                putExtra(Intent.EXTRA_STREAM, contentUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                withContext(Dispatchers.Main) {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, contentUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(shareIntent, getString(R.string.action_share)))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, R.string.error_save_document, Toast.LENGTH_SHORT).show()
+                }
             }
-            startActivity(Intent.createChooser(shareIntent, getString(R.string.action_share)))
-        } catch (e: Exception) {
-            Toast.makeText(this, R.string.error_save_document, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -321,6 +356,7 @@ class MainActivity : ComponentActivity() {
                     onScanDocumentRequested = { currentScreen = AppScreen.SCANNER },
                     onShareRequested = { shareCurrentDocument() },
                     onExportRequested = { exportCurrentDocument() },
+                    onOpenDocumentRequested = { openDocumentPicker() },
                     modifier = Modifier.fillMaxSize()
                 )
             }

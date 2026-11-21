@@ -356,12 +356,51 @@ private fun ImagesToPdfSection(
     onConvert: (imagePaths: List<String>, pageSize: ImageToPdfPageSize, marginPt: Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var imagesInput by remember { mutableStateOf("") }
     var selectedSize by remember { mutableStateOf(ImageToPdfPageSize.A4) }
     var marginPt by remember { mutableFloatStateOf(10f) }
     var sizeExpanded by remember { mutableStateOf(false) }
 
+    val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val cacheDir = java.io.File(context.cacheDir, "converter_images").apply { mkdirs() }
+            val copiedPaths = mutableListOf<String>()
+            uris.forEachIndexed { idx, uri ->
+                try {
+                    val outFile = java.io.File(cacheDir, "img_${System.currentTimeMillis()}_$idx.jpg")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        java.io.FileOutputStream(outFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    if (outFile.exists()) {
+                        copiedPaths.add(outFile.absolutePath)
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            if (copiedPaths.isNotEmpty()) {
+                val joined = copiedPaths.joinToString("\n")
+                imagesInput = if (imagesInput.isBlank()) joined else "$imagesInput\n$joined"
+            }
+        }
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
+        Button(
+            onClick = { imagePickerLauncher.launch("image/*") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Icon(Icons.Default.Image, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.action_open))
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+
         Text(
             text = stringResource(R.string.converter_images_to_pdf_hint),
             style = MaterialTheme.typography.bodyMedium

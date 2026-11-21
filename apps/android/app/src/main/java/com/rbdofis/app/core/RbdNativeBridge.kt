@@ -203,6 +203,11 @@ class RbdNativeBridge private constructor() {
 
     init {
         val loaded = try {
+            try {
+                System.loadLibrary("pdfium")
+            } catch (_: Throwable) {
+                // Optional pre-load for Android Bionic linker namespace
+            }
             System.loadLibrary(LIB_NAME)
             true
         } catch (_: UnsatisfiedLinkError) {

@@ -657,3 +657,45 @@ fn test_regression_item4_crop_page_and_insert_blank_missing_page_no_panic() {
         other => panic!("Unexpected error variant: {:?}", other),
     }
 }
+
+#[test]
+fn test_in_place_annotation_save_while_pdfium_document_is_open() {
+    let src_path = get_corpus_dir().join("pdf-basic/pdfium-hello-world.pdf");
+    assert!(src_path.exists());
+
+    let temp_path = std::env::temp_dir().join(format!(
+        "test_in_place_save_{}_{}.pdf",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::copy(&src_path, &temp_path).expect("copy sample pdf");
+
+    // Keep document open in PDFium while saving annotations in-place (input == output)
+    let engine = create_engine(EngineType::Pdfium).expect("PDFium engine");
+    let _open_doc = engine
+        .open_from_file(&temp_path, None)
+        .expect("Open in PDFium");
+
+    let annot = rbd_engine::Annotation::new(
+        1,
+        0,
+        rbd_engine::AnnotationKind::Highlight,
+        rbd_engine::PdfRect::new(10.0, 10.0, 100.0, 30.0),
+        [255, 235, 59, 200],
+        "In-place save test".to_string(),
+    );
+
+    rbd_engine::save_annotations_to_pdf(&temp_path, &temp_path, &[annot])
+        .expect("In-place save must succeed without file lock conflict");
+
+    let saved = rbd_engine::list_annotations_from_pdf(&temp_path, 0).expect("List saved annots");
+    assert!(
+        saved.iter().any(|a| a.contents == "In-place save test"),
+        "Saved annotation must be persisted in-place"
+    );
+
+    let _ = std::fs::remove_file(&temp_path);
+}

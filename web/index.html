@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RBD OFİS — Ücretsiz, Reklamsız, %100 Çevrimdışı PDF ve Ofis Paketi</title>
+    <meta name="description" content="Windows, Android, macOS/iOS ve Linux için açık kaynaklı (AGPL-3.0), sıfır telemetrili, %100 çevrimdışı PDF okuyucu, düzenleyici, adli redaksiyon ve ofis paketi." />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <header class="navbar">
+        <div class="container nav-inner">
+            <div class="brand">
+                <span class="brand-logo">📄</span>
+                <div>
+                    <span class="brand-name">RBD OFİS</span>
+                    <span class="brand-version">v1.0.0</span>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="#features" data-i18n="nav_features">Özellikler</a>
+                <a href="#playground" data-i18n="nav_playground">Canlı Deneyimle</a>
+                <a href="#download" data-i18n="nav_download">İndir</a>
+                <a href="#architecture" data-i18n="nav_arch">Mimari &amp; Gizlilik</a>
+            </nav>
+            <div class="nav-actions">
+                <button id="langToggleBtn" class="btn-ghost" type="button" aria-label="Dil Değiştir">EN</button>
+                <button id="themeToggleBtn" class="btn-ghost" type="button" aria-label="Tema Değiştir">☀️</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container hero-grid">
+                <div class="hero-content">
+                    <div class="pill-badge" data-i18n="hero_badge">🔒 %100 Çevrimdışı • Sıfır Telemetri • AGPL-3.0 Açık Kaynak</div>
+                    <h1 data-i18n="hero_title">Belgeleriniz Yalnızca Sizin Cihazınızda Kalır.</h1>
+                    <p class="hero-lead" data-i18n="hero_subtitle">
+                        Abonelik dayatmayan, reklam göstermeyen ve internete tek bir bayt bile göndermeyen yüksek hızlı Rust çekirdekli PDF ve Ofis paketi.
+                    </p>
+                    <div class="hero-cta">
+                        <a href="#download" class="btn-primary" data-i18n="cta_download">⬇ Ücretsiz İndir (v1.0.0)</a>
+                        <a href="#playground" class="btn-secondary" data-i18n="cta_try">⚡ Tarayıcıda Hemen Dene</a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-box">
+                            <strong>0 Bayt</strong>
+                            <span data-i18n="stat_network">Ağ / Telemetri Trafiği</span>
+                        </div>
+                        <div class="stat-box">
+                            <strong>4 Platform</strong>
+                            <span data-i18n="stat_platforms">Windows • Android • Apple • Linux</span>
+                        </div>
+                        <div class="stat-box">
+                            <strong>297+ Test</strong>
+                            <span data-i18n="stat_tests">Fuzzer &amp; Adli Güvenlik Doğrulamalı</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-preview">
+                    <div class="app-window">
+                        <div class="window-bar">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                            <span class="window-title">RBD OFİS — Sözleşme_2026.pdf (Çevrimdışı Korumalı)</span>
+                        </div>
+                        <div class="window-toolbar">
+                            <span class="tool-chip active">✋ Seç</span>
+                            <span class="tool-chip">🖊 Vurgula</span>
+                            <span class="tool-chip">✏ S-Pen / Çizim</span>
+                            <span class="tool-chip danger">⬛ Adli Redaksiyon</span>
+                            <span class="tool-chip accent">🤖 Yerel AI Özet</span>
+                        </div>
+                        <div class="window-body">
+                            <div class="doc-sheet">
+                                <h3>HİZMET VE GİZLİLİK SÖZLEŞMESİ</h3>
+                                <p>Madde 1 — İşbu belge <mark class="hl-yellow">RBD OFİS Rust Çekirdeği</mark> tarafından yerel bellekte işlenmektedir.</p>
+                                <p>Madde 2 — Kimlik No: <span class="redacted-block" title="Adli Redaksiyon ile pikselleri ve metin akışı kalıcı olarak imha edildi">██████████████</span></p>
+                                <div class="ai-callout">
+                                    <strong>🤖 Çevrimdışı TF-ISF Özeti (0.4 ms):</strong>
+                                    <p>Belge yerel cihazda işlenir, adli redaksiyon hem metin akışını hem XObject görsel piksellerini kalıcı olarak imha eder.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="section">
+            <div class="container">
+                <h2 class="section-title" data-i18n="features_title">Adobe'un Paralı Özellikleri, Tamamen Ücretsiz ve Çevrimdışı</h2>
+                <div class="features-grid">
+                    <article class="feature-card">
+                        <div class="feature-icon">⬛</div>
+                        <h3 data-i18n="f1_title">Adli Düzeyde Kalıcı Redaksiyon</h3>
+                        <p data-i18n="f1_desc">Üste yalnızca siyah kutu çizmez; alttaki PDF metin operatörlerini (Tj/TJ) ve taranmış XObject görsel piksellerini bayt seviyesinde kalıcı olarak kazır.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3 data-i18n="f2_title">%100 Yerel Belge Asistanı &amp; Reflow</h3>
+                        <p data-i18n="f2_desc">Buluta veri göndermeden TF-ISF istatistiksel motorla belgeyi özetler, sayfa referanslı soruları yanıtlar ve çok sütunlu PDF paragraflarını Türkçe karakterlerle düzenler.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3 data-i18n="f3_title">Pro PDF Araçları &amp; Dönüştürücü</h3>
+                        <p data-i18n="f3_desc">Akıllı PDF sıkıştırma, saydam filigran, sayfa numaralandırma, hukuki Bates damgalama, AcroForms form doldurma ve PDF ⇄ Görsel / Markdown dönüştürücü.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">📷</div>
+                        <h3 data-i18n="f4_title">Otsu Belge Tarayıcı &amp; Kalem</h3>
+                        <p data-i18n="f4_desc">Rust çekirdeğinde ITU-R BT.601 gri tonlama ve çift tepe Otsu eşikleme ile kamera fotoğraflarını net siyah-beyaz A4 PDF'e çevirir; S-Pen ve Apple Pencil destekler.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3 data-i18n="f5_title">Çevrimdışı Ofis (DOCX / XLSX / PPTX)</h3>
+                        <p data-i18n="f5_desc">Saf Rust OOXML ayrıştırıcısı ile Word, Excel ve PowerPoint dosyalarını dış ağa tamamen kapalı yerel yalıtım alanında açar, düzenler ve PDF'e aktarır.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <h3 data-i18n="f6_title">Sıfır İzin, Sıfır Bağımlılık</h3>
+                        <p data-i18n="f6_desc">Android paketinde INTERNET izni dahi yoktur. Windows'ta statik CRT ile temiz bilgisayarlarda ek kurulumsuz çalışır; Huawei cihazlarla %100 uyumludur.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="playground" class="section section-alt">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title" data-i18n="pg_title">⚡ Tarayıcı İçi Çevrimdışı Deneyim Alanı</h2>
+                    <p class="section-lead" data-i18n="pg_subtitle">Hiçbir sunucuya istek atmadan, RBD OFİS'in yerel TF-ISF özetleme/soru-cevap motorunu ve hızlı belge düzenleyicisini doğrudan tarayıcınızda deneyin.</p>
+                </div>
+
+                <div class="playground-tabs">
+                    <button class="pg-tab active" data-tab="ai" type="button" data-i18n="pg_tab_ai">🤖 Yerel Belge AI (Özet &amp; Soru-Cevap)</button>
+                    <button class="pg-tab" data-tab="editor" type="button" data-i18n="pg_tab_editor">📝 Hızlı Belge &amp; PDF Yazdır</button>
+                </div>
+
+                <div id="pg-panel-ai" class="pg-panel active">
+                    <div class="pg-grid">
+                        <div class="pg-col">
+                            <div class="pg-toolbar">
+                                <span data-i18n="pg_input_label">Analiz Edilecek Belge Metni:</span>
+                                <div class="sample-btns">
+                                    <button type="button" class="btn-xs" data-sample="contract">Örnek Sözleşme</button>
+                                    <button type="button" class="btn-xs" data-sample="tech">Teknik Rapor</button>
+                                </div>
+                            </div>
+                            <textarea id="aiDocInput" rows="11" aria-label="Belge Metni"></textarea>
+                            <div class="pg-action-row">
+                                <button id="runSummaryBtn" type="button" class="btn-primary" data-i18n="pg_btn_summarize">📊 Belgeyi Özetle</button>
+                            </div>
+                        </div>
+
+                        <div class="pg-col">
+                            <div class="metrics-bar" id="aiMetricsBar">
+                                <span id="metricWords">Sözcük: 0</span>
+                                <span id="metricSentences">Cümle: 0</span>
+                                <span id="metricTime">Okuma: ~0.0 dk</span>
+                            </div>
+                            <div class="result-card">
+                                <h4 data-i18n="pg_res_summary">Çıkarımsal Özet &amp; Anahtar Kavramlar</h4>
+                                <div id="aiSummaryOutput" class="result-body"></div>
+                                <div id="aiKeywordsOutput" class="keyword-chips"></div>
+                            </div>
+                            <div class="result-card ask-card">
+                                <h4 data-i18n="pg_res_ask">💬 Belgeye Sor</h4>
+                                <div class="ask-row">
+                                    <input id="aiQueryInput" type="text" placeholder="Örn: Redaksiyon nasıl çalışır? veya Lisans nedir?" />
+                                    <button id="runAskBtn" type="button" class="btn-secondary" data-i18n="pg_btn_ask">Sor</button>
+                                </div>
+                                <div id="aiAskOutput" class="result-body muted"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pg-panel-editor" class="pg-panel">
+                    <div class="editor-toolbar">
+                        <button type="button" class="btn-xs" data-cmd="bold"><b>B</b></button>
+                        <button type="button" class="btn-xs" data-cmd="italic"><i>I</i></button>
+                        <button type="button" class="btn-xs" data-cmd="underline"><u>U</u></button>
+                        <button type="button" class="btn-xs" id="insertSampleTableBtn">▦ Tablo Ekle</button>
+                        <button type="button" class="btn-xs primary" id="printPdfBtn">🖨️ PDF Olarak Yazdır / Kaydet</button>
+                        <button type="button" class="btn-xs" id="downloadMdBtn">⬇ .txt / .md İndir</button>
+                    </div>
+                    <div id="webEditorCanvas" class="web-editor-page" contenteditable="true" spellcheck="false">
+                        <h2>RBD OFİS — Çevrimdışı Web Belge Taslağı</h2>
+                        <p>Bu alanı doğrudan düzenleyebilir, tablo ekleyebilir ve tarayıcınızın yerel yazdırma motoruyla sunucusuz olarak <strong>PDF</strong> çıktısı alabilirsiniz.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="download" class="section">
+            <div class="container">
+                <h2 class="section-title" data-i18n="dl_title">Platformunuz İçin İndirin (v1.0.0)</h2>
+                <div class="download-grid">
+                    <div class="dl-card">
+                        <div class="dl-icon">🪟</div>
+                        <h3>Windows 10 / 11 (x64)</h3>
+                        <p data-i18n="dl_win_desc">WPF (.NET 9) masaüstü uygulaması. Statik CRT derlemeli; ek VC++ kurulumu gerektirmez, 4K Per-Monitor V2 DPI destekler.</p>
+                        <span class="dl-meta">v1.0.0 • Portable &amp; Kaynak</span>
+                        <a href="https://github.com/RecepBaranDivatyali/rbd-ofis/releases" target="_blank" rel="noopener" class="btn-primary full-w">Windows Sürümü (GitHub)</a>
+                    </div>
+                    <div class="dl-card featured">
+                        <div class="dl-icon">🤖</div>
+                        <h3>Android &amp; Huawei (ARM64 / x86_64)</h3>
+                        <p data-i18n="dl_and_desc">Jetpack Compose + Material 3. S-Pen çizim, Otsu kamera tarayıcı, 16 KB Android 15 uyumlu gömülü Rust &amp; PDFium çekirdeği. Google servislerine bağımlı değildir.</p>
+                        <span class="dl-meta">v1.0.0 (Kod 100) • 38.8 MB İmzalı APK</span>
+                        <a href="https://github.com/RecepBaranDivatyali/rbd-ofis/releases" target="_blank" rel="noopener" class="btn-primary full-w">APK / Play / AppGallery</a>
+                    </div>
+                    <div class="dl-card">
+                        <div class="dl-icon">🍎</div>
+                        <h3>macOS, iOS &amp; iPadOS</h3>
+                        <p data-i18n="dl_app_desc">SwiftUI, CoreGraphics ve Apple Pencil (PencilKit) desteği. App Sandbox ve sıfır ağ yetkisiyle çalışır.</p>
+                        <span class="dl-meta">v1.0.0 • macOS 13+ / iOS 16+</span>
+                        <a href="https://github.com/RecepBaranDivatyali/rbd-ofis/tree/main/apps/apple" target="_blank" rel="noopener" class="btn-secondary full-w">Apple Paketi &amp; Kaynak</a>
+                    </div>
+                    <div class="dl-card">
+                        <div class="dl-icon">🐧</div>
+                        <h3>Linux &amp; Başsız CLI (`rbd`)</h3>
+                        <p data-i18n="dl_lin_desc">Komut satırından toplu redaksiyon, sıkıştırma, Bates damgalama, dönüştürme, OOXML inceleme ve yerel yapay zeka özetleme.</p>
+                        <span class="dl-meta">v1.0.0 • XDG Desktop &amp; Rust CLI</span>
+                        <a href="https://github.com/RecepBaranDivatyali/rbd-ofis/tree/main/core/crates/rbd-cli" target="_blank" rel="noopener" class="btn-secondary full-w">Linux CLI Dokümantasyonu</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="architecture" class="section section-alt">
+            <div class="container arch-grid">
+                <div>
+                    <h2 data-i18n="arch_title">Doğrulanabilir Gizlilik ve Mimari</h2>
+                    <p data-i18n="arch_desc">
+                        RBD OFİS'te tüm iş mantığı bellek güvenli Rust çekirdeğinde (`rbd-engine`, `rbd-core`, `rbd-ffi`) çalışır. FFI sınırı `%100 catch_unwind` ve `RwLock` ile korunur.
+                    </p>
+                    <ul class="check-list">
+                        <li data-i18n="arch_b1">✅ <strong>Sıfır Ağ İzni:</strong> Android `AndroidManifest.xml` ve Apple `RbdOfis.entitlements` içinde internet izni kapalıdır.</li>
+                        <li data-i18n="arch_b2">✅ <strong>Kapalı SDK Yok:</strong> Firebase, Google ML Kit, Play Services veya analitik/reklam SDK'sı barındırmaz (`cargo deny` ile her commit'te denetlenir).</li>
+                        <li data-i18n="arch_b3">✅ <strong>Açık Kaynak Güvencesi:</strong> GNU AGPL-3.0-or-later lisansıyla tüm kaynak kodu şeffafça incelenebilir.</li>
+                    </ul>
+                </div>
+                <div class="code-box">
+<pre><code># Komut satırından (rbd-cli) 100% çevrimdışı kullanım:
+$ rbd info sozlesme.pdf
+$ rbd ai-summarize rapor.pdf --sentences 5
+$ rbd ai-ask rapor.pdf "Gizlilik maddesi nedir?"
+$ rbd pro-redact gizli.pdf sansurlu.pdf --rect "0:50,650,300,750"
+$ rbd pro-compress buyuk.pdf kucuk.pdf
+$ rbd convert-md-to-pdf notlar.md cikti.pdf</code></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span>© <span id="yearSpan"></span> RBD OFİS — Recep Baran Divatyalı • GNU AGPL-3.0-or-later</span>
+            <div class="footer-links">
+                <a href="https://github.com/RecepBaranDivatyali/rbd-ofis" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/RecepBaranDivatyali/rbd-ofis/blob/main/docs/adr/0003-yayin-uyumlulugu.md" target="_blank" rel="noopener">Gizlilik &amp; Lisans (ADR-0003)</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

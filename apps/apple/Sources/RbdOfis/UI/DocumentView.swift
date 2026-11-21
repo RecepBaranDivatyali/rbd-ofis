@@ -2,6 +2,7 @@
 // AGPL-3.0-or-later
 
 import SwiftUI
+import CoreGraphics
 import CRbdFfi
 
 #if canImport(UIKit)
@@ -80,9 +81,13 @@ public struct DocumentView: View {
     }
 
     private func renderCurrentPage() -> PlatformImage? {
-        let width = Int(Double(document.width) * zoomScale)
-        let height = Int(Double(document.height) * zoomScale)
-        guard width > 0 && height > 0 else { return nil }
+        let maxTileDim = 2048.0
+        let rawW = Double(document.width) * zoomScale
+        let rawH = Double(document.height) * zoomScale
+        let clampRatio = min(1.0, min(maxTileDim / max(1.0, rawW), maxTileDim / max(1.0, rawH)))
+        let effectiveZoom = zoomScale * clampRatio
+        let width = max(1, min(2048, Int(Double(document.width) * effectiveZoom)))
+        let height = max(1, min(2048, Int(Double(document.height) * effectiveZoom)))
 
         guard let bgraBytes = try? document.doc.renderTile(
             pageIndex: Int(currentPage - 1),
@@ -90,7 +95,7 @@ public struct DocumentView: View {
             tileY: 0,
             width: width,
             height: height,
-            zoom: zoomScale,
+            zoom: effectiveZoom,
             pixelFormat: .bgra32
         ) else {
             return nil

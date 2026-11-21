@@ -76,7 +76,7 @@ final class RbdOfisTests: XCTestCase {
             "camera_usage_description"
         ]
         for key in keys {
-            let localized = NSLocalizedString(key, bundle: .module, comment: "")
+            let localized = NSLocalizedString(key, bundle: .rbdOfis, comment: "")
             XCTAssertFalse(localized.isEmpty, "Missing localization for \(key)")
         }
     }

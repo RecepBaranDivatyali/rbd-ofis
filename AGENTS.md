@@ -40,3 +40,26 @@ Bu dosya, bu depoda çalışan **her yapay zeka ajanı** için bağlayıcıdır.
 - Kabul kriterleri: her biri ✅/❌ ve kanıtı (komut çıktısı)
 - Bilinen sorunlar / riskler
 - Eklenen bağımlılıklar ve lisansları
+
+<!-- HQ-PROTOKOL:BASLA -->
+## 🏢 Genel Müdürlük Protokolü (ZORUNLU — otomatik yazıldı, silme)
+
+Bu proje **Genel Müdürlük** (Projeler Sitesi) portföyünün parçasıdır. Proje kimliği (slug): `rbd-ofis`
+
+**Ne zaman?** Web adresi, mağaza linki (Google Play / App Store / AppGallery), APK, uygulama ikonu, ekran görüntüleri veya sürüm değiştiğinde — ve her yeni sürüm derlemesinden sonra.
+
+1. Önce oku: `C:\Users\90536\Desktop\Projeler\Projeler Sitesi\HQ-PROTOKOL.md`
+2. Güncel bilgileri Genel Müdürlük'e gönder (siteyi besler; **gizli bilgi gönderme**):
+   ```powershell
+   node "C:\Users\90536\Desktop\Projeler\Projeler Sitesi\genel-mudurluk\hq.mjs" gonder --slug rbd-ofis --surum-ad "1.0.1" --surum-kod 2 --apk "<imzalı release apk yolu>" --web "<https canlı adres>"
+   ```
+3. Mağazalara yüklenecekse **kendin yükleme** (kullanıcı açıkça "bu projeden doğrudan yükle" demedikçe). Talep aç:
+   ```powershell
+   node "C:\Users\90536\Desktop\Projeler\Projeler Sitesi\genel-mudurluk\hq.mjs" yayin-talep --slug rbd-ofis --magaza hepsi --notlar "<sürüm notları>"
+   ```
+   Sonra kullanıcıya şunu söyle: **"Genel Müdürlük sohbetinde `onay <talep-id>` yazarak onayla."**
+4. **Otomasyon Standardı (PROAKTİF KONTROL):** Kullanıcı tüm uygulama/oyunlarını Web, Google Play, Huawei AppGallery ve Apple App Store'da yayınlamak; ilk kurulumdan sonra bir daha **Android Studio veya Xcode açmadan** tek komutla/CI ile güncellemek istiyor. Bu projede tek komutla imzalı Android AAB+APK derlemesi (`keystore.properties`), GitHub Actions iOS (`deploy-ios.yml`) veya Web otomatik yayını eksikse kullanıcı sormadan **kendin teklif et** ve kur (detay + referanslar: `HQ-PROTOKOL.md` Bölüm 8).
+5. Yasaklar: şifre/anahtar/`.env`/`.p8`/`.jks` içeriğini Projeler Sitesi'ne koyma; `genel-mudurluk/` altındaki talep/kayıt dosyalarını elle değiştirme; `yayin-onayla` komutunu çalıştırma (yalnızca Genel Müdürlük, kullanıcı onayıyla).
+
+Mağaza kimlikleri ve build yolları `C:\Users\90536\Desktop\Projeler\Projeler Sitesi\projeler\rbd-ofis\proje.json` içindeki `yayin` bloğundadır; build çıktı yolu değişirse orayı güncelle.
+<!-- HQ-PROTOKOL:BITIR -->

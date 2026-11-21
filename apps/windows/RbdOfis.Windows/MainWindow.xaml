@@ -11,14 +11,6 @@
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource AppForegroundBrush}">
 
-    <Window.InputBindings>
-        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
-        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-        <KeyBinding Key="F" Modifiers="Control" Command="{Binding SearchCommand}" />
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
-        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
-    </Window.InputBindings>
-
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Row 0: Top Header & Menu -->
@@ -117,7 +109,10 @@
                 <Button x:Name="ProToolsButton" Content="⚡ Pro Araçlar" Click="OnProToolsClicked" Margin="0,0,4,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
 
                 <!-- Document Converter (Phase 5 Track 5C) -->
-                <Button x:Name="ConverterButton" Content="🔄 Dönüştür" Click="OnConverterClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
+                <Button x:Name="ConverterButton" Content="🔄 Dönüştür" Click="OnConverterClicked" Margin="0,0,4,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
+
+                <!-- Offline Document AI & Reflow (Phase 8 Track 8E) -->
+                <Button x:Name="AiToolsButton" Content="🤖 Yapay Zeka &amp; Reflow" Click="OnAiToolsClicked" Margin="0,0,8,0" Padding="8,3" Background="{DynamicResource PrimaryButtonBrush}" Foreground="#FFFFFF" BorderBrush="{DynamicResource AccentBrush}"/>
             </WrapPanel>
         </Border>
 

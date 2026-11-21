@@ -175,4 +175,46 @@ public class DesktopAndUxHardeningTests
 
         Assert.False(File.Exists(tempFile), "Temp file was not cleaned up in finally block!");
     }
+
+    [Fact]
+    public void Verify_Blank_Default_Pdf_Opens_Cleanly_In_Real_Native_Engine()
+    {
+        const string minimalPdf =
+            "%PDF-1.4\n" +
+            "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
+            "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+            "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n" +
+            "4 0 obj << /Length 44 >> stream\nBT /F1 18 Tf 72 750 Td (RBD OFIS) Tj ET\nendstream endobj\n" +
+            "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n" +
+            "xref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000241 00000 n \n0000000335 00000 n \n" +
+            "trailer << /Size 6 /Root 1 0 R >>\nstartxref\n405\n%%EOF\n";
+
+        byte[] bytes = System.Text.Encoding.ASCII.GetBytes(minimalPdf);
+        using var engine = new RbdEngine(NativeRbdApi.Instance);
+        using var doc = engine.OpenDocument(bytes);
+
+        Assert.Equal(1, doc.PageCount);
+        var (w, h) = doc.GetPageSize(0);
+        Assert.Equal(595.0, w, 1.0);
+        Assert.Equal(842.0, h, 1.0);
+    }
+
+    [Fact]
+    public void Verify_OfficeHost_Html_And_MainWindow_Xaml_Hardening()
+    {
+        string htmlPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "RbdOfis.Windows", "Assets", "OfficeHost", "index.html");
+        Assert.True(File.Exists(htmlPath));
+        string html = File.ReadAllText(htmlPath);
+
+        Assert.DoesNotContain("Ascensio System SIA", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("getActiveWorkspaceText()", html);
+        Assert.Contains("renderSlideStage", html);
+
+        string xamlPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "RbdOfis.Windows", "MainWindow.xaml");
+        Assert.True(File.Exists(xamlPath));
+        string xaml = File.ReadAllText(xamlPath);
+
+        Assert.Contains("x:Name=\"AiToolsButton\"", xaml);
+        Assert.DoesNotContain("Window.InputBindings", xaml);
+    }
 }

@@ -154,15 +154,13 @@ impl PdfEngine for PdfiumEngine {
             )));
         }
 
+        let bytes = std::fs::read(path).map_err(EngineError::Io)?;
+        let lopdf_doc = lopdf::Document::load_mem(&bytes).ok().map(Arc::new);
+
         let doc = self
             .pdfium
-            .load_pdf_from_file(path, password)
+            .load_pdf_from_byte_vec(bytes, password)
             .map_err(map_pdfium_error)?;
-
-        let lopdf_doc = std::fs::read(path)
-            .ok()
-            .and_then(|bytes| lopdf::Document::load_mem(&bytes).ok())
-            .map(Arc::new);
 
         let render_lock = Arc::new(parking_lot::Mutex::new(()));
 

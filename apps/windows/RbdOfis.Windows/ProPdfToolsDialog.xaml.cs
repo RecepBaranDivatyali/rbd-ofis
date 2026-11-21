@@ -135,6 +135,10 @@ public partial class ProPdfToolsDialog : Window
             };
 
             var result = _proService.Compress(_currentPdfPath, tempOut, options);
+            if (!string.IsNullOrEmpty(ResultFilePath) && File.Exists(ResultFilePath))
+            {
+                try { File.Delete(ResultFilePath); } catch { }
+            }
             ResultFilePath = tempOut;
             DocumentModified = true;
 
@@ -143,6 +147,9 @@ public partial class ProPdfToolsDialog : Window
             string msg = string.Format(CultureInfo.CurrentCulture, lm["CompressionSavings"], origKb, compKb, result.SavingsPercent);
             CompressResultText.Text = msg;
             CompressResultBorder.Visibility = Visibility.Visible;
+            MessageBox.Show(msg, lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+            DialogResult = true;
+            Close();
         }
         catch (Exception ex)
         {
@@ -423,6 +430,10 @@ public partial class ProPdfToolsDialog : Window
 
     private void OnCloseDialogClicked(object sender, RoutedEventArgs e)
     {
+        if (DocumentModified)
+        {
+            DialogResult = true;
+        }
         Close();
     }
 }

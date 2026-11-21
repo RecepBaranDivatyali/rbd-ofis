@@ -87,11 +87,11 @@ public struct OfficeHostView: UIViewRepresentable {
 
     private func loadOfflineContent(into webView: WKWebView) {
         if let html = initialHtml {
-            webView.loadHTMLString(html, baseURL: URL(string: "https://rbd-office.local/"))
+            webView.loadHTMLString(html, baseURL: URL(string: "about:blank"))
         } else if let resourceUrl = locateOfficeHtml() {
             webView.loadFileURL(resourceUrl, allowingReadAccessTo: resourceUrl.deletingLastPathComponent())
         } else {
-            webView.loadHTMLString(getFallbackOfficeHtml(), baseURL: nil)
+            webView.loadHTMLString(getFallbackOfficeHtml(), baseURL: URL(string: "about:blank"))
         }
     }
 }
@@ -123,11 +123,11 @@ public struct OfficeHostView: NSViewRepresentable {
 
     private func loadOfflineContent(into webView: WKWebView) {
         if let html = initialHtml {
-            webView.loadHTMLString(html, baseURL: URL(string: "https://rbd-office.local/"))
+            webView.loadHTMLString(html, baseURL: URL(string: "about:blank"))
         } else if let resourceUrl = locateOfficeHtml() {
             webView.loadFileURL(resourceUrl, allowingReadAccessTo: resourceUrl.deletingLastPathComponent())
         } else {
-            webView.loadHTMLString(getFallbackOfficeHtml(), baseURL: nil)
+            webView.loadHTMLString(getFallbackOfficeHtml(), baseURL: URL(string: "about:blank"))
         }
     }
 }

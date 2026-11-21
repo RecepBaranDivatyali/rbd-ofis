@@ -102,15 +102,15 @@ private func callWithDynamicBuffer(
 
 /// Native engine wrapper.
 public final class RbdEngine {
-    private var handle: RbdEngineHandle?
+    private var handle: RbdEngineHandle = nil
 
     public init() throws {
         var h: RbdEngineHandle = nil
         let status = rbd_engine_init(&h)
-        guard status == RBD_OK, let h = h else {
+        guard status == RBD_OK, let validHandle = h else {
             throw RbdError.from(code: status)
         }
-        self.handle = h
+        self.handle = validHandle
     }
 
     deinit {
@@ -139,7 +139,7 @@ public final class RbdEngine {
 
 /// Open document wrapper providing page count, text extraction, search, annotations, and rendering.
 public final class RbdDocument {
-    private var handle: RbdDocumentHandle?
+    private var handle: RbdDocumentHandle = nil
     public let filePath: String?
 
     init(handle: RbdDocumentHandle, filePath: String? = nil) {
@@ -177,6 +177,35 @@ public final class RbdDocument {
         }
         defer { rbd_free_string(ptr) }
         return String(cString: ptr)
+    }
+
+    public func search(query: String, caseSensitive: Bool = false) throws -> String {
+        guard let h = handle else { throw RbdError.nullPointer }
+        var jsonPtr: UnsafeMutablePointer<CChar>? = nil
+        let status = query.withCString { cQuery in
+            rbd_document_search_json(h, cQuery, caseSensitive ? 1 : 0, &jsonPtr)
+        }
+        guard status == RBD_OK, let ptr = jsonPtr else {
+            throw RbdError.from(code: status)
+        }
+        defer { rbd_free_string(ptr) }
+        return String(cString: ptr)
+    }
+
+    public func saveAnnotations(outputPath: String) throws {
+        guard let h = handle else { throw RbdError.nullPointer }
+        let status = outputPath.withCString { cOut in
+            if let inPath = filePath {
+                return inPath.withCString { cIn in
+                    rbd_document_save_annotations_to_path(h, cIn, cOut)
+                }
+            } else {
+                return rbd_document_save_annotations(h, cOut)
+            }
+        }
+        guard status == RBD_OK else {
+            throw RbdError.from(code: status)
+        }
     }
 
     public func renderTile(

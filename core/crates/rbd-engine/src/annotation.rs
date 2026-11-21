@@ -60,6 +60,7 @@ impl Annotation {
 
 /// Save annotations into a PDF document at `output_path`, reading base structure from `input_path`.
 /// Creates standard ISO 32000-1 `/Annot` dictionaries (/Highlight, /Text, /Square, /Ink, /FreeText).
+/// Uses a temporary file and atomic replacement so saving in-place (`input_path == output_path`) is safe.
 pub fn save_annotations_to_pdf(
     input_path: &Path,
     output_path: &Path,
@@ -67,7 +68,29 @@ pub fn save_annotations_to_pdf(
 ) -> Result<(), EngineError> {
     let mut doc = Document::load(input_path)?;
     apply_annotations_to_doc(&mut doc, annotations)?;
-    doc.save(output_path)?;
+
+    let parent_dir = output_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp_path = parent_dir.join(format!(
+        ".rbd_annot_tmp_{}_{}.pdf",
+        std::process::id(),
+        nanos
+    ));
+
+    doc.save(&temp_path)?;
+
+    if std::fs::rename(&temp_path, output_path).is_err() {
+        let copy_res = std::fs::copy(&temp_path, output_path);
+        let _ = std::fs::remove_file(&temp_path);
+        copy_res.map_err(EngineError::Io)?;
+    }
+
     Ok(())
 }
 

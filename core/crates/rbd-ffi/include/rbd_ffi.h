@@ -30,9 +30,15 @@ extern "C" {
 #define RBD_ERR_PANIC -99
 
 /* Opaque handles */
+#if defined(__clang__)
+typedef void* _Nullable RbdEngineHandle;
+typedef void* _Nullable RbdDocumentHandle;
+typedef void* _Nullable RbdSessionHandle;
+#else
 typedef void* RbdEngineHandle;
 typedef void* RbdDocumentHandle;
 typedef void* RbdSessionHandle;
+#endif
 
 /* Engine & Document Lifecycle */
 int32_t rbd_engine_init(RbdEngineHandle* out_engine);

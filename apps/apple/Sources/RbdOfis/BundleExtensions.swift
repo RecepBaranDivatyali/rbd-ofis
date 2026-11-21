@@ -11,3 +11,9 @@ extension Foundation.Bundle {
     }
 }
 #endif
+
+extension Foundation.Bundle {
+    public static var rbdOfis: Bundle {
+        return Bundle.module
+    }
+}

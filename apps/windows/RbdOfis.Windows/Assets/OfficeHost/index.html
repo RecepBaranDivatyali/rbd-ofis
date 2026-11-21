@@ -249,7 +249,6 @@
             display: none;
             width: 100%;
             height: 100%;
-            display: flex;
             gap: 20px;
             padding: 20px;
             box-sizing: border-box;
@@ -438,7 +437,7 @@
         <div class="footer-left">
             <span id="stat-words" class="stat-item">Sözcük: 32</span>
             <span id="stat-items" class="stat-item">Paragraf: 3</span>
-            <span class="stat-item">Telif: Ascensio System SIA &amp; RBD OFİS</span>
+            <span class="stat-item">RBD OFİS • AGPL-3.0 Açık Kaynak (%100 Çevrimdışı)</span>
         </div>
         <div>
             <span id="host-url">Host: https://rbd-office.local/index.html</span>
@@ -448,10 +447,27 @@
     <script>
         let currentDocType = 'DOCX';
         let currentTitle = 'Yeni Belge.docx';
+        let presentationSlides = [];
+        let activeSlideIndex = 0;
 
         function selectTab(tab) {
             document.querySelectorAll('.ribbon-tab').forEach(el => el.classList.remove('active'));
-            if (event && event.target) event.target.classList.add('active');
+            if (typeof event !== 'undefined' && event && event.target) {
+                event.target.classList.add('active');
+            }
+            const mainWorkspace = document.querySelector('main');
+            if (tab === 'layout') {
+                const page = document.getElementById('editor-page');
+                if (page) page.style.padding = page.style.padding === '36px 45px' ? '72px 90px' : '36px 45px';
+                showToast('Sayfa kenar boşluğu düzeni değiştirildi.');
+            } else if (tab === 'view') {
+                if (mainWorkspace) {
+                    mainWorkspace.style.backgroundColor = mainWorkspace.style.backgroundColor === 'rgb(30, 30, 30)' ? '#e5e5e5' : '#1e1e1e';
+                }
+                showToast('Çalışma alanı görünüm teması değiştirildi.');
+            } else if (tab === 'insert') {
+                showToast('Tablo veya liste eklemek için araç çubuğunu kullanın.');
+            }
         }
 
         function execCmd(command, value = null) {
@@ -470,13 +486,32 @@
             updateStats();
         }
 
+        function getActiveWorkspaceText() {
+            if (currentDocType === 'XLSX') {
+                const rows = [];
+                document.querySelectorAll('#spreadsheet-table tr').forEach((tr, idx) => {
+                    if (idx === 0) return; // Skip A,B,C header row
+                    const cells = [];
+                    tr.querySelectorAll('td').forEach(td => cells.push((td.innerText || '').trim()));
+                    while (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
+                    if (cells.length > 0) rows.push(cells.join('\t'));
+                });
+                return rows.join('\n');
+            } else if (currentDocType === 'PPTX') {
+                syncActiveSlideEdit();
+                return presentationSlides.map((s, i) => `## Slayt ${i + 1}\n\n${s}`).join('\n\n');
+            } else {
+                return document.getElementById('editor-page').innerText || '';
+            }
+        }
+
         function updateStats() {
-            const text = document.getElementById('editor-page').innerText || '';
+            const text = getActiveWorkspaceText();
             const words = text.trim() ? text.trim().split(/\s+/).length : 0;
             const paragraphs = text.split('\n').filter(p => p.trim().length > 0).length;
 
             document.getElementById('stat-words').innerText = `Sözcük: ${words}`;
-            document.getElementById('stat-items').innerText = `Paragraf: ${paragraphs}`;
+            document.getElementById('stat-items').innerText = `${currentDocType === 'XLSX' ? 'Satır' : (currentDocType === 'PPTX' ? 'Slayt' : 'Paragraf')}: ${currentDocType === 'PPTX' ? presentationSlides.length : paragraphs}`;
         }
 
         function showToast(msg) {
@@ -487,11 +522,12 @@
         }
 
         function exportToPdf() {
-            const text = document.getElementById('editor-page').innerText;
+            const text = getActiveWorkspaceText();
             if (window.chrome && window.chrome.webview) {
                 window.chrome.webview.postMessage({
                     action: 'exportPdf',
                     title: currentTitle,
+                    docType: currentDocType,
                     content: text
                 });
             } else {
@@ -501,15 +537,19 @@
         }
 
         function saveDocument() {
-            const text = document.getElementById('editor-page').innerText;
+            if (currentDocType !== 'DOCX') {
+                showToast(`${currentDocType} belgeleri salt okunurdur; DOCX kopyası olarak kaydediliyor...`);
+            }
+            const text = getActiveWorkspaceText();
             if (window.chrome && window.chrome.webview) {
                 window.chrome.webview.postMessage({
                     action: 'saveDocx',
                     title: currentTitle,
+                    docType: currentDocType,
                     content: text
                 });
             }
-            showToast('Belge kaydedildi.');
+            showToast('Belge DOCX olarak kaydedildi.');
         }
 
         // Global API callable from C# / Android WebView
@@ -601,30 +641,62 @@
             }
         }
 
+        function syncActiveSlideEdit() {
+            const stage = document.getElementById('slide-stage');
+            const bodyEl = stage ? stage.querySelector('p') : null;
+            if (bodyEl && activeSlideIndex >= 0 && activeSlideIndex < presentationSlides.length) {
+                presentationSlides[activeSlideIndex] = bodyEl.innerText || '';
+            }
+        }
+
+        function renderSlideStage(slideIndex) {
+            activeSlideIndex = slideIndex;
+            const stage = document.getElementById('slide-stage');
+            stage.innerHTML = '';
+
+            const h2 = document.createElement('h2');
+            h2.textContent = `Slayt ${slideIndex + 1}`;
+            stage.appendChild(h2);
+
+            const p = document.createElement('p');
+            p.textContent = presentationSlides[slideIndex] || '';
+            stage.appendChild(p);
+        }
+
         function renderPresentation(content) {
             const sidebar = document.getElementById('slides-sidebar');
             const stage = document.getElementById('slide-stage');
             sidebar.innerHTML = '';
+            stage.innerHTML = '';
+            presentationSlides = [];
+            activeSlideIndex = 0;
 
-            const slides = (content || '').split('--- Slayt ');
-            let idx = 1;
-            for (const s of slides) {
+            const rawSlides = (content || '').split('--- Slayt ');
+            for (const s of rawSlides) {
                 if (!s.trim()) continue;
+                const sepIdx = s.indexOf('---');
+                const slideText = (sepIdx >= 0 ? s.substring(sepIdx + 3) : s).trim();
+                presentationSlides.push(slideText);
+            }
+
+            if (presentationSlides.length === 0) {
+                presentationSlides.push((content || '').trim());
+            }
+
+            presentationSlides.forEach((_, slideIdx) => {
                 const thumb = document.createElement('div');
-                thumb.className = 'slide-thumb' + (idx === 1 ? ' active' : '');
-                thumb.innerText = `Slayt ${idx}`;
-                const slideText = s.substring(s.indexOf('---') + 3).trim();
+                thumb.className = 'slide-thumb' + (slideIdx === 0 ? ' active' : '');
+                thumb.textContent = `Slayt ${slideIdx + 1}`;
                 thumb.onclick = () => {
+                    syncActiveSlideEdit();
                     document.querySelectorAll('.slide-thumb').forEach(t => t.classList.remove('active'));
                     thumb.classList.add('active');
-                    stage.innerHTML = `<h2>Slayt ${idx}</h2><p>${slideText}</p>`;
+                    renderSlideStage(slideIdx);
                 };
                 sidebar.appendChild(thumb);
-                if (idx === 1) {
-                    stage.innerHTML = `<h2>Slayt 1</h2><p>${slideText}</p>`;
-                }
-                idx++;
-            }
+            });
+
+            renderSlideStage(0);
         }
 
         console.log("RBD OFİS Offline Virtual Host initialized at " + window.location.href);

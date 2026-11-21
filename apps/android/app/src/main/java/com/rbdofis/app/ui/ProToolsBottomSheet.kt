@@ -447,8 +447,11 @@ private fun RedactToolContent(
     isProcessing: Boolean,
     onExecute: (String) -> Unit
 ) {
-    val sampleJson = """[{"page_index":0,"rects":[{"x0":50.0,"y0":650.0,"x1":300.0,"y1":750.0}],"fill_color":[0,0,0]}]"""
-    var json by remember { mutableStateOf(sampleJson) }
+    var pageNum by remember { mutableIntStateOf(1) }
+    var x0 by remember { mutableFloatStateOf(50f) }
+    var y0 by remember { mutableFloatStateOf(650f) }
+    var x1 by remember { mutableFloatStateOf(300f) }
+    var y1 by remember { mutableFloatStateOf(750f) }
 
     Text(
         text = stringResource(R.string.redact_description),
@@ -457,16 +460,68 @@ private fun RedactToolContent(
     )
 
     OutlinedTextField(
-        value = json,
-        onValueChange = { json = it },
-        label = { Text(stringResource(R.string.redact_json_label)) },
+        value = pageNum.toString(),
+        onValueChange = { pageNum = (it.toIntOrNull() ?: 1).coerceAtLeast(1) },
+        label = { Text(stringResource(R.string.bates_start_num_label)) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
-        maxLines = 6
+        singleLine = true
     )
 
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = x0.toInt().toString(),
+            onValueChange = { x0 = it.toFloatOrNull() ?: 50f },
+            label = { Text("X0 (pt)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = y0.toInt().toString(),
+            onValueChange = { y0 = it.toFloatOrNull() ?: 650f },
+            label = { Text("Y0 (pt)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = x1.toInt().toString(),
+            onValueChange = { x1 = it.toFloatOrNull() ?: 300f },
+            label = { Text("X1 (pt)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = y1.toInt().toString(),
+            onValueChange = { y1 = it.toFloatOrNull() ?: 750f },
+            label = { Text("Y1 (pt)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f),
+            singleLine = true
+        )
+    }
+
     Button(
-        onClick = { onExecute(json) },
-        enabled = !isProcessing && json.isNotBlank(),
+        onClick = {
+            val rectObj = org.json.JSONObject().apply {
+                put("x0", x0.toDouble())
+                put("y0", y0.toDouble())
+                put("x1", x1.toDouble())
+                put("y1", y1.toDouble())
+            }
+            val rectsArr = org.json.JSONArray().put(rectObj)
+            val fillArr = org.json.JSONArray().put(0).put(0).put(0)
+            val itemObj = org.json.JSONObject().apply {
+                put("page_index", (pageNum - 1).coerceAtLeast(0))
+                put("rects", rectsArr)
+                put("fill_color", fillArr)
+            }
+            val rootArr = org.json.JSONArray().put(itemObj)
+            onExecute(rootArr.toString())
+        },
+        enabled = !isProcessing,
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(stringResource(R.string.redact_apply))
@@ -518,10 +573,9 @@ private fun FormFieldsToolContent(
 
         Button(
             onClick = {
-                // Build JSON dictionary: {"field_name": "value", ...}
-                val entries = fieldValues.entries.joinToString(",") { "\"${it.key}\":\"${it.value}\"" }
-                val json = "{$entries}"
-                onExecute(json, flatten)
+                val jsonObj = org.json.JSONObject()
+                fieldValues.forEach { (k, v) -> jsonObj.put(k, v) }
+                onExecute(jsonObj.toString(), flatten)
             },
             enabled = !isProcessing,
             modifier = Modifier.fillMaxWidth()

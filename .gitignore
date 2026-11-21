@@ -11,12 +11,19 @@ target/
 AppPackages/
 dist/
 
-# Android
+# Android & Signing Secrets (NEVER COMMIT)
 .gradle/
 build/
 local.properties
+keystore.properties
+store-secrets/
 *.keystore
 *.jks
+*.p8
+*.p12
+*.pem
+.env
+.env.*
 .idea/
 captures/
 

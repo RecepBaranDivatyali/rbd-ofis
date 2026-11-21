@@ -51,7 +51,7 @@ Dosyalarınız şurada üretilir:
 
 4. **Uygulama Bilgileri & Görseller:**
    - `docs/publishing/METADATA_STORE_LISTING.md` dosyasındaki başlık ve açıklamaları girin.
-   - 216x216 또는 512x512 uygulama simgesi yükleyin.
+   - 216x216 veya 512x512 uygulama simgesi yükleyin.
    - En az 3 adet dikey telefon/tablet ekran görüntüsü yükleyin.
 
 5. **Sürüm Dosyasını Yükleme (Version Release):**

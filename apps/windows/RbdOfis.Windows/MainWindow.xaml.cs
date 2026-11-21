@@ -57,6 +57,8 @@ public partial class MainWindow : Window
     private readonly ProPdfService _proService = new();
     private readonly DocumentConverterService _converterService = new();
     private readonly OfficeDocumentService _officeService = new();
+    private readonly DocumentAiService _aiService = new();
+    private readonly PageOperationService _pageOpService = new();
     private string? _currentOfficeFilePath;
 
     private enum ViewMode
@@ -161,6 +163,58 @@ public partial class MainWindow : Window
         return null;
     }
 
+    private static byte[] CreateValidBlankPdfBytes()
+    {
+        const string minimalPdf =
+            "%PDF-1.4\n" +
+            "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
+            "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+            "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n" +
+            "4 0 obj << /Length 44 >> stream\nBT /F1 18 Tf 72 750 Td (RBD OFIS) Tj ET\nendstream endobj\n" +
+            "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n" +
+            "xref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000241 00000 n \n0000000335 00000 n \n" +
+            "trailer << /Size 6 /Root 1 0 R >>\nstartxref\n405\n%%EOF\n";
+        return System.Text.Encoding.ASCII.GetBytes(minimalPdf);
+    }
+
+    private RbdDocument OpenValidBlankDocument(string title, out string? createdTempPath)
+    {
+        createdTempPath = null;
+        try
+        {
+            string tempPdf = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rbd_blank_{Guid.NewGuid():N}.pdf");
+            File.WriteAllBytes(tempPdf, CreateValidBlankPdfBytes());
+            var doc = _engine.OpenDocument(tempPdf);
+            doc.FilePath = tempPdf;
+            createdTempPath = tempPdf;
+            return doc;
+        }
+        catch
+        {
+            var doc = _engine.OpenDocument(CreateValidBlankPdfBytes());
+            doc.FilePath = title;
+            return doc;
+        }
+    }
+
+    private (double Width, double Height) GetActivePageDimensions(int pageIndex = 0)
+    {
+        if (_activeTab != null && !_activeTab.Document.IsDisposed)
+        {
+            try
+            {
+                int clamped = Math.Clamp(pageIndex, 0, Math.Max(0, _activeTab.Document.PageCount - 1));
+                var (w, h) = _activeTab.Document.GetPageSize(clamped);
+                if (w > 10.0 && h > 10.0)
+                {
+                    return (w, h);
+                }
+            }
+            catch { }
+        }
+        return (PageWidthPt, PageHeightPt);
+    }
+
     private async void OnWindowLoaded(object sender, RoutedEventArgs e)
     {
         UpdateLocalizedUi();
@@ -174,6 +228,7 @@ public partial class MainWindow : Window
 
         RbdDocument defaultDoc;
         string defaultTitle;
+        string? initialTempFile = null;
         if (samplePdf != null && File.Exists(samplePdf))
         {
             try
@@ -184,18 +239,20 @@ public partial class MainWindow : Window
             }
             catch
             {
-                defaultDoc = _engine.OpenDocument(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-                defaultDoc.FilePath = "Demo_Document_2000p.pdf";
-                defaultTitle = "Demo_Document_2000p.pdf";
+                defaultTitle = "Yeni_Belge_1.pdf";
+                defaultDoc = OpenValidBlankDocument(defaultTitle, out initialTempFile);
             }
         }
         else
         {
-            defaultDoc = _engine.OpenDocument(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-            defaultDoc.FilePath = "Demo_Document_2000p.pdf";
-            defaultTitle = "Demo_Document_2000p.pdf";
+            defaultTitle = "Yeni_Belge_1.pdf";
+            defaultDoc = OpenValidBlankDocument(defaultTitle, out initialTempFile);
         }
         OpenNewDocumentTab(defaultDoc, defaultTitle);
+        if (initialTempFile != null && _activeTab != null)
+        {
+            _activeTab.OwnedTempFiles.Add(initialTempFile);
+        }
 
         _coldOpenStopwatch.Stop();
         UpdateDiagnostics(0.0);
@@ -223,6 +280,10 @@ public partial class MainWindow : Window
         PageOrganizerButton.Content = $"📑 {lm["PageOrganizerTitle"]}";
         ProToolsButton.Content = $"⚡ {lm["ProTools"]}";
         ConverterButton.Content = $"🔄 {lm["Converter"]}";
+        if (AiToolsButton != null)
+        {
+            AiToolsButton.Content = $"🤖 {lm["AiSummarize"].Split(' ')[0]} / AI";
+        }
         SidebarTitleText.Text = lm["ThumbnailsTitle"];
         ThemeToggleButton.Content = _isDarkTheme ? $"🌙 {lm["ThemeDark"]}" : $"☀️ {lm["ThemeLight"]}";
         AssociatePdfButton.Content = $"🔗 {lm["AssociatePdf"]}";
@@ -490,7 +551,8 @@ public partial class MainWindow : Window
     private void ScrollToPage(int pageIndex)
     {
         if (_activeTab == null || PdfScrollViewer == null) return;
-        double pageStride = (PageHeightPt + PageGapPt) * _activeTab.Zoom;
+        var (_, pageH) = GetActivePageDimensions(pageIndex);
+        double pageStride = (pageH + PageGapPt) * _activeTab.Zoom;
         double targetScroll = pageIndex * pageStride;
         PdfScrollViewer.ScrollToVerticalOffset(targetScroll);
     }
@@ -504,23 +566,33 @@ public partial class MainWindow : Window
         double dpiX = dpi.DpiScaleX * 96.0;
         double dpiY = dpi.DpiScaleY * 96.0;
 
+        var (docPageW, docPageH) = GetActivePageDimensions(0);
+
         double viewportW = Math.Max(PdfScrollViewer.ViewportWidth, 800);
         double viewportH = Math.Max(PdfScrollViewer.ViewportHeight, 600);
         double scrollX = PdfScrollViewer.HorizontalOffset;
         double scrollY = PdfScrollViewer.VerticalOffset;
         double zoom = _activeTab.Zoom;
+        if (_currentViewMode == ViewMode.TwoPage)
+        {
+            zoom = Math.Clamp((viewportW / 2.0) / (docPageW + PageGapPt * 2), 0.25, 5.0);
+        }
         double physicalZoom = zoom * dpiScale;
 
+        int totalPagesToLayout = _currentViewMode == ViewMode.Single
+            ? Math.Min(1, Math.Max(1, _activeTab.Document.PageCount))
+            : _activeTab.Document.PageCount;
+
         var query = new ViewportQuery(
-            TotalPages: _activeTab.Document.PageCount,
-            PageWidthPt: PageWidthPt,
-            PageHeightPt: PageHeightPt,
+            TotalPages: totalPagesToLayout,
+            PageWidthPt: docPageW,
+            PageHeightPt: docPageH,
             PageGapPt: PageGapPt,
             Zoom: physicalZoom,
             ViewportWidth: viewportW * dpiScale,
             ViewportHeight: viewportH * dpiScale,
             ScrollOffsetX: scrollX * dpiScale,
-            ScrollOffsetY: scrollY * dpiScale,
+            ScrollOffsetY: (_currentViewMode == ViewMode.Single ? 0.0 : scrollY) * dpiScale,
             TileSize: 512);
 
         var sw = Stopwatch.StartNew();
@@ -1049,6 +1121,80 @@ public partial class MainWindow : Window
         }
     }
 
+    private string? PromptForPdfPassword(string fileName)
+    {
+        var lm = LocalizationManager.Instance;
+        var win = new Window
+        {
+            Title = $"{lm["AppTitle"]} — {fileName}",
+            Width = 420,
+            Height = 200,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.NoResize,
+            Background = new SolidColorBrush(Color.FromRgb(37, 37, 38)),
+            Foreground = Brushes.White
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(18) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = lm["ErrorPasswordRequired"],
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 12),
+            Foreground = Brushes.White
+        });
+
+        var pwdBox = new PasswordBox
+        {
+            Padding = new Thickness(6, 4, 6, 4),
+            Margin = new Thickness(0, 0, 0, 14)
+        };
+        panel.Children.Add(pwdBox);
+
+        var btnRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        var okBtn = new Button
+        {
+            Content = lm["ActionApply"],
+            Width = 90,
+            Padding = new Thickness(6, 3, 6, 3),
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true
+        };
+        var cancelBtn = new Button
+        {
+            Content = lm["CloseButton"],
+            Width = 90,
+            Padding = new Thickness(6, 3, 6, 3),
+            IsCancel = true
+        };
+
+        string? entered = null;
+        okBtn.Click += (_, _) =>
+        {
+            entered = pwdBox.Password;
+            win.DialogResult = true;
+            win.Close();
+        };
+        cancelBtn.Click += (_, _) =>
+        {
+            win.DialogResult = false;
+            win.Close();
+        };
+
+        btnRow.Children.Add(okBtn);
+        btnRow.Children.Add(cancelBtn);
+        panel.Children.Add(btnRow);
+        win.Content = panel;
+        win.Loaded += (_, _) => pwdBox.Focus();
+
+        return win.ShowDialog() == true ? entered : null;
+    }
+
     // --- Toolbar & Action Handlers ---
     private async void OnOpenFileClicked(object sender, RoutedEventArgs e)
     {
@@ -1073,6 +1219,31 @@ public partial class MainWindow : Window
                         var doc = _engine.OpenDocument(file);
                         string name = System.IO.Path.GetFileName(file);
                         OpenNewDocumentTab(doc, name);
+                    }
+                }
+                catch (RbdNativeException ex) when (ex.StatusCode == RbdStatusCode.ErrorPasswordRequired)
+                {
+                    string name = System.IO.Path.GetFileName(file);
+                    string? pwd = PromptForPdfPassword(name);
+                    if (!string.IsNullOrEmpty(pwd))
+                    {
+                        string tempDecrypted = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rbd_dec_{Guid.NewGuid():N}.pdf");
+                        try
+                        {
+                            _pageOpService.Decrypt(file, tempDecrypted, pwd);
+                            var doc = _engine.OpenDocument(tempDecrypted);
+                            doc.FilePath = tempDecrypted;
+                            OpenNewDocumentTab(doc, name);
+                            _activeTab?.OwnedTempFiles.Add(tempDecrypted);
+                        }
+                        catch (Exception decEx)
+                        {
+                            if (File.Exists(tempDecrypted)) { try { File.Delete(tempDecrypted); } catch { } }
+                            string msg = decEx is RbdNativeException nEx
+                                ? LocalizationManager.Instance.GetFriendlyErrorMessage(nEx)
+                                : decEx.Message;
+                            MessageBox.Show(msg, LocalizationManager.Instance["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
                     }
                 }
                 catch (RbdNativeException ex)
@@ -1253,6 +1424,264 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnAiToolsClicked(object sender, RoutedEventArgs e)
+    {
+        if (_activeTab == null || _activeTab.Document.IsDisposed) return;
+
+        var lm = LocalizationManager.Instance;
+        var activeTab = _activeTab;
+        var doc = activeTab.Document;
+
+        var win = new Window
+        {
+            Title = $"{lm["AiTitle"]} — {lm["AiBadgeOffline"]}",
+            Width = 680,
+            Height = 560,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+            Foreground = Brushes.White
+        };
+
+        var tabControl = new TabControl
+        {
+            Margin = new Thickness(12),
+            Background = new SolidColorBrush(Color.FromRgb(37, 37, 38)),
+            Foreground = Brushes.White
+        };
+
+        // 1. Tab: Document Summary
+        var summaryTab = new TabItem { Header = $"📊 {lm["AiSummaryTitle"]}" };
+        var summaryPanel = new StackPanel { Margin = new Thickness(14) };
+        var summaryMetricsText = new TextBlock
+        {
+            Text = lm["StatusLoading"],
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(100, 181, 246)),
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        var summaryBox = new TextBox
+        {
+            Height = 360,
+            IsReadOnly = true,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24)),
+            Foreground = Brushes.White,
+            Padding = new Thickness(10)
+        };
+        summaryPanel.Children.Add(summaryMetricsText);
+        summaryPanel.Children.Add(summaryBox);
+        summaryTab.Content = summaryPanel;
+
+        // 2. Tab: Ask Document
+        var askTab = new TabItem { Header = $"💬 {lm["AiAskTitle"]}" };
+        var askPanel = new StackPanel { Margin = new Thickness(14) };
+        var askInputRow = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+        var askBtn = new Button
+        {
+            Content = lm["AiAsk"],
+            Padding = new Thickness(12, 6, 12, 6),
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        DockPanel.SetDock(askBtn, Dock.Right);
+        var askQueryBox = new TextBox
+        {
+            Padding = new Thickness(8, 6, 8, 6),
+            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24)),
+            Foreground = Brushes.White
+        };
+        askInputRow.Children.Add(askBtn);
+        askInputRow.Children.Add(askQueryBox);
+
+        var askResultBox = new TextBox
+        {
+            Height = 290,
+            IsReadOnly = true,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24)),
+            Foreground = Brushes.White,
+            Padding = new Thickness(10),
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        var jumpPageBtn = new Button
+        {
+            Content = lm["Page"],
+            Padding = new Thickness(10, 5, 10, 5),
+            Visibility = Visibility.Collapsed,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        uint citedPage = 1;
+        jumpPageBtn.Click += (_, _) =>
+        {
+            ScrollToPage(Math.Max(0, (int)citedPage - 1));
+            RenderTiledViewport();
+        };
+
+        askBtn.Click += async (_, _) =>
+        {
+            string q = askQueryBox.Text.Trim();
+            if (string.IsNullOrEmpty(q))
+            {
+                MessageBox.Show(lm["AiAskQueryEmpty"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            try
+            {
+                var ans = await _aiService.AskDocumentAsync(doc.Handle, q);
+                if (ans.Found)
+                {
+                    citedPage = ans.PageNumber;
+                    string conf = string.Format(lm["AiConfidence"], ans.Confidence * 100.0f);
+                    askResultBox.Text = $"{ans.AnswerText}\n\n---\n{ans.ContextExcerpt}\n\n[{lm["Page"]} {ans.PageNumber} • {conf}]";
+                    jumpPageBtn.Content = $"➔ {lm["Page"]} {ans.PageNumber}";
+                    jumpPageBtn.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    askResultBox.Text = lm["AiNoAnswerFound"];
+                    jumpPageBtn.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                askResultBox.Text = ex.Message;
+            }
+        };
+        askPanel.Children.Add(new TextBlock { Text = lm["AiAskPrompt"], Margin = new Thickness(0, 0, 0, 6) });
+        askPanel.Children.Add(askInputRow);
+        askPanel.Children.Add(askResultBox);
+        askPanel.Children.Add(jumpPageBtn);
+        askTab.Content = askPanel;
+
+        // 3. Tab: Fluid Paragraph Reflow Editing
+        var reflowTab = new TabItem { Header = $"✏️ {lm["AiReflowTitle"]}" };
+        var reflowPanel = new StackPanel { Margin = new Thickness(14) };
+        var paraCombo = new ComboBox { Margin = new Thickness(0, 4, 0, 10), Padding = new Thickness(6, 4, 6, 4) };
+        var editParaBox = new TextBox
+        {
+            Height = 250,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24)),
+            Foreground = Brushes.White,
+            Padding = new Thickness(10),
+            Margin = new Thickness(0, 4, 0, 10)
+        };
+        var applyReflowBtn = new Button
+        {
+            Content = lm["AiReflowApply"],
+            Padding = new Thickness(12, 6, 12, 6),
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+
+        List<ReflowParagraphDto> currentParagraphs = new();
+        paraCombo.SelectionChanged += (_, _) =>
+        {
+            if (paraCombo.SelectedIndex >= 0 && paraCombo.SelectedIndex < currentParagraphs.Count)
+            {
+                editParaBox.Text = currentParagraphs[paraCombo.SelectedIndex].Text;
+            }
+        };
+
+        applyReflowBtn.Click += async (_, _) =>
+        {
+            if (paraCombo.SelectedIndex < 0 || paraCombo.SelectedIndex >= currentParagraphs.Count) return;
+            if (string.IsNullOrWhiteSpace(doc.FilePath) || !File.Exists(doc.FilePath)) return;
+
+            var p = currentParagraphs[paraCombo.SelectedIndex];
+            if (p.Bbox == null || p.Bbox.Length < 4) return;
+
+            string tempOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"rbd_reflow_{Guid.NewGuid():N}.pdf");
+            try
+            {
+                await _aiService.ReplaceParagraphTextAsync(
+                    doc.Handle,
+                    doc.FilePath,
+                    p.PageIndex,
+                    p.Bbox[0],
+                    p.Bbox[1],
+                    p.Bbox[2],
+                    p.Bbox[3],
+                    editParaBox.Text,
+                    p.FontSize > 0 ? p.FontSize : 11.0f,
+                    tempOut);
+
+                ReloadActiveTabDocument(tempOut);
+                activeTab.OwnedTempFiles.Add(tempOut);
+                MessageBox.Show(lm["AiReflowSuccess"], lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Information);
+                win.Close();
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(tempOut)) { try { File.Delete(tempOut); } catch { } }
+                MessageBox.Show(string.Format(lm["AiReflowFailed"], ex.Message), lm["AppTitle"], MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        };
+
+        reflowPanel.Children.Add(new TextBlock { Text = lm["AiReflowParagraphSelect"] });
+        reflowPanel.Children.Add(paraCombo);
+        reflowPanel.Children.Add(new TextBlock { Text = lm["AiReflowNewText"] });
+        reflowPanel.Children.Add(editParaBox);
+        reflowPanel.Children.Add(applyReflowBtn);
+        reflowTab.Content = reflowPanel;
+
+        tabControl.Items.Add(summaryTab);
+        tabControl.Items.Add(askTab);
+        tabControl.Items.Add(reflowTab);
+        win.Content = tabControl;
+
+        win.Loaded += async (_, _) =>
+        {
+            try
+            {
+                var summary = await _aiService.SummarizeDocumentAsync(doc.Handle, 5);
+                string wc = string.Format(lm["AiWordCount"], summary.WordCount);
+                string rt = string.Format(lm["AiReadingTime"], summary.ReadingTimeMinutes);
+                summaryMetricsText.Text = $"🔒 {lm["AiBadgeOffline"]}  •  {wc}  •  {rt}";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(summary.SummaryText);
+                if (summary.KeySentences.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"--- {lm["AiKeySentences"]} ---");
+                    foreach (var s in summary.KeySentences)
+                    {
+                        sb.AppendLine($"• {s}");
+                    }
+                }
+                summaryBox.Text = sb.ToString();
+
+                int currentPageIdx = 0;
+                if (int.TryParse(PageJumpTextBox.Text.Trim(), out int parsedPage) && parsedPage >= 1)
+                {
+                    currentPageIdx = Math.Clamp(parsedPage - 1, 0, Math.Max(0, doc.PageCount - 1));
+                }
+                currentParagraphs = await _aiService.GetReflowParagraphsAsync(doc.Handle, (uint)currentPageIdx);
+                paraCombo.Items.Clear();
+                for (int i = 0; i < currentParagraphs.Count; i++)
+                {
+                    string preview = currentParagraphs[i].Text.Replace('\r', ' ').Replace('\n', ' ');
+                    if (preview.Length > 65) preview = preview.Substring(0, 65) + "...";
+                    paraCombo.Items.Add($"#{i + 1}: {preview}");
+                }
+                if (paraCombo.Items.Count > 0)
+                {
+                    paraCombo.SelectedIndex = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                summaryMetricsText.Text = ex.Message;
+            }
+        };
+
+        win.ShowDialog();
+    }
+
     private void OnApplyRedactionClicked(object sender, RoutedEventArgs e)
     {
         var lm = LocalizationManager.Instance;
@@ -1390,23 +1819,30 @@ public partial class MainWindow : Window
 
     private void OnNewTabClicked(object sender, RoutedEventArgs e)
     {
-        var doc = _engine.OpenDocument(new byte[] { 0x25, 0x50, 0x44, 0x46 });
         int num = _tabs.Count + 1;
         var lm = LocalizationManager.Instance;
-        OpenNewDocumentTab(doc, $"{lm["DocumentPrefix"]}_{num}.pdf");
+        string title = $"{lm["DocumentPrefix"]}_{num}.pdf";
+        var doc = OpenValidBlankDocument(title, out string? tempPath);
+        OpenNewDocumentTab(doc, title);
+        if (tempPath != null && _activeTab != null)
+        {
+            _activeTab.OwnedTempFiles.Add(tempPath);
+        }
     }
 
     private void OnPrevPageClicked(object sender, RoutedEventArgs e)
     {
         if (_activeTab == null || PdfScrollViewer == null) return;
-        double pageStride = (PageHeightPt + PageGapPt) * _activeTab.Zoom;
+        var (_, pageH) = GetActivePageDimensions(0);
+        double pageStride = (pageH + PageGapPt) * _activeTab.Zoom;
         PdfScrollViewer.ScrollToVerticalOffset(Math.Max(0, PdfScrollViewer.VerticalOffset - pageStride));
     }
 
     private void OnNextPageClicked(object sender, RoutedEventArgs e)
     {
         if (_activeTab == null || PdfScrollViewer == null) return;
-        double pageStride = (PageHeightPt + PageGapPt) * _activeTab.Zoom;
+        var (_, pageH) = GetActivePageDimensions(0);
+        double pageStride = (pageH + PageGapPt) * _activeTab.Zoom;
         PdfScrollViewer.ScrollToVerticalOffset(PdfScrollViewer.VerticalOffset + pageStride);
     }
 
@@ -1455,7 +1891,8 @@ public partial class MainWindow : Window
     {
         if (_activeTab != null && PdfScrollViewer != null && PdfScrollViewer.ViewportWidth > 0)
         {
-            _activeTab.Zoom = Math.Clamp(PdfScrollViewer.ViewportWidth / (PageWidthPt + PageGapPt * 2), 0.25, 5.0);
+            var (pageW, _) = GetActivePageDimensions(0);
+            _activeTab.Zoom = Math.Clamp(PdfScrollViewer.ViewportWidth / (pageW + PageGapPt * 2), 0.25, 5.0);
             ZoomSlider.Value = _activeTab.Zoom * 100.0;
             RenderTiledViewport();
         }
@@ -1465,7 +1902,8 @@ public partial class MainWindow : Window
     {
         if (_activeTab != null && PdfScrollViewer != null && PdfScrollViewer.ViewportHeight > 0)
         {
-            _activeTab.Zoom = Math.Clamp(PdfScrollViewer.ViewportHeight / (PageHeightPt + PageGapPt * 2), 0.25, 5.0);
+            var (_, pageH) = GetActivePageDimensions(0);
+            _activeTab.Zoom = Math.Clamp(PdfScrollViewer.ViewportHeight / (pageH + PageGapPt * 2), 0.25, 5.0);
             ZoomSlider.Value = _activeTab.Zoom * 100.0;
             RenderTiledViewport();
         }
@@ -1594,7 +2032,8 @@ public partial class MainWindow : Window
                         if (action == "saveDocx")
                         {
                             string content = root.TryGetProperty("content", out var cProp) ? cProp.GetString() ?? "" : "";
-                            string outPath = _currentOfficeFilePath ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Belge.docx");
+                            string basePath = _currentOfficeFilePath ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Belge.docx");
+                            string outPath = System.IO.Path.ChangeExtension(basePath, ".docx");
                             _officeService.CreateDocx(content, outPath);
                             StatusMessageText.Text = LocalizationManager.Instance.GetString("OfficeSaveDocxSuccess", System.IO.Path.GetFileName(outPath));
                         }

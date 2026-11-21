@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -21,25 +30,34 @@ android {
         }
 
         ndk {
-            // Target modern 64-bit and 32-bit ARM/x86 architectures
-            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86"))
+            // Target modern 64-bit ARM and x86_64 architectures (16KB page aligned for Android 15)
+            abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
         }
     }
 
     signingConfigs {
         val debugSigning = getByName("debug")
         create("release") {
-            val keystorePath = System.getenv("RBD_KEYSTORE_FILE")
+            val keystorePath = (keystoreProps.getProperty("storeFile") ?: keystoreProps.getProperty("\uFEFFstoreFile"))?.trim()
+                ?: System.getenv("RBD_KEYSTORE_FILE")
                 ?: (project.findProperty("RBD_KEYSTORE_FILE") as? String)
-            val keystorePassword = System.getenv("RBD_KEYSTORE_PASSWORD")
+            val keystorePassword = keystoreProps.getProperty("storePassword")?.trim()
+                ?: System.getenv("RBD_KEYSTORE_PASSWORD")
                 ?: (project.findProperty("RBD_KEYSTORE_PASSWORD") as? String)
-            val rbdKeyAlias = System.getenv("RBD_KEY_ALIAS")
+            val rbdKeyAlias = keystoreProps.getProperty("keyAlias")?.trim()
+                ?: System.getenv("RBD_KEY_ALIAS")
                 ?: (project.findProperty("RBD_KEY_ALIAS") as? String)
-            val rbdKeyPassword = System.getenv("RBD_KEY_PASSWORD")
+            val rbdKeyPassword = keystoreProps.getProperty("keyPassword")?.trim()
+                ?: System.getenv("RBD_KEY_PASSWORD")
                 ?: (project.findProperty("RBD_KEY_PASSWORD") as? String)
 
-            if (keystorePath != null && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
+            val resolvedFile = keystorePath?.let { path ->
+                val f = File(path)
+                if (f.isAbsolute) f else rootProject.file(path)
+            }
+
+            if (resolvedFile != null && resolvedFile.exists()) {
+                storeFile = resolvedFile
                 storePassword = keystorePassword
                 keyAlias = rbdKeyAlias
                 keyPassword = rbdKeyPassword
@@ -145,7 +163,7 @@ dependencies {
 
 tasks.withType<Test> {
     val coreReleaseDir = rootProject.file("../../core/target/release")
-    val dllFile = File(coreReleaseDir, "rbd_ffi.dll")
+    val dllFile = File(coreReleaseDir, System.mapLibraryName("rbd_ffi"))
     val corpusDir = rootProject.file("../../corpus")
 
     systemProperty("java.library.path", coreReleaseDir.absolutePath)
@@ -174,7 +192,7 @@ tasks.register<JavaExec>("runUnitTests") {
     val appClassesDir = layout.buildDirectory.dir("tmp/kotlin-classes/debug")
 
     val coreReleaseDir = rootProject.file("../../core/target/release")
-    val dllFile = File(coreReleaseDir, "rbd_ffi.dll")
+    val dllFile = File(coreReleaseDir, System.mapLibraryName("rbd_ffi"))
     val corpusDir = rootProject.file("../../corpus")
 
     classpath = files(
