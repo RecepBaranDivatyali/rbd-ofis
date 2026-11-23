@@ -1,0 +1,81 @@
+name: Build and Deploy Apple (iOS / macOS) to App Store Connect
+
+on:
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: 'Marketing version (CFBundleShortVersionString)'
+        required: false
+        default: '1.0.0'
+
+jobs:
+  build-and-verify-apple:
+    name: Build Universal Rust Core & Apple Swift Package
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain (arm64 + x86_64 Apple targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin,aarch64-apple-ios
+
+      - name: Fetch PDFium native library for macOS
+        shell: bash
+        run: |
+          mkdir -p core/vendor/pdfium/bin core/vendor/pdfium/lib core/target/release
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            ASSET="pdfium-mac-arm64.tgz"
+          else
+            ASSET="pdfium-mac-x64.tgz"
+          fi
+          curl -sSL "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/${ASSET}" | tar -xz -C core/vendor/pdfium
+          cp -f core/vendor/pdfium/lib/libpdfium.dylib core/vendor/pdfium/bin/libpdfium.dylib
+          cp -f core/vendor/pdfium/lib/libpdfium.dylib core/target/release/libpdfium.dylib
+
+      - name: Build rbd-ffi native library (Release)
+        working-directory: core
+        run: |
+          cargo build --release -p rbd-ffi
+          cp -f vendor/pdfium/lib/libpdfium.dylib target/release/libpdfium.dylib
+
+      - name: Update Info.plist Version & Build Number
+        run: |
+          BUILD_NUM=${{ github.run_number }}
+          VERSION="${{ github.event.inputs.marketing_version || '1.0.0' }}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" apps/apple/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" apps/apple/Info.plist || true
+
+      - name: Build & Test Swift Package (Release)
+        working-directory: apps/apple
+        env:
+          DYLD_LIBRARY_PATH: ${{ github.workspace }}/core/target/release:${{ github.workspace }}/core/vendor/pdfium/lib
+        run: |
+          swift build -c release \
+            -Xlinker -L${{ github.workspace }}/core/target/release \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/target/release \
+            -Xlinker -L${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -lrbd_ffi
+          swift test \
+            -Xlinker -L${{ github.workspace }}/core/target/release \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/target/release \
+            -Xlinker -L${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -rpath -Xlinker ${{ github.workspace }}/core/vendor/pdfium/lib \
+            -Xlinker -lrbd_ffi
+
+      - name: Package Apple Release Bundle Artifact
+        run: |
+          mkdir -p build/RbdOfis-Apple/lib
+          cp -f core/target/release/librbd_ffi.dylib build/RbdOfis-Apple/lib/
+          cp -f core/target/release/libpdfium.dylib build/RbdOfis-Apple/lib/
+          cp -f apps/apple/Info.plist build/RbdOfis-Apple/
+          cp -f apps/apple/RbdOfis.entitlements build/RbdOfis-Apple/
+
+      - name: Upload Apple Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RbdOfis-Apple-Release
+          path: build/RbdOfis-Apple

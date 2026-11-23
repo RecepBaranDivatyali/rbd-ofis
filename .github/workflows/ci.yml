@@ -118,12 +118,15 @@ jobs:
           python corpus/fetch.py --category pdf-basic
       - name: Build rbd-ffi native DLL (Static CRT)
         working-directory: core
+        shell: pwsh
         env:
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
           cargo build --release -p rbd-ffi --target x86_64-pc-windows-msvc
-          cp -f target/x86_64-pc-windows-msvc/release/rbd_ffi.dll target/release/rbd_ffi.dll
-          cp -f target/x86_64-pc-windows-msvc/release/rbd_ffi.dll ../apps/windows/RbdOfis.Interop/runtimes/win-x64/native/rbd_ffi.dll
+          New-Item -ItemType Directory -Force -Path "target/release" | Out-Null
+          New-Item -ItemType Directory -Force -Path "../apps/windows/RbdOfis.Interop/runtimes/win-x64/native" | Out-Null
+          Copy-Item "target/x86_64-pc-windows-msvc/release/rbd_ffi.dll" -Destination "target/release/rbd_ffi.dll" -Force
+          Copy-Item "target/x86_64-pc-windows-msvc/release/rbd_ffi.dll" -Destination "../apps/windows/RbdOfis.Interop/runtimes/win-x64/native/rbd_ffi.dll" -Force
       - name: Build Windows Solution
         working-directory: apps/windows
         run: dotnet build RbdOfis.sln --configuration Release

@@ -102,10 +102,10 @@ private func callWithDynamicBuffer(
 
 /// Native engine wrapper.
 public final class RbdEngine {
-    private var handle: RbdEngineHandle = nil
+    private var handle: RbdEngineHandle? = nil
 
     public init() throws {
-        var h: RbdEngineHandle = nil
+        var h: RbdEngineHandle? = nil
         let status = rbd_engine_init(&h)
         guard status == RBD_OK, let validHandle = h else {
             throw RbdError.from(code: status)
@@ -121,7 +121,7 @@ public final class RbdEngine {
 
     public func openDocument(at path: String) throws -> RbdDocument {
         guard let h = handle else { throw RbdError.nullPointer }
-        var docHandle: RbdDocumentHandle = nil
+        var docHandle: RbdDocumentHandle? = nil
         let status = path.withCString { cPath in
             rbd_document_open_file(h, cPath, &docHandle)
         }
@@ -139,7 +139,7 @@ public final class RbdEngine {
 
 /// Open document wrapper providing page count, text extraction, search, annotations, and rendering.
 public final class RbdDocument {
-    private var handle: RbdDocumentHandle = nil
+    private var handle: RbdDocumentHandle? = nil
     public let filePath: String?
 
     init(handle: RbdDocumentHandle, filePath: String? = nil) {
