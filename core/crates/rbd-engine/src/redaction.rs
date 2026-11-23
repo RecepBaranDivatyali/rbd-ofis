@@ -447,17 +447,22 @@ fn redact_image_xobject(
         return Ok(());
     }
 
-    let width = stream
+    let w_i64 = stream
         .dict
         .get(b"Width")
         .and_then(|w| w.as_i64())
-        .unwrap_or(0) as u32;
-    let height = stream
+        .unwrap_or(0);
+    let h_i64 = stream
         .dict
         .get(b"Height")
         .and_then(|h| h.as_i64())
-        .unwrap_or(0) as u32;
-    if width == 0 || height == 0 {
+        .unwrap_or(0);
+    if w_i64 <= 0 || h_i64 <= 0 || w_i64 > 32768 || h_i64 > 32768 {
+        return Ok(());
+    }
+    let width = w_i64 as u32;
+    let height = h_i64 as u32;
+    if (width as u64).saturating_mul(height as u64) > crate::converter::MAX_PIXELS {
         return Ok(());
     }
 
@@ -487,65 +492,85 @@ fn redact_image_xobject(
         return Ok(());
     };
 
+    // Inspect dimensions before decoding to defend against embedded image bombs (CWE-400)
+    let within_image_bounds = image::ImageReader::new(std::io::Cursor::new(&stream.content))
+        .with_guessed_format()
+        .ok()
+        .and_then(|r| r.into_dimensions().ok())
+        .map(|(dw, dh)| {
+            dw > 0
+                && dh > 0
+                && dw <= 32768
+                && dh <= 32768
+                && (dw as u64).saturating_mul(dh as u64) <= crate::converter::MAX_PIXELS
+        })
+        .unwrap_or(false);
+
     // Try decoding with image crate first (supports JPEG / DCTDecode, PNG, etc.)
-    if let Ok(dyn_img) = image::load_from_memory(&stream.content) {
-        let mut rgb_img = dyn_img.to_rgb8();
-        let (img_w, img_h) = rgb_img.dimensions();
-        let mut modified = false;
+    if within_image_bounds {
+        if let Ok(dyn_img) = image::load_from_memory(&stream.content) {
+            let mut rgb_img = dyn_img.to_rgb8();
+            let (img_w, img_h) = rgb_img.dimensions();
+            let mut modified = false;
 
-        for r in &intersecting_rects {
-            let p0 = inv.transform_point(r.x0, r.y0);
-            let p1 = inv.transform_point(r.x1, r.y0);
-            let p2 = inv.transform_point(r.x0, r.y1);
-            let p3 = inv.transform_point(r.x1, r.y1);
+            for r in &intersecting_rects {
+                let p0 = inv.transform_point(r.x0, r.y0);
+                let p1 = inv.transform_point(r.x1, r.y0);
+                let p2 = inv.transform_point(r.x0, r.y1);
+                let p3 = inv.transform_point(r.x1, r.y1);
 
-            let min_u = p0.0.min(p1.0).min(p2.0).min(p3.0);
-            let max_u = p0.0.max(p1.0).max(p2.0).max(p3.0);
-            let min_v = p0.1.min(p1.1).min(p2.1).min(p3.1);
-            let max_v = p0.1.max(p1.1).max(p2.1).max(p3.1);
+                let min_u = p0.0.min(p1.0).min(p2.0).min(p3.0);
+                let max_u = p0.0.max(p1.0).max(p2.0).max(p3.0);
+                let min_v = p0.1.min(p1.1).min(p2.1).min(p3.1);
+                let max_v = p0.1.max(p1.1).max(p2.1).max(p3.1);
 
-            let px_start = ((min_u * img_w as f32).floor() as i64).clamp(0, img_w as i64) as u32;
-            let px_end = ((max_u * img_w as f32).ceil() as i64).clamp(0, img_w as i64) as u32;
-            let py_start =
-                (((1.0 - max_v) * img_h as f32).floor() as i64).clamp(0, img_h as i64) as u32;
-            let py_end =
-                (((1.0 - min_v) * img_h as f32).ceil() as i64).clamp(0, img_h as i64) as u32;
+                let px_start =
+                    ((min_u * img_w as f32).floor() as i64).clamp(0, img_w as i64) as u32;
+                let px_end = ((max_u * img_w as f32).ceil() as i64).clamp(0, img_w as i64) as u32;
+                let py_start =
+                    (((1.0 - max_v) * img_h as f32).floor() as i64).clamp(0, img_h as i64) as u32;
+                let py_end =
+                    (((1.0 - min_v) * img_h as f32).ceil() as i64).clamp(0, img_h as i64) as u32;
 
-            let rx_min = r.x0.min(r.x1);
-            let rx_max = r.x0.max(r.x1);
-            let ry_min = r.y0.min(r.y1);
-            let ry_max = r.y0.max(r.y1);
+                let rx_min = r.x0.min(r.x1);
+                let rx_max = r.x0.max(r.x1);
+                let ry_min = r.y0.min(r.y1);
+                let ry_max = r.y0.max(r.y1);
 
-            for py in py_start..py_end {
-                let v = 1.0 - (py as f32 + 0.5) / img_h as f32;
-                for px in px_start..px_end {
-                    let u = (px as f32 + 0.5) / img_w as f32;
-                    let (user_x, user_y) = ctm.transform_point(u, v);
-                    if user_x >= rx_min && user_x <= rx_max && user_y >= ry_min && user_y <= ry_max
-                    {
-                        rgb_img.put_pixel(
-                            px,
-                            py,
-                            image::Rgb([fill_color.0, fill_color.1, fill_color.2]),
-                        );
-                        modified = true;
+                for py in py_start..py_end {
+                    let v = 1.0 - (py as f32 + 0.5) / img_h as f32;
+                    for px in px_start..px_end {
+                        let u = (px as f32 + 0.5) / img_w as f32;
+                        let (user_x, user_y) = ctm.transform_point(u, v);
+                        if user_x >= rx_min
+                            && user_x <= rx_max
+                            && user_y >= ry_min
+                            && user_y <= ry_max
+                        {
+                            rgb_img.put_pixel(
+                                px,
+                                py,
+                                image::Rgb([fill_color.0, fill_color.1, fill_color.2]),
+                            );
+                            modified = true;
+                        }
                     }
                 }
             }
-        }
 
-        if modified {
-            stream.content = rgb_img.into_raw();
-            stream.dict.set("Width", Object::Integer(img_w as i64));
-            stream.dict.set("Height", Object::Integer(img_h as i64));
-            stream
-                .dict
-                .set("ColorSpace", Object::Name(b"DeviceRGB".to_vec()));
-            stream.dict.set("BitsPerComponent", Object::Integer(8));
-            let _ = stream.dict.remove(b"Filter");
-            let _ = stream.compress();
+            if modified {
+                stream.content = rgb_img.into_raw();
+                stream.dict.set("Width", Object::Integer(img_w as i64));
+                stream.dict.set("Height", Object::Integer(img_h as i64));
+                stream
+                    .dict
+                    .set("ColorSpace", Object::Name(b"DeviceRGB".to_vec()));
+                stream.dict.set("BitsPerComponent", Object::Integer(8));
+                let _ = stream.dict.remove(b"Filter");
+                let _ = stream.compress();
+            }
+            return Ok(());
         }
-        return Ok(());
     }
 
     // Fallback: raw / FlateDecode pixel buffer
@@ -567,6 +592,16 @@ fn redact_image_xobject(
         b"DeviceCMYK" => 4,
         _ => 3,
     };
+
+    let expected_bytes = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|px| px.checked_mul(bytes_per_pixel));
+    let Some(expected) = expected_bytes else {
+        return Ok(());
+    };
+    if stream.content.len() < expected {
+        return Ok(());
+    }
 
     let mut modified = false;
     let img_w = width;
@@ -1131,5 +1166,85 @@ mod tests {
             (255, 255, 255),
             "Non-intersecting image pixel must remain unchanged"
         );
+    }
+
+    #[test]
+    fn test_redaction_malicious_negative_or_huge_image_dimensions_safe() {
+        let mut doc = Document::with_version("1.5");
+        let pages_id = doc.new_object_id();
+
+        let mut img_dict = Dictionary::new();
+        img_dict.set("Type", Object::Name(b"XObject".to_vec()));
+        img_dict.set("Subtype", Object::Name(b"Image".to_vec()));
+        img_dict.set("Width", Object::Integer(-100));
+        img_dict.set("Height", Object::Integer(100_000));
+        img_dict.set("ColorSpace", Object::Name(b"DeviceRGB".to_vec()));
+        img_dict.set("BitsPerComponent", Object::Integer(8));
+        let img_id = doc.add_object(Object::Stream(Stream::new(img_dict, vec![1, 2, 3, 4])));
+
+        let mut xobjects = Dictionary::new();
+        xobjects.set("Im1", Object::Reference(img_id));
+        let mut resources = Dictionary::new();
+        resources.set("XObject", Object::Dictionary(xobjects));
+
+        let mut content = Content {
+            operations: Vec::new(),
+        };
+        content.operations.push(Operation::new("q", vec![]));
+        content.operations.push(Operation::new(
+            "cm",
+            vec![
+                Object::Real(100.0),
+                Object::Real(0.0),
+                Object::Real(0.0),
+                Object::Real(100.0),
+                Object::Real(50.0),
+                Object::Real(50.0),
+            ],
+        ));
+        content
+            .operations
+            .push(Operation::new("Do", vec![Object::Name(b"Im1".to_vec())]));
+        content.operations.push(Operation::new("Q", vec![]));
+        let content_id = doc.add_object(Object::Stream(Stream::new(
+            Dictionary::new(),
+            content.encode().unwrap(),
+        )));
+
+        let mut page_dict = Dictionary::new();
+        page_dict.set("Type", Object::Name(b"Page".to_vec()));
+        page_dict.set("Parent", Object::Reference(pages_id));
+        page_dict.set(
+            "MediaBox",
+            Object::Array(vec![
+                Object::Real(0.0),
+                Object::Real(0.0),
+                Object::Real(600.0),
+                Object::Real(800.0),
+            ]),
+        );
+        page_dict.set("Contents", Object::Reference(content_id));
+        page_dict.set("Resources", Object::Dictionary(resources));
+        let page_id = doc.add_object(Object::Dictionary(page_dict));
+
+        let mut pages_dict = Dictionary::new();
+        pages_dict.set("Type", Object::Name(b"Pages".to_vec()));
+        pages_dict.set("Kids", Object::Array(vec![Object::Reference(page_id)]));
+        pages_dict.set("Count", Object::Integer(1));
+        doc.objects.insert(pages_id, Object::Dictionary(pages_dict));
+
+        let mut catalog = Dictionary::new();
+        catalog.set("Type", Object::Name(b"Catalog".to_vec()));
+        catalog.set("Pages", Object::Reference(pages_id));
+        let cat_id = doc.add_object(Object::Dictionary(catalog));
+        doc.trailer.set("Root", Object::Reference(cat_id));
+
+        let mut pdf_data = Vec::new();
+        doc.save_to(&mut pdf_data).unwrap();
+
+        let redaction = PageRedaction::new(0, vec![PdfRect::new(0.0, 0.0, 200.0, 200.0)]);
+        let redacted = redact_document_bytes(&pdf_data, &[redaction])
+            .expect("Malicious image dimensions must not panic or hang");
+        assert!(!redacted.is_empty());
     }
 }

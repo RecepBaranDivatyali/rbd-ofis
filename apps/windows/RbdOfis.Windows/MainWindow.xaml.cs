@@ -1981,6 +1981,10 @@ public partial class MainWindow : Window
             OfficeWebView.CoreWebView2.Settings.IsGeneralAutofillEnabled = false;
             OfficeWebView.CoreWebView2.Settings.IsPasswordAutosaveEnabled = false;
             OfficeWebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
+            OfficeWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            OfficeWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            OfficeWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            OfficeWebView.CoreWebView2.Settings.IsBuiltInErrorPageEnabled = false;
 
             string assetsFolder = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "OfficeHost");
             if (!Directory.Exists(assetsFolder))
@@ -2021,6 +2025,10 @@ public partial class MainWindow : Window
 
             OfficeWebView.CoreWebView2.WebMessageReceived += (_, args) =>
             {
+                if (!OfflineSecurityPolicy.IsRequestAllowed(args.Source, out string _))
+                {
+                    return;
+                }
                 try
                 {
                     string json = args.WebMessageAsJson;

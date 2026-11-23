@@ -38,12 +38,14 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
         search_dirs.push(m.join("../../vendor/pdfium/lib"));
         search_dirs.push(m.join("vendor/pdfium/bin"));
         search_dirs.push(m.join("vendor/pdfium/lib"));
+        search_dirs.push(m.join("../../../vendor/pdfium/bin"));
     }
 
     if let Ok(exe_path) = std::env::current_exe()
         && let Some(parent) = exe_path.parent()
     {
         search_dirs.push(parent.to_path_buf());
+        search_dirs.push(parent.join("runtimes/win-x64/native"));
         search_dirs.push(parent.join("vendor/pdfium/bin"));
         search_dirs.push(parent.join("../Frameworks"));
         search_dirs.push(parent.join("../lib"));
@@ -52,25 +54,6 @@ pub fn get_or_init_pdfium() -> Result<&'static Pdfium, EngineError> {
         search_dirs.push(parent.join("../../../../vendor/pdfium/bin"));
         search_dirs.push(parent.join("../../../../../core/vendor/pdfium/bin"));
         search_dirs.push(parent.join("../../../../../../core/vendor/pdfium/bin"));
-    }
-
-    for rel in [
-        "core/vendor/pdfium/bin",
-        "core/vendor/pdfium/lib",
-        "../core/vendor/pdfium/bin",
-        "../../core/vendor/pdfium/bin",
-        "../../../core/vendor/pdfium/bin",
-        "../../../../core/vendor/pdfium/bin",
-        "../../../../../core/vendor/pdfium/bin",
-        "../vendor/pdfium/bin",
-        "../../vendor/pdfium/bin",
-        "vendor/pdfium/bin",
-        "../Frameworks",
-        "../lib",
-        ".",
-        "runtimes/win-x64/native",
-    ] {
-        search_dirs.push(PathBuf::from(rel));
     }
 
     for dir in search_dirs {
@@ -271,7 +254,17 @@ impl PdfPage for PdfiumPageWrapper {
         out_buf: &mut [u8],
     ) -> Result<(), EngineError> {
         let _guard = self.render_lock.lock();
-        let required_len = (width_px as usize) * (height_px as usize) * 4;
+        let total_pixels = (width_px as u64)
+            .checked_mul(height_px as u64)
+            .ok_or_else(|| EngineError::InvalidParameter("Pixel dimensions overflow".into()))?;
+        if total_pixels == 0 || total_pixels > crate::converter::MAX_PIXELS {
+            return Err(EngineError::InvalidParameter(format!(
+                "Pixel dimensions {width_px}x{height_px} out of allowed bounds"
+            )));
+        }
+        let required_len = (total_pixels as usize)
+            .checked_mul(4)
+            .ok_or_else(|| EngineError::InvalidParameter("RGBA buffer size overflow".into()))?;
         if out_buf.len() < required_len {
             return Err(EngineError::RenderError(format!(
                 "Buffer too small: provided {} bytes, required {} bytes",
@@ -311,13 +304,25 @@ impl PdfPage for PdfiumPageWrapper {
         out_buf: &mut [u8],
     ) -> Result<(), EngineError> {
         let _guard = self.render_lock.lock();
-        let row_bytes = (tile_width as usize) * 4;
+        let total_pixels = (tile_width as u64)
+            .checked_mul(tile_height as u64)
+            .ok_or_else(|| EngineError::InvalidParameter("Tile dimensions overflow".into()))?;
+        if total_pixels == 0 || total_pixels > crate::converter::MAX_PIXELS {
+            return Err(EngineError::InvalidParameter(format!(
+                "Tile dimensions {tile_width}x{tile_height} out of allowed bounds"
+            )));
+        }
+        let row_bytes = (tile_width as usize)
+            .checked_mul(4)
+            .ok_or_else(|| EngineError::InvalidParameter("Row byte size overflow".into()))?;
         if stride < row_bytes {
             return Err(EngineError::InvalidParameter(format!(
                 "Stride {stride} is smaller than row bytes {row_bytes}"
             )));
         }
-        let total_required = stride * (tile_height as usize);
+        let total_required = stride
+            .checked_mul(tile_height as usize)
+            .ok_or_else(|| EngineError::InvalidParameter("Tile buffer size overflow".into()))?;
         if out_buf.len() < total_required {
             return Err(EngineError::BufferTooSmall {
                 provided: out_buf.len(),

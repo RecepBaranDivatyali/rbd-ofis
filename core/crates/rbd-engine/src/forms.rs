@@ -4,8 +4,11 @@ use crate::error::EngineError;
 use lopdf::content::{Content, Operation};
 use lopdf::{Dictionary, Document, Object, ObjectId, Stream};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
+
+/// Maximum AcroForm /Kids and indirect reference recursion depth to defend against cyclic PDF graphs (CWE-674).
+const MAX_FORM_RECURSION_DEPTH: usize = 64;
 
 /// High-level type of an interactive AcroForm field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,8 +80,9 @@ fn read_form_fields_doc(doc: &Document) -> Result<Vec<FormFieldInfo>, EngineErro
         _ => Vec::new(),
     };
 
+    let mut visited = HashSet::new();
     for id in field_refs {
-        collect_fields_recursive(doc, id, None, &mut results);
+        collect_fields_recursive(doc, id, None, &mut visited, 0, &mut results);
     }
 
     Ok(results)
@@ -88,8 +92,14 @@ fn collect_fields_recursive(
     doc: &Document,
     obj_id: ObjectId,
     parent_type: Option<FormFieldType>,
+    visited: &mut HashSet<ObjectId>,
+    depth: usize,
     out: &mut Vec<FormFieldInfo>,
 ) {
+    if depth > MAX_FORM_RECURSION_DEPTH || !visited.insert(obj_id) {
+        return;
+    }
+
     let Ok(dict) = doc.get_dictionary(obj_id) else {
         return;
     };
@@ -130,7 +140,7 @@ fn collect_fields_recursive(
         if let Ok(Object::Array(kids)) = dict.get(b"Kids") {
             for kid in kids {
                 if let Ok(kid_id) = kid.as_reference() {
-                    collect_fields_recursive(doc, kid_id, current_type, out);
+                    collect_fields_recursive(doc, kid_id, current_type, visited, depth + 1, out);
                 }
             }
         }
@@ -157,6 +167,17 @@ fn resolve_field_type(ft_name: &[u8], flags: i64) -> FormFieldType {
 }
 
 fn extract_string_from_obj(obj: &Object, doc: &Document) -> Option<String> {
+    extract_string_from_obj_with_depth(obj, doc, 0)
+}
+
+fn extract_string_from_obj_with_depth(
+    obj: &Object,
+    doc: &Document,
+    depth: usize,
+) -> Option<String> {
+    if depth > 16 {
+        return None;
+    }
     match obj {
         Object::String(bytes, _) => Some(decode_pdf_string(bytes)),
         Object::Name(bytes) => Some(String::from_utf8_lossy(bytes).to_string()),
@@ -165,7 +186,7 @@ fn extract_string_from_obj(obj: &Object, doc: &Document) -> Option<String> {
         Object::Real(r) => Some(r.to_string()),
         Object::Reference(id) => {
             if let Ok(derefed) = doc.get_object(*id) {
-                extract_string_from_obj(derefed, doc)
+                extract_string_from_obj_with_depth(derefed, doc, depth + 1)
             } else {
                 None
             }
@@ -323,8 +344,9 @@ fn find_fields_to_update(
         _ => Vec::new(),
     };
 
+    let mut visited = HashSet::new();
     for id in field_refs {
-        find_fields_recursive(doc, id, field_values, &mut matches);
+        find_fields_recursive(doc, id, field_values, &mut visited, 0, &mut matches);
     }
 
     matches
@@ -334,8 +356,14 @@ fn find_fields_recursive(
     doc: &Document,
     obj_id: ObjectId,
     field_values: &HashMap<String, String>,
+    visited: &mut HashSet<ObjectId>,
+    depth: usize,
     out: &mut Vec<(ObjectId, String)>,
 ) {
+    if depth > MAX_FORM_RECURSION_DEPTH || !visited.insert(obj_id) {
+        return;
+    }
+
     let Ok(dict) = doc.get_dictionary(obj_id) else {
         return;
     };
@@ -351,7 +379,7 @@ fn find_fields_recursive(
     if let Ok(Object::Array(kids)) = dict.get(b"Kids") {
         for kid in kids {
             if let Ok(kid_id) = kid.as_reference() {
-                find_fields_recursive(doc, kid_id, field_values, out);
+                find_fields_recursive(doc, kid_id, field_values, visited, depth + 1, out);
             }
         }
     }
@@ -609,5 +637,51 @@ mod tests {
             s.contains("Flattened Text Value"),
             "Filled text must be permanently baked into page content stream"
         );
+    }
+
+    #[test]
+    fn test_cyclic_acroform_kids_does_not_stack_overflow() {
+        let mut doc = Document::with_version("1.5");
+        let id_a = doc.new_object_id();
+        let id_b = doc.new_object_id();
+        let self_ref_t = doc.new_object_id();
+
+        doc.objects
+            .insert(self_ref_t, Object::Reference(self_ref_t));
+
+        let mut field_a = Dictionary::new();
+        field_a.set("FT", Object::Name(b"Tx".to_vec()));
+        field_a.set("T", Object::Reference(self_ref_t));
+        field_a.set("Kids", Object::Array(vec![Object::Reference(id_b)]));
+        doc.objects.insert(id_a, Object::Dictionary(field_a));
+
+        let mut field_b = Dictionary::new();
+        field_b.set("FT", Object::Name(b"Tx".to_vec()));
+        field_b.set("T", Object::string_literal("FieldB"));
+        field_b.set("Kids", Object::Array(vec![Object::Reference(id_a)]));
+        doc.objects.insert(id_b, Object::Dictionary(field_b));
+
+        let mut acroform = Dictionary::new();
+        acroform.set("Fields", Object::Array(vec![Object::Reference(id_a)]));
+
+        let mut catalog = Dictionary::new();
+        catalog.set("Type", Object::Name(b"Catalog".to_vec()));
+        catalog.set("AcroForm", Object::Dictionary(acroform));
+        let cat_id = doc.add_object(Object::Dictionary(catalog));
+        doc.trailer.set("Root", Object::Reference(cat_id));
+
+        let mut pdf_bytes = Vec::new();
+        doc.save_to(&mut pdf_bytes).unwrap();
+
+        let fields = read_form_fields_bytes(&pdf_bytes).expect("Must not stack overflow on cycles");
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].name, "FieldB");
+
+        let mut values = HashMap::new();
+        values.insert("FieldB".to_string(), "Safe".to_string());
+        let filled =
+            fill_form_fields_bytes(&pdf_bytes, &values, false).expect("Must not overflow on fill");
+        let fields_after = read_form_fields_bytes(&filled).unwrap();
+        assert_eq!(fields_after[0].value, "Safe");
     }
 }

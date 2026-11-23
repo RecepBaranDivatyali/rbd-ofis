@@ -288,6 +288,9 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeRenderT
         if doc_handle == 0 || direct_byte_buffer.is_null() {
             return RBD_ERR_NULL_PTR;
         }
+        if page_index < 0 || tile_x < 0 || tile_y < 0 || tile_w <= 0 || tile_h <= 0 || stride <= 0 {
+            return RBD_ERR_INVALID_PARAM;
+        }
 
         let jbuf = unsafe { JByteBuffer::from_raw(direct_byte_buffer) };
         let buf_ptr = match env.get_direct_buffer_address(&jbuf) {
@@ -300,7 +303,10 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeRenderT
             Err(_) => return RBD_ERR_INVALID_PARAM,
         };
 
-        let required = (stride as usize) * (tile_h as usize);
+        let required = match (stride as usize).checked_mul(tile_h as usize) {
+            Some(r) => r,
+            None => return RBD_ERR_INVALID_PARAM,
+        };
         if capacity < required {
             return RBD_ERR_BUFFER_TOO_SMALL;
         }
@@ -777,7 +783,7 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativePageOpI
             return RBD_ERR_NULL_PTR;
         }
 
-        if width_pt <= 0.0 || height_pt <= 0.0 {
+        if after_page < 0 || width_pt <= 0.0 || height_pt <= 0.0 {
             return RBD_ERR_INVALID_PARAM;
         }
 
@@ -1151,7 +1157,7 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativePdfToIm
     page_range_json: jstring,
 ) -> jstring {
     jni_boundary(ptr::null_mut(), || {
-        if in_path.is_null() || out_dir.is_null() {
+        if in_path.is_null() || out_dir.is_null() || dpi <= 0 {
             return ptr::null_mut();
         }
 
@@ -1523,7 +1529,7 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeSummari
     max_sentences: jint,
 ) -> jstring {
     jni_boundary(ptr::null_mut(), || {
-        if doc_handle == 0 {
+        if doc_handle == 0 || max_sentences <= 0 {
             return ptr::null_mut();
         }
 
@@ -1598,7 +1604,7 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReflowP
     page_index: jint,
 ) -> jstring {
     jni_boundary(ptr::null_mut(), || {
-        if doc_handle == 0 {
+        if doc_handle == 0 || page_index < 0 {
             return ptr::null_mut();
         }
 
@@ -1640,7 +1646,12 @@ pub unsafe extern "C" fn Java_com_rbdofis_app_core_RbdNativeBridge_nativeReplace
     output_path: jstring,
 ) -> jint {
     jni_boundary(RBD_ERR_PANIC, || {
-        if doc_handle == 0 || input_path.is_null() || new_text.is_null() || output_path.is_null() {
+        if doc_handle == 0
+            || page_index < 0
+            || input_path.is_null()
+            || new_text.is_null()
+            || output_path.is_null()
+        {
             return RBD_ERR_NULL_PTR;
         }
 

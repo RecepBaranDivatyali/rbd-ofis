@@ -6,6 +6,28 @@ use std::path::Path;
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
 
+/// Maximum decompressed size allowed for a single OOXML XML entry (16 MB) to defend against ZIP bombs (CWE-409).
+pub const MAX_OOXML_ENTRY_BYTES: u64 = 16 * 1024 * 1024;
+/// Maximum cumulative decompressed size allowed across all XML parts in an OOXML archive (32 MB).
+pub const MAX_OOXML_TOTAL_BYTES: usize = 32 * 1024 * 1024;
+/// Maximum number of worksheets or slides processed per OOXML archive.
+pub const MAX_OOXML_PARTS: usize = 256;
+
+fn read_zip_entry_capped<R: Read>(entry: R, max_bytes: u64) -> Result<String, EngineError> {
+    let mut buf = Vec::new();
+    let mut limited = entry.take(max_bytes + 1);
+    limited
+        .read_to_end(&mut buf)
+        .map_err(|e| EngineError::Corrupt(format!("Failed to read ZIP entry: {e}")))?;
+    if (buf.len() as u64) > max_bytes {
+        return Err(EngineError::InvalidParameter(format!(
+            "OOXML entry exceeds maximum allowed decompressed size of {max_bytes} bytes (potential ZIP bomb)"
+        )));
+    }
+    String::from_utf8(buf)
+        .map_err(|e| EngineError::Corrupt(format!("Invalid UTF-8 in OOXML entry: {e}")))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OfficeDocType {
     Docx,
@@ -108,12 +130,10 @@ fn decode_xml_entities(text: &str) -> String {
 fn extract_docx_text(
     archive: &mut ZipArchive<Cursor<&[u8]>>,
 ) -> Result<(String, usize, usize), EngineError> {
-    let mut file = archive
+    let file = archive
         .by_name("word/document.xml")
         .map_err(|e| EngineError::Corrupt(format!("Missing word/document.xml in DOCX: {}", e)))?;
-    let mut xml = String::new();
-    file.read_to_string(&mut xml)
-        .map_err(|e| EngineError::Corrupt(format!("Failed to read word/document.xml: {}", e)))?;
+    let xml = read_zip_entry_capped(file, MAX_OOXML_ENTRY_BYTES)?;
 
     let mut paragraphs = Vec::new();
     let mut current_p = String::new();
@@ -178,13 +198,19 @@ fn extract_docx_text(
 fn extract_xlsx_text(
     archive: &mut ZipArchive<Cursor<&[u8]>>,
 ) -> Result<(String, usize, usize), EngineError> {
+    let mut total_bytes: usize = 0;
+
     // 1. Shared strings
     let mut shared_strings = Vec::new();
-    if let Ok(mut ss_file) = archive.by_name("xl/sharedStrings.xml") {
-        let mut ss_xml = String::new();
-        if ss_file.read_to_string(&mut ss_xml).is_ok() {
-            shared_strings = extract_xml_text(&ss_xml, &["t", "w:t"]);
+    if let Ok(ss_file) = archive.by_name("xl/sharedStrings.xml") {
+        let ss_xml = read_zip_entry_capped(ss_file, MAX_OOXML_ENTRY_BYTES)?;
+        total_bytes = total_bytes.saturating_add(ss_xml.len());
+        if total_bytes > MAX_OOXML_TOTAL_BYTES {
+            return Err(EngineError::InvalidParameter(
+                "OOXML archive exceeds maximum total decompressed XML size limit".to_string(),
+            ));
         }
+        shared_strings = extract_xml_text(&ss_xml, &["t", "w:t"]);
     }
 
     // 2. Worksheets: scan all worksheets matching xl/worksheets/sheet*.xml in sequential natural order
@@ -211,13 +237,19 @@ fn extract_xlsx_text(
         }
     });
 
-    for sheet_name in sheet_names {
-        let mut sheet_file = match archive.by_name(&sheet_name) {
+    for sheet_name in sheet_names.into_iter().take(MAX_OOXML_PARTS) {
+        let sheet_file = match archive.by_name(&sheet_name) {
             Ok(f) => f,
             Err(_) => continue,
         };
-        let mut sheet_xml = String::new();
-        if sheet_file.read_to_string(&mut sheet_xml).is_ok() {
+        let sheet_xml = read_zip_entry_capped(sheet_file, MAX_OOXML_ENTRY_BYTES)?;
+        total_bytes = total_bytes.saturating_add(sheet_xml.len());
+        if total_bytes > MAX_OOXML_TOTAL_BYTES {
+            return Err(EngineError::InvalidParameter(
+                "OOXML archive exceeds maximum total decompressed XML size limit".to_string(),
+            ));
+        }
+        {
             // Parse rows <row ...> and cells <c ...>
             let mut pos = 0;
             while let Some(row_start) = sheet_xml[pos..].find("<row") {
@@ -293,21 +325,26 @@ fn extract_pptx_text(
 ) -> Result<(String, usize, usize), EngineError> {
     let mut slide_texts = Vec::new();
     let mut slide_idx: usize = 1;
+    let mut total_bytes: usize = 0;
 
-    loop {
+    while slide_idx <= MAX_OOXML_PARTS {
         let slide_name = format!("ppt/slides/slide{}.xml", slide_idx);
-        let mut slide_file = match archive.by_name(&slide_name) {
+        let slide_file = match archive.by_name(&slide_name) {
             Ok(f) => f,
             Err(_) => break,
         };
-        let mut slide_xml = String::new();
-        if slide_file.read_to_string(&mut slide_xml).is_ok() {
-            let texts = extract_xml_text(&slide_xml, &["a:t", "t"]);
-            if !texts.is_empty() {
-                let slide_header = format!("--- Slayt {} ---", slide_idx);
-                let slide_body = texts.join(" ");
-                slide_texts.push(format!("{}\n{}", slide_header, slide_body));
-            }
+        let slide_xml = read_zip_entry_capped(slide_file, MAX_OOXML_ENTRY_BYTES)?;
+        total_bytes = total_bytes.saturating_add(slide_xml.len());
+        if total_bytes > MAX_OOXML_TOTAL_BYTES {
+            return Err(EngineError::InvalidParameter(
+                "OOXML archive exceeds maximum total decompressed XML size limit".to_string(),
+            ));
+        }
+        let texts = extract_xml_text(&slide_xml, &["a:t", "t"]);
+        if !texts.is_empty() {
+            let slide_header = format!("--- Slayt {} ---", slide_idx);
+            let slide_body = texts.join(" ");
+            slide_texts.push(format!("{}\n{}", slide_header, slide_body));
         }
         slide_idx += 1;
     }
@@ -383,8 +420,9 @@ pub fn inspect_office_document(path: &Path) -> Result<OfficeDocumentInfo, Engine
         .unwrap_or("Untitled")
         .to_string();
 
-    let summary = if text.len() > 200 {
-        format!("{}...", &text[..200])
+    let summary = if text.chars().count() > 200 {
+        let prefix: String = text.chars().take(200).collect();
+        format!("{prefix}...")
     } else {
         text
     };
@@ -504,5 +542,36 @@ mod tests {
         "#;
         let texts = extract_xml_text(xml, &["t"]);
         assert_eq!(texts, vec!["Cell text", "Another text"]);
+    }
+
+    #[test]
+    fn test_inspect_office_document_turkish_multibyte_boundary_no_panic() {
+        // Construct >200 bytes of 2-byte Turkish characters so raw byte index 200 lands mid-char
+        let turkish_text = "Şğüöçıİ ".repeat(45);
+        assert!(turkish_text.len() > 200);
+        assert!(!turkish_text.is_char_boundary(200));
+
+        let temp_path =
+            std::env::temp_dir().join(format!("rbd_ooxml_tr_boundary_{}.docx", std::process::id()));
+        create_simple_docx(&turkish_text, &temp_path).expect("DOCX creation must succeed");
+
+        let info = inspect_office_document(&temp_path)
+            .expect("inspect_office_document must not panic on multibyte boundary");
+        let _ = std::fs::remove_file(&temp_path);
+
+        assert_eq!(info.doc_type, "DOCX");
+        assert!(info.summary.ends_with("..."));
+        assert_eq!(info.summary.chars().count(), 203);
+    }
+
+    #[test]
+    fn test_ooxml_zip_bomb_entry_rejected() {
+        let oversized = vec![b'A'; 1024];
+        let err = read_zip_entry_capped(Cursor::new(oversized), 512)
+            .expect_err("Oversized ZIP entry must be rejected");
+        assert!(
+            matches!(err, EngineError::InvalidParameter(ref msg) if msg.contains("ZIP bomb")),
+            "Expected InvalidParameter ZIP bomb error, got: {err:?}"
+        );
     }
 }

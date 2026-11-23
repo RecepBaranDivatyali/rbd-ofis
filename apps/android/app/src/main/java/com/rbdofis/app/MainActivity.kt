@@ -161,14 +161,45 @@ class MainActivity : ComponentActivity() {
                name.endsWith(".doc") || name.endsWith(".xls") || name.endsWith(".ppt")
     }
 
+    private fun sanitizeFileName(rawName: String?, fallback: String): String {
+        val base = rawName?.substringAfterLast('/')?.substringAfterLast('\\')?.trim() ?: ""
+        val cleaned = base.replace(Regex("[^a-zA-Z0-9._\\-ğüşöçıİĞÜŞÖÇ ]"), "_").trimStart('.')
+        return if (cleaned.isBlank()) fallback else cleaned
+    }
+
+    private fun isSafeFileUriPath(filePath: String): Boolean {
+        return try {
+            val canonicalTarget = File(filePath).canonicalFile
+            val dataDirCanonical = File(applicationInfo.dataDir).canonicalPath
+            val openedCacheCanonical = File(cacheDir, "opened_documents").canonicalPath
+            val scannedCacheCanonical = File(cacheDir, "scanned_documents").canonicalPath
+
+            val targetPath = canonicalTarget.path
+            val isInsideAppData = targetPath == dataDirCanonical || targetPath.startsWith(dataDirCanonical + File.separator)
+            if (!isInsideAppData) {
+                true
+            } else {
+                targetPath.startsWith(openedCacheCanonical + File.separator) ||
+                    targetPath.startsWith(scannedCacheCanonical + File.separator)
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun handleIncomingUri(uri: Uri, mimeType: String? = null) {
         val isOffice = isOfficeFile(uri, mimeType)
         lifecycleScope.launch {
             try {
                 val localPath = when (uri.scheme) {
-                    "file" -> uri.path
+                    "file" -> {
+                        val candidate = uri.path
+                        if (candidate != null && isSafeFileUriPath(candidate)) candidate else null
+                    }
                     "content" -> {
-                        val displayName = getFileNameFromUri(uri) ?: if (isOffice) "document.docx" else "document.pdf"
+                        val rawName = getFileNameFromUri(uri)
+                        val fallback = if (isOffice) "document.docx" else "document.pdf"
+                        val displayName = sanitizeFileName(rawName, fallback)
                         copyContentUriToCache(uri, displayName)?.absolutePath
                     }
                     else -> null
@@ -210,12 +241,17 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun copyContentUriToCache(uri: Uri, displayName: String): File? = withContext(Dispatchers.IO) {
         try {
+            val safeName = sanitizeFileName(displayName, "document.pdf")
             val rootCacheDir = File(cacheDir, "opened_documents")
             rootCacheDir.mkdirs()
             // Prevent files with the same name from overwriting each other by isolating each in a unique subfolder
             val uniqueSubdir = File(rootCacheDir, "${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}")
             uniqueSubdir.mkdirs()
-            val targetFile = File(uniqueSubdir, displayName)
+            val targetFile = File(uniqueSubdir, safeName)
+            val canonicalSubdir = uniqueSubdir.canonicalPath + File.separator
+            if (!targetFile.canonicalPath.startsWith(canonicalSubdir)) {
+                return@withContext null
+            }
 
             contentResolver.openInputStream(uri)?.use { inputStream ->
                 FileOutputStream(targetFile).use { outputStream ->
@@ -301,8 +337,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val shareDir = File(cacheDir, "shared_documents").apply { mkdirs() }
-                val safeName = doc.fileName.ifBlank { "document.pdf" }
+                val safeName = sanitizeFileName(doc.fileName, "document.pdf")
                 val targetShareFile = File(shareDir, if (safeName.endsWith(".pdf", true)) safeName else "$safeName.pdf")
+                if (!targetShareFile.canonicalPath.startsWith(shareDir.canonicalPath + File.separator)) return@launch
                 val savedOk = repository.saveDocument(targetShareFile.absolutePath)
                 val file = if (savedOk && targetShareFile.exists()) targetShareFile else File(doc.filePath)
                 if (!file.exists()) return@launch

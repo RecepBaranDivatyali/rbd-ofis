@@ -36,7 +36,12 @@ public final class OfficeNavigationDelegate: NSObject, WKNavigationDelegate {
             return true
         }
         if url.isFileURL {
-            return true
+            let standardized = url.standardizedFileURL
+            let path = standardized.path
+            if url.pathComponents.contains("..") || path.contains("..") {
+                return false
+            }
+            return standardized.pathExtension.lowercased() == "html"
         }
         if url.scheme?.lowercased() == "https" && url.host?.lowercased() == "rbd-office.local" {
             return true

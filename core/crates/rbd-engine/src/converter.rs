@@ -151,6 +151,11 @@ pub fn pdf_to_images(
     for p in pages_to_render {
         let page = doc.page(p - 1)?;
         let (dim_w, dim_h) = page.dimensions_points()?;
+        if !dim_w.is_finite() || !dim_h.is_finite() || dim_w <= 0.0 || dim_h <= 0.0 {
+            return Err(EngineError::Corrupt(format!(
+                "Page {p} has invalid or non-finite dimensions ({dim_w}x{dim_h})"
+            )));
+        }
 
         let width_px = ((dim_w * scale).round() as u32).max(1);
         let height_px = ((dim_h * scale).round() as u32).max(1);
@@ -343,6 +348,29 @@ pub fn images_to_pdf(
 fn create_image_stream(path: &Path) -> Result<(u32, u32, Stream), EngineError> {
     let raw_bytes = std::fs::read(path)?;
 
+    let (hdr_w, hdr_h) = image::ImageReader::new(std::io::Cursor::new(&raw_bytes))
+        .with_guessed_format()
+        .map_err(|e| {
+            EngineError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Failed to inspect image format {}: {e}", path.display()),
+            ))
+        })?
+        .into_dimensions()
+        .map_err(|e| {
+            EngineError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Failed to read image dimensions {}: {e}", path.display()),
+            ))
+        })?;
+
+    let total_pixels = (hdr_w as u64).saturating_mul(hdr_h as u64);
+    if hdr_w == 0 || hdr_h == 0 || total_pixels > MAX_PIXELS {
+        return Err(EngineError::InvalidParameter(format!(
+            "Image dimensions {hdr_w}x{hdr_h} ({total_pixels} pixels) exceed allowed bounds ({MAX_PIXELS})"
+        )));
+    }
+
     // Check if file is a JPEG (magic bytes: 0xFF, 0xD8, 0xFF)
     let is_jpeg =
         raw_bytes.len() > 3 && raw_bytes[0] == 0xFF && raw_bytes[1] == 0xD8 && raw_bytes[2] == 0xFF;
@@ -365,8 +393,8 @@ fn create_image_stream(path: &Path) -> Result<(u32, u32, Stream), EngineError> {
         }
     }
 
-    // Fallback or non-JPEG: decode using `image` and convert to RGB8
-    let dyn_img = image::open(path).map_err(|e| {
+    // Fallback or non-JPEG: decode validated bytes in memory and convert to RGB8
+    let dyn_img = image::load_from_memory(&raw_bytes).map_err(|e| {
         EngineError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!("Failed to decode image {}: {e}", path.display()),

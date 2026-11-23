@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="cached_documents" path="opened_documents/" />
+    <cache-path name="shared_documents" path="shared_documents/" />
+    <cache-path name="scanned_documents" path="scanned_documents/" />
     <files-path name="internal_documents" path="documents/" />
 </paths>
